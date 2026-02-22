@@ -1,0 +1,35 @@
+:root {
+  /* Paleta Oficial TecNM */
+  --tecnm-blue: #1B396A;
+  --tecnm-blue-dark: #132a50;
+  
+  /* Superficies y Fondos */
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  
+  /* Textos y Bordes */
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-light: #e2e8f0;
+}
+
+/* Reseteo Universal Arquitectónico */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Limpiar estilos por defecto de los botones en todos los navegadores */
+button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+}

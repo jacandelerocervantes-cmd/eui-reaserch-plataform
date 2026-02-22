@@ -1,0 +1,121 @@
+.sidebar {
+  width: 80px;
+  background: transparent;
+  position: fixed;
+  top: 80px;
+  left: 0;
+  height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  /* Permitir que los labels se salgan de la barra */
+  overflow: visible; 
+}
+
+.fixedTop {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding-bottom: 0.5rem;
+  z-index: 10;
+}
+
+/* EL TRUCO ESTÁ AQUÍ */
+.scrollContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible; /* Intentar mantener visible */
+  
+  /* Agregamos un padding a la derecha y un margin negativo igual */
+  /* Esto "mueve" el borde del recorte 200px a la derecha */
+  padding-right: 200px; 
+  margin-right: -200px;
+  
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  /* Ancho fijo para que los iconos no se muevan por el padding-right del padre */
+  width: 80px; 
+}
+
+.footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 1rem;
+  z-index: 10;
+}
+
+.separator {
+  width: 35px;
+  height: 2px;
+  background: rgba(27, 57, 106, 0.1);
+  margin: 0.8rem 0;
+  border-radius: 2px;
+}
+
+.itemWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #1B396A;
+  background: white;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 5;
+}
+
+.label {
+  position: absolute;
+  left: 65px; /* Aparece a la derecha del icono */
+  background: #1B396A;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+  /* Z-index altísimo para que pase por encima de todo el contenido de la web */
+  z-index: 9999; 
+}
+
+.itemWrapper:hover .label {
+  opacity: 1;
+  transform: translateX(10px);
+}
+
+.itemWrapper:hover .icon {
+  background: #1B396A;
+  color: #D4AF37;
+  transform: scale(1.1);
+}

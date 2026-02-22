@@ -1,0 +1,145 @@
+/* components/courses/CourseModal.module.css */
+.dialog {
+  margin: auto;
+  padding: 0;
+  border: 2px solid var(--border-light);
+  border-radius: 2.5rem;
+  background-color: var(--bg-surface);
+  width: 90vw;
+  max-width: 750px;
+  box-shadow: 0 25px 50px -12px rgba(27, 57, 106, 0.25);
+  overflow: hidden; /* Para que los bordes redondeados contengan todo */
+  transition: all 0.3s ease-in-out;
+}
+
+/* El fondo oscuro difuminado nativo */
+.dialog::backdrop {
+  background-color: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* Opcional: animación de entrada */
+.dialog[open] {
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* -- BLOQUE 1: CABECERA -- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2.5rem 3rem;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.iconTitle {
+  color: var(--tecnm-blue);
+}
+
+.closeButton {
+  padding: 1rem;
+  border-radius: 50%;
+  color: var(--text-muted);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover:not(:disabled) {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-color: #fecaca;
+}
+
+/* -- BLOQUE 2: CUERPO -- */
+.body {
+  padding: 3.5rem 3rem;
+  background-color: var(--bg-app);
+}
+
+.input {
+  width: 100%;
+  padding: 2rem;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  border: 2px solid #cbd5e1;
+  border-radius: 1.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.input:focus {
+  border-color: var(--tecnm-blue);
+  box-shadow: 0 0 0 4px rgba(27, 57, 106, 0.1);
+}
+
+/* -- BLOQUE 3: PIE / BOTÓN -- */
+.footer {
+  padding: 2.5rem 3rem;
+  background-color: #f1f5f9;
+  border-top: 1px solid var(--border-light);
+}
+
+.submitButton {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  font-size: 1.875rem;
+  font-weight: 900;
+  color: #ffffff;
+  background-color: var(--tecnm-blue);
+  border-radius: 1.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 15px -3px rgba(27, 57, 106, 0.3);
+}
+
+.submitButton:hover:not(:disabled) {
+  background-color: var(--tecnm-blue-dark);
+}
+
+.submitButton:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

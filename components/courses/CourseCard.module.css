@@ -1,0 +1,119 @@
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -8px rgba(27, 57, 106, 0.15);
+  border-color: #cbd5e1;
+}
+
+/* El toque TecNM en la parte superior */
+.accentLine {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #1B396A 0%, #D4AF37 100%);
+}
+
+.content {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1B396A;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2; /* <-- Esta es la línea que VS Code te está pidiendo */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.icon {
+  color: #94a3b8;
+}
+
+.footer {
+  padding: 1rem 1.5rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editBtn {
+  color: #64748b;
+}
+
+.editBtn:hover {
+  background-color: #e2e8f0;
+  color: #1B396A;
+}
+
+.deleteBtn {
+  color: #94a3b8;
+}
+
+.deleteBtn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+.enterBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: #1B396A;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background-color: transparent;
+}
+
+.enterBtn:hover {
+  background-color: #1B396A;
+  color: #ffffff;
+}

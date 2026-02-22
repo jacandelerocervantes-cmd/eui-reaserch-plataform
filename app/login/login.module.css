@@ -1,0 +1,112 @@
+/* app/login/login.module.css */
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  padding: 1rem;
+}
+
+.card {
+  background: var(--bg-surface);
+  width: 100%;
+  max-width: 420px;
+  padding: 3rem 2.5rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(27, 57, 106, 0.1), 0 8px 10px -6px rgba(27, 57, 106, 0.1);
+  border: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.logo {
+  height: 70px;
+  margin-bottom: 1.5rem;
+  object-fit: contain;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: var(--tecnm-blue);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--border-light);
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  color: var(--text-main);
+  transition: all 0.2s;
+  outline: none;
+  background-color: var(--bg-app);
+}
+
+.input:focus {
+  border-color: var(--tecnm-blue);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 4px rgba(27, 57, 106, 0.1);
+}
+
+.button {
+  background-color: var(--tecnm-blue);
+  color: white;
+  font-weight: 800;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 1.05rem;
+  transition: all 0.2s;
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--tecnm-blue-dark);
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.errorBox {
+  background-color: #fef2f2;
+  color: #ef4444;
+  padding: 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid #fecaca;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}

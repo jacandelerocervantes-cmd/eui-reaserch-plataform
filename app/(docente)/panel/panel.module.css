@@ -1,0 +1,94 @@
+/* app/(docente)/panel/panel.module.css */
+.pageContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-app);
+}
+
+.mainContent {
+  flex: 1;
+  width: 100%;
+  max-width: 1280px; /* Ancho máximo para monitores grandes */
+  margin: 0 auto;
+  padding: 3rem 5%;
+}
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+/* En pantallas más grandes, el título y el botón van en la misma línea */
+@media (min-width: 640px) {
+  .pageHeader {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pageTitle {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.pageSubtitle {
+  color: var(--text-muted);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+/* Botón de Crear Asignatura */
+.createButton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--tecnm-blue);
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(27, 57, 106, 0.2);
+}
+
+.createButton:hover {
+  background-color: var(--tecnm-blue-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(27, 57, 106, 0.3);
+}
+
+.createButton:active {
+  transform: translateY(0);
+}
+
+/* El poder del CSS Grid: Se adapta solo al espacio disponible */
+.cardsGrid {
+  display: grid;
+  /* Crea columnas de mínimo 320px, y si sobra espacio, las estira por igual */
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 5rem 2rem;
+  background-color: var(--bg-surface);
+  border: 2px dashed var(--border-light);
+  border-radius: 1.5rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 1.1rem;
+}

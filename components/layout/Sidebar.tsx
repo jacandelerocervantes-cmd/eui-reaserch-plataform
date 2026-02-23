@@ -1,105 +1,141 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
-  Settings, LogOut, ArrowLeft, LayoutDashboard,
-  Folder, Users, FileText, ClipboardList,
-  QrCode, UsersRound, Target, Home
+  Settings, LogOut, GraduationCap, Beaker, FlaskConical, 
+  Sparkles, LayoutGrid, Mail, Calendar, CheckSquare,
+  Briefcase, Library, FileSignature, Globe, Book, Microscope
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
+import { FloatingCopilot } from "@/components/ia/FloatingCopilot";
 
-interface MenuItem {
-  name: string;
-  icon: React.ReactNode;
-  path: string;
-}
-
-export default function Sidebar() {
+export default function MasterSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const pathParts = pathname.split('/').filter(Boolean);
-
-  const isRoot = pathname === "/panel";
-  const courseId = pathParts[2]; // panel/materias/[id]
-  const section = pathParts[3];  // panel/materias/[id]/evaluaciones
-
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const ICON_SIZE = 24;
 
-  const tools = {
-    home: { name: "Mis Materias", icon: <Home size={ICON_SIZE} />, path: "/panel" },
-    config: { name: "Configuración", icon: <Settings size={ICON_SIZE} />, path: "/panel/config" },
-    tablon: { name: "Tablón", icon: <LayoutDashboard size={ICON_SIZE} />, path: `/panel/materias/${courseId}` },
-    alumnos: { name: "Alumnos", icon: <Users size={ICON_SIZE} />, path: `/panel/materias/${courseId}/alumnos` },
-    calificaciones: { name: "Calificaciones", icon: <Target size={ICON_SIZE} />, path: `/panel/materias/${courseId}/calificaciones` },
-    actividades: { name: "Actividades", icon: <ClipboardList size={ICON_SIZE} />, path: `/panel/materias/${courseId}/actividades` },
-    evaluaciones: { name: "Evaluaciones", icon: <FileText size={ICON_SIZE} />, path: `/panel/materias/${courseId}/evaluaciones` },
-    drive: { name: "Drive", icon: <Folder size={ICON_SIZE} />, path: `/panel/materias/${courseId}/drive` },
-    qr: { name: "Pase de Lista QR", icon: <QrCode size={ICON_SIZE} />, path: `/panel/materias/${courseId}/alumnos/asistencia` },
-    listaAlumnos: { name: "Lista de Alumnos", icon: <UsersRound size={ICON_SIZE} />, path: `/panel/materias/${courseId}/alumnos` }
-  };
+  // 1. LOS 4 PILARES (Siempre visibles arriba)
+  const mainModules = [
+    { name: "Inicio", icon: <LayoutGrid size={ICON_SIZE} />, path: "/inicio", color: "#64748b" },
+    { name: "Docencia", icon: <GraduationCap size={ICON_SIZE} />, path: "/panel", color: "#3b82f6" },
+    { name: "Investigación", icon: <Beaker size={ICON_SIZE} />, path: "/investigacion", color: "#f59e0b" },
+    { name: "Laboratorio", icon: <FlaskConical size={ICON_SIZE} />, path: "/laboratorio", color: "#10b981" },
+  ];
 
-  const handleBack = () => {
-    if (pathParts.length > 1) {
-      const backPath = "/" + pathParts.slice(0, -1).join("/");
-      router.push(backPath);
+  // 2. HERRAMIENTAS DINÁMICAS (Cambian según el módulo activo)
+  const getContextualTools = () => {
+    if (pathname.startsWith("/inicio")) {
+      return [
+        { name: "Correo", icon: <Mail size={20} />, path: "/inicio/correo" },
+        { name: "Agenda", icon: <Calendar size={20} />, path: "/inicio/agenda" },
+        { name: "Tareas", icon: <CheckSquare size={20} />, path: "/inicio/tareas" },
+      ];
     }
-  };
-
-  const getDynamicMenu = (): MenuItem[] => {
-    if (isRoot) return [tools.config];
-    let menu: MenuItem[] = [];
-
-    // --- LÓGICA DINÁMICA POR SECCIÓN ---
-    if (section === "alumnos") {
-      menu = [tools.qr, tools.listaAlumnos, tools.tablon, tools.calificaciones, tools.evaluaciones];
-    } else if (section === "calificaciones") {
-      menu = [tools.tablon, tools.alumnos, tools.actividades, tools.evaluaciones];
-    } else if (section === "evaluaciones") {
-      // Cuando estamos en Evaluaciones, mostramos el resto de herramientas
-      menu = [tools.tablon, tools.alumnos, tools.calificaciones, tools.actividades, tools.drive];
-    } else if (section === "actividades") {
-       menu = [tools.tablon, tools.alumnos, tools.calificaciones, tools.evaluaciones, tools.drive];
-    } else if (courseId) {
-      // Vista general de la materia (Tablón)
-      menu = [tools.alumnos, tools.calificaciones, tools.actividades, tools.evaluaciones, tools.drive];
+    if (pathname.startsWith("/investigacion")) {
+      return [
+        { name: "Proyectos", icon: <Briefcase size={20} />, path: "/investigacion/proyectos" },
+        { name: "Exp. Literario", icon: <Library size={20} />, path: "/investigacion/literatura" },
+        { name: "Canvas AI", icon: <FileSignature size={20} />, path: "/investigacion/canvas" },
+      ];
     }
-
-    // Filtramos para no mostrar el link de la página donde ya estamos
-    return menu.filter(item => item.path !== pathname);
+    if (pathname.startsWith("/laboratorio")) {
+      return [
+        { name: "Bitácora", icon: <Book size={20} />, path: "/laboratorio/bitacora" },
+        { name: "Estación Control", icon: <Microscope size={20} />, path: "/laboratorio/laboratorio" },
+      ];
+    }
+    return [];
   };
+
+  const currentTools = getContextualTools();
+  const activeModule = mainModules.find(m => pathname.startsWith(m.path)) || mainModules[0];
 
   return (
     <aside className={styles.sidebar}>
-      {!isRoot && (
-        <div className={styles.fixedTop}>
-          <Link href="/panel" className={styles.itemWrapper}>
-            <div className={styles.icon}>{tools.home.icon}</div>
-            <span className={styles.label}>{tools.home.name}</span>
-          </Link>
-          <button onClick={handleBack} className={styles.itemWrapper} style={{background: 'none', border: 'none', cursor: 'pointer'}}>
-            <div className={styles.icon}><ArrowLeft size={ICON_SIZE} /></div>
-            <span className={styles.label}>Atrás</span>
-          </button>
-          <div className={styles.separator} />
-        </div>
-      )}
-
       <div className={styles.scrollContainer}>
         <nav className={styles.nav}>
-          {getDynamicMenu().map((item, index) => (
-            <Link key={index} href={item.path} className={styles.itemWrapper}>
-              <div className={styles.icon}>{item.icon}</div>
-              <span className={styles.label}>{item.name}</span>
-            </Link>
-          ))}
+          
+          {/* SECCIÓN 1: LOS 4 MUNDOS */}
+          {mainModules.map((module, index) => {
+            const isActive = pathname.startsWith(module.path);
+            return (
+              <Link 
+                key={index} 
+                href={module.path} 
+                className={`${styles.itemWrapper} ${isActive ? styles.active : ""}`}
+                title={module.name}
+              >
+                <div 
+                  className={styles.icon} 
+                  style={{ 
+                    color: isActive ? "white" : "#1B396A",
+                    backgroundColor: isActive ? module.color : "white"
+                  }}
+                >
+                  {module.icon}
+                </div>
+                <span className={styles.label}>{module.name}</span>
+                {isActive && (
+                  <div style={{ 
+                    position: 'absolute', left: 0, width: '4px', height: '24px', 
+                    backgroundColor: module.color, borderRadius: '0 4px 4px 0' 
+                  }} />
+                )}
+              </Link>
+            );
+          })}
+
+          <div className={styles.separator} />
+
+          {/* SECCIÓN 2: HERRAMIENTAS DINÁMICAS */}
+          {currentTools.map((tool, index) => {
+            const isToolActive = pathname === tool.path;
+            return (
+              <Link key={index} href={tool.path} className={styles.itemWrapper} title={tool.name}>
+                <div className={styles.icon} style={{ 
+                  opacity: isToolActive ? 1 : 0.6,
+                  transform: isToolActive ? 'scale(1.1)' : 'scale(1)',
+                  border: isToolActive ? `2px solid ${activeModule.color}` : 'none'
+                }}>
+                  {tool.icon}
+                </div>
+                <span className={styles.label}>{tool.name}</span>
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
+      {/* SECCIÓN 2: FOOTER (CONFIG Y AI) */}
       <div className={styles.footer}>
         <div className={styles.separator} />
-        <button className={styles.itemWrapper} style={{ background: "none", border: "none", cursor: "pointer" }}>
+        
+        <div className={styles.aiSection}>
+          <button 
+            className={`${styles.itemWrapper} ${styles.aiWrapper}`} 
+            onClick={() => setIsCopilotOpen(!isCopilotOpen)}
+          >
+            <div className={`${styles.icon} ${styles.aiIcon}`}>
+              <Sparkles size={ICON_SIZE} />
+            </div>
+            <span className={styles.label}>Control Maestro</span>
+          </button>
+          
+          {isCopilotOpen && (
+            <div className={styles.floatingContainer}>
+               <FloatingCopilot forceOpen={true} onClose={() => setIsCopilotOpen(false)} />
+            </div>
+          )}
+        </div>
+
+        <Link href="/configuracion" className={styles.itemWrapper} title="Ajustes">
+          <div className={styles.icon}><Settings size={ICON_SIZE} /></div>
+          <span className={styles.label}>Ajustes</span>
+        </Link>
+
+        <button className={styles.itemWrapper} style={{ background: "none", border: "none", cursor: "pointer", marginTop: '0.8rem' }}>
           <div className={styles.icon}><LogOut size={ICON_SIZE} /></div>
           <span className={styles.label}>Cerrar Sesión</span>
         </button>

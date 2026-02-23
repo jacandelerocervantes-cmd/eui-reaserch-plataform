@@ -1,0 +1,252 @@
+.wrapper {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 1000;
+  font-family: inherit;
+}
+
+.mainBtn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.mainBtn:hover { transform: scale(1.1); }
+
+.chatWindow {
+  width: 380px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  border: 1px solid #eef2f6;
+  margin-bottom: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chatHeader {
+  background: #0f172a;
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+
+.energyStatus {
+  padding: 10px 20px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: #64748b;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.energyBar { flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; }
+.energyBar div { height: 100%; background: #8b5cf6; border-radius: 2px; }
+
+.chatBody { padding: 20px; min-height: 100px; font-size: 14px; color: #334155; }
+
+.inputArea {
+  padding: 15px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.inputArea textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13px;
+  padding: 5px;
+  max-height: 100px;
+}
+
+.sendBtn {
+  background: #f1f5f9;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6366f1;
+}
+.previewCard {
+  background: #fdfaff;
+  border: 1px solid #e9d5ff;
+  border-radius: 12px;
+  padding: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+.previewTag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #a855f7;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.editTitle {
+  width: 100%;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 4px;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.editTitle:focus { border-bottom: 1px solid #7c3aed; outline: none; }
+
+.editContent {
+  width: 100%;
+  min-height: 80px;
+  border: none;
+  background: white;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+  color: #475569;
+  resize: vertical;
+}
+
+.previewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.saveBtn {
+  background: #7c3aed;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.backBtn {
+  background: #f1f5f9;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.welcome {
+  padding: 0 5px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.quickActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quickActions button {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.quickActions button:hover {
+  background: #e0e7ff;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+.quickActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.quickActions button {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.previewCard {
+  background: #fff;
+  border: 2px solid #8b5cf6;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.previewTag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #8b5cf6;
+  margin-bottom: 10px;
+}
+
+.editTitle {
+  width: 100%;
+  font-weight: 700;
+  border: none;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 10px;
+  padding: 5px 0;
+}
+
+.editContent {
+  width: 100%;
+  min-height: 120px;
+  border: none;
+  font-size: 13px;
+  resize: none;
+  color: #64748b;
+}
+
+.saveBtn {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}

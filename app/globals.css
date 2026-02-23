@@ -33,3 +33,22 @@ button {
   box-sizing: border-box;
   cursor: pointer;
 }
+:root {
+  --gemini-gradient: linear-gradient(135deg, #4285f4, #8ab4f8, #c6dafc);
+  --ai-energy: #8b5cf6;
+  --canvas-bg: #f8fafc;
+}
+/* Custom Scrollbar para Tarjetas Internas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 10px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Solo aparece cuando haces hover en la lista */
+}

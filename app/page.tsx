@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  // Redirigir temporalmente la raíz al panel de gestión
-  redirect("/panel");
+  // Redirigimos la raíz al Centro de Mando (Nuestra nueva jerarquía superior)
+  redirect("/inicio");
 }

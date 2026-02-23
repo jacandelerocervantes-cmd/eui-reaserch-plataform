@@ -7,7 +7,7 @@ import {
   BookOpen, PlusCircle, Target, X, Save, Edit3, AlertTriangle, 
   CheckCircle2, Trash2, ArrowLeft, Lock, Unlock, FileSpreadsheet, 
   Wand2, GraduationCap, Search, ChevronRight, User, AlertCircle, 
-  Download, Filter 
+  Download, Filter, ChevronDown, ChevronUp 
 } from "lucide-react";
 
 type Unit = { id: string; name: string; unit_number: number; is_closed: boolean; };
@@ -57,13 +57,16 @@ export default function ConfiguracionCalificaciones() {
   const params = useParams();
   const courseId = params?.id as string;
 
-  // ESTADOS GLOBALES (Añadido 'sabana')
+  // ESTADOS GLOBALES
   const [currentView, setCurrentView] = useState<'units' | 'capture' | 'final' | 'sabana'>('units');
   const [loading, setLoading] = useState(true);
   const [units, setUnits] = useState<Unit[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   
+  // NUEVO ESTADO: Controlar qué tarjetas están colapsadas (por defecto todas abiertas: false)
+  const [collapsedUnits, setCollapsedUnits] = useState<{ [key: string]: boolean }>({});
+
   // Estados para Modales
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
@@ -89,9 +92,14 @@ export default function ConfiguracionCalificaciones() {
   const [grades, setGrades] = useState<any>({}); 
   const [isSaving, setIsSaving] = useState(false);
   const [allGrades, setAllGrades] = useState<any[]>([]); 
-  
-  // NUEVO: Estado para bloquear/desbloquear unidades en la Sabana
   const [lockedUnits, setLockedUnits] = useState<{ [key: string]: boolean }>({});
+
+  // 1. AÑADIMOS ESTO PARA EVITAR EL HYDRATION ERROR
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true); // Le dice a React que ya estamos en el navegador
+  }, []);
 
   useEffect(() => { if (courseId) fetchData(); }, [courseId]);
 
@@ -327,6 +335,9 @@ export default function ConfiguracionCalificaciones() {
     outline: "none", cursor: locked ? "not-allowed" : "text"
   });
 
+  // 2. DETENEMOS EL RENDER HASTA QUE ESTÉ MONTADO
+  if (!isMounted) return null;
+
   return (
     <div style={{ padding: "40px", width: "100%", flex: 1, maxWidth: currentView === 'sabana' ? "100%" : "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "30px", position: "relative" }}>
       
@@ -358,22 +369,66 @@ export default function ConfiguracionCalificaciones() {
               <div style={{ display: "flex", justifyContent: "center" }}><ExpandingButton icon={PlusCircle} label="Crear Primera Unidad" onClick={openNewUnitModal} variant="primary" /></div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "24px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "24px", alignItems: "start" }}>
               {units.map((unit) => {
                 const unitActs = activities.filter(a => a.unit_id === unit.id);
                 const totalWeight = getUnitTotalWeight(unit.id);
                 const isPerfect = totalWeight === 100;
                 const isOver = totalWeight > 100;
+                const isCollapsed = collapsedUnits[unit.id]; // Estado actual de la tarjeta
 
                 return (
-                  <div key={unit.id} style={{ backgroundColor: "white", borderRadius: "16px", border: `1px solid ${unit.is_closed ? "#cbd5e1" : "#e2e8f0"}`, overflow: "hidden", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", opacity: unit.is_closed ? 0.85 : 1 }}>
-                    <div style={{ padding: "20px", backgroundColor: unit.is_closed ? "#f1f5f9" : "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}>
-                          {unit.is_closed && <Lock size={12} />} Unidad {unit.unit_number} {unit.is_closed && "(Cerrada)"}
-                        </span>
-                        <h3 style={{ margin: "4px 0 0 0", color: "#1B396A", fontSize: "1.2rem" }}>{unit.name}</h3>
+                  <div 
+                    key={unit.id} 
+                    style={{ 
+                      backgroundColor: "white", 
+                      borderRadius: "16px", 
+                      border: `1px solid ${unit.is_closed ? "#cbd5e1" : "#e2e8f0"}`, 
+                      overflow: "hidden", 
+                      boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", 
+                      opacity: unit.is_closed ? 0.85 : 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease"
+                    }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.transform = "translateY(-6px)";
+                      e.currentTarget.style.boxShadow = "0 15px 30px -5px rgba(0,0,0,0.1)"; 
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.05)";
+                    }}
+                  >
+                    
+                    {/* ENCABEZADO CLICABLE PARA COLAPSAR/EXPANDIR */}
+                    <div 
+                      onClick={() => setCollapsedUnits(prev => ({...prev, [unit.id]: !prev[unit.id]}))}
+                      style={{ 
+                        cursor: "pointer", 
+                        padding: "20px", 
+                        backgroundColor: unit.is_closed ? "#f1f5f9" : "#f8fafc", 
+                        borderBottom: isCollapsed ? "none" : "1px solid #e2e8f0", 
+                        display: "flex", 
+                        justifyContent: "space-between", 
+                        alignItems: "center",
+                        transition: "background-color 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = unit.is_closed ? "#e2e8f0" : "#f1f5f9"}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = unit.is_closed ? "#f1f5f9" : "#f8fafc"}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ color: "#94a3b8", display: "flex", alignItems: "center" }}>
+                          {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                        </div>
+                        <div>
+                          <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}>
+                            {unit.is_closed && <Lock size={12} />} Unidad {unit.unit_number} {unit.is_closed && "(Cerrada)"}
+                          </span>
+                          <h3 style={{ margin: "4px 0 0 0", color: "#1B396A", fontSize: "1.2rem" }}>{unit.name}</h3>
+                        </div>
                       </div>
+                      
                       {!unit.is_closed && (
                         <div style={{ padding: "6px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px", backgroundColor: isPerfect ? "#ecfdf5" : isOver ? "#fef2f2" : "#fffbeb", color: isPerfect ? "#10b981" : isOver ? "#ef4444" : "#f59e0b" }}>
                           {isPerfect ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />} {totalWeight}%
@@ -381,36 +436,51 @@ export default function ConfiguracionCalificaciones() {
                       )}
                     </div>
 
-                    <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {unitActs.length === 0 ? <p style={{ color: "#94a3b8", fontSize: "0.9rem", textAlign: "center" }}>No hay criterios.</p> : 
-                        unitActs.map(act => (
-                          <div key={act.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
-                            <div>
-                              <div style={{ color: "#1B396A", fontWeight: "600", fontSize: "0.9rem" }}>{act.name}</div>
-                              <div style={{ color: "#10b981", fontWeight: "700", fontSize: "0.8rem", marginTop: "2px" }}>Valor: {act.weight_percentage}%</div>
-                            </div>
-                            {!unit.is_closed && (
-                              <button onClick={() => handleDeleteActivity(act.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "6px", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#fee2e2"} onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        ))
-                      }
-                    </div>
-
-                    <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", backgroundColor: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      {!unit.is_closed ? (
-                        <>
-                          <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" disabled={isPerfect || isOver} onClick={() => { setActiveUnitId(unit.id); setShowActivityModal(true); }} />
-                          <ExpandingButton icon={Edit3} label="Calificar" variant="primary" disabled={unitActs.length === 0} onClick={() => handleOpenCapture(unit)} />
-                        </>
-                      ) : (
-                        <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
-                          <ExpandingButton icon={BookOpen} label="Ver Calificaciones" variant="secondary" onClick={() => handleOpenCapture(unit)} />
+                    {/* CUERPO Y FOOTER (SE OCULTAN SI ESTÁ COLAPSADO) */}
+                    {!isCollapsed && (
+                      <>
+                        <div 
+                          className="custom-scrollbar"
+                          style={{ 
+                            padding: "20px", 
+                            display: "flex", 
+                            flexDirection: "column", 
+                            gap: "10px",
+                            maxHeight: "260px",
+                            overflowY: "auto"
+                          }}
+                        >
+                          {unitActs.length === 0 ? <p style={{ color: "#94a3b8", fontSize: "0.9rem", textAlign: "center" }}>No hay criterios.</p> : 
+                            unitActs.map(act => (
+                              <div key={act.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9", flexShrink: 0 }}>
+                                <div>
+                                  <div style={{ color: "#1B396A", fontWeight: "600", fontSize: "0.9rem" }}>{act.name}</div>
+                                  <div style={{ color: "#10b981", fontWeight: "700", fontSize: "0.8rem", marginTop: "2px" }}>Valor: {act.weight_percentage}%</div>
+                                </div>
+                                {!unit.is_closed && (
+                                  <button onClick={() => handleDeleteActivity(act.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "6px", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#fee2e2"} onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            ))
+                          }
                         </div>
-                      )}
-                    </div>
+
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", backgroundColor: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          {!unit.is_closed ? (
+                            <>
+                              <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" disabled={isPerfect || isOver} onClick={() => { setActiveUnitId(unit.id); setShowActivityModal(true); }} />
+                              <ExpandingButton icon={Edit3} label="Calificar" variant="primary" disabled={unitActs.length === 0} onClick={() => handleOpenCapture(unit)} />
+                            </>
+                          ) : (
+                            <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
+                              <ExpandingButton icon={BookOpen} label="Ver Calificaciones" variant="secondary" onClick={() => handleOpenCapture(unit)} />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}

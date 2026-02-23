@@ -1,182 +1,114 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  Plus, Calendar, Eye, EyeOff, Edit2, Trash2, 
-  ChevronDown, ChevronUp, Clock, BarChart3, 
-  CheckSquare, MoreVertical, BookOpen
-} from "lucide-react";
+import { Plus, Search, Calendar, ChevronDown, CheckCircle2, Clock, FileText, Settings, Play } from "lucide-react";
 
-// --- COMPONENTE: ExpandingButton (Consistencia UI) ---
-const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", disabled = false, small = false }: any) => {
+const ExamHoverCard = ({ exam, courseId }: { exam: any, courseId: string }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const getStyles = () => {
-    if (disabled) return { bg: "#f1f5f9", text: "#94a3b8", border: "#e2e8f0" };
-    switch (variant) {
-      case "primary": return { bg: "#1B396A", hoverBg: "#152c54", text: "white", border: "transparent" };
-      case "secondary": return { bg: "white", hoverBg: "#f8fafc", text: "#1B396A", border: "#cbd5e1" };
-      case "danger": return { bg: "#fee2e2", hoverBg: "#ef4444", text: isHovered ? "white" : "#ef4444", border: "transparent" };
-      default: return { bg: "white", hoverBg: "#f8fafc", text: "#64748b", border: "#cbd5e1" };
-    }
-  };
-  const style = getStyles();
+  const router = useRouter();
+
   return (
-    <button
+    <div 
       onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      onClick={onClick} disabled={disabled}
       style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: isHovered ? "8px" : "0px",
-        backgroundColor: isHovered && !disabled ? style.hoverBg : style.bg, color: style.text, 
-        border: `1px solid ${style.border}`, borderRadius: "10px", padding: "0 12px", height: small ? "36px" : "44px",
-        fontWeight: "600", fontSize: small ? "0.85rem" : "1rem", cursor: disabled ? "not-allowed" : "pointer",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", overflow: "hidden", whiteSpace: "nowrap"
+        backgroundColor: "white", borderRadius: "20px", border: "1px solid #e2e8f0",
+        boxShadow: isHovered ? "0 20px 25px -5px rgba(0,0,0,0.1)" : "0 4px 6px -1px rgba(0,0,0,0.05)",
+        transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)", overflow: "hidden", 
+        display: "flex", flexDirection: "column", position: "relative"
       }}
     >
-      {Icon && <Icon size={small ? 16 : 18} style={{ flexShrink: 0 }} />}
-      <span style={{ maxWidth: isHovered ? "150px" : "0px", opacity: isHovered ? 1 : 0, transition: "0.3s", display: "inline-block" }}>
-        {label}
-      </span>
-    </button>
-  );
-};
-
-// --- COMPONENTE: ExamenCard (Diseño de Rejilla / Grid) ---
-const ExamenCard = ({ examen, onEdit, onDelete }: any) => {
-  return (
-    <div style={{ 
-      backgroundColor: "white", borderRadius: "20px", border: "1px solid #e2e8f0", 
-      padding: "24px", display: "flex", flexDirection: "column", gap: "16px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.03)", transition: "transform 0.2s, box-shadow 0.2s",
-      cursor: "default"
-    }}>
-      {/* Icono y Badge de Estado */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ 
-          width: "48px", height: "48px", borderRadius: "14px", backgroundColor: "#F0F7FF", 
-          display: "flex", justifyContent: "center", alignItems: "center", color: "#2563eb" 
-        }}>
-          <CheckSquare size={26} />
+      <div style={{ padding: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", alignItems: "center" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: "800", color: exam.status === 'activo' ? '#2563eb' : '#16a34a', backgroundColor: exam.status === 'activo' ? '#eff6ff' : '#f0fdf4', padding: "4px 8px", borderRadius: "6px", textTransform: "uppercase" }}>
+            {exam.status}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b", fontSize: "0.8rem", fontWeight: "600" }}>
+            <Calendar size={12} /> {exam.date}
+          </div>
         </div>
-        {examen.publicado ? 
-          <span style={{ fontSize: "0.65rem", color: "#10b981", fontWeight: "900", backgroundColor: "#ecfdf5", padding: "4px 10px", borderRadius: "8px", border: "1px solid #d1fae5" }}>PULICADO</span> : 
-          <span style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: "900", backgroundColor: "#f8fafc", padding: "4px 10px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>BORRADOR</span>
-        }
-      </div>
-
-      {/* Información del Examen */}
-      <div>
-        <h4 style={{ margin: "0 0 8px 0", color: "#1B396A", fontSize: "1.15rem", fontWeight: "800", lineHeight: "1.3" }}>
-          {examen.titulo}
-        </h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-            <Calendar size={14} /> {examen.fecha}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748b", fontSize: "0.85rem" }}>
-            <Clock size={14} /> {examen.hora}
-          </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.15rem", fontWeight: "800", lineHeight: "1.3", paddingRight: "10px" }}>{exam.title}</h3>
+          <ChevronDown size={20} color={isHovered ? "#1B396A" : "#cbd5e1"} style={{ transition: "transform 0.4s", transform: isHovered ? "rotate(180deg)" : "rotate(0)" }} />
         </div>
       </div>
 
-      {/* Stats e Indicador de Puntos */}
       <div style={{ 
-        marginTop: "auto", paddingTop: "16px", borderTop: "1px solid #f1f5f9", 
-        display: "flex", justifyContent: "space-between", alignItems: "center" 
+        maxHeight: isHovered ? "300px" : "0px", opacity: isHovered ? 1 : 0, 
+        padding: isHovered ? "0 20px 20px 20px" : "0 20px", transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        display: "flex", flexDirection: "column"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#1B396A", fontWeight: "700", fontSize: "0.9rem" }}>
-          <BarChart3 size={16} /> {examen.puntos} pts
+        <div style={{ height: "1px", backgroundColor: "#f1f5f9", margin: "4px 0 12px 0" }} />
+        <p style={{ color: "#475569", fontSize: "0.9rem", lineHeight: "1.5", margin: "0 0 16px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+          {exam.description}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#1B396A", fontWeight: "800", fontSize: "0.85rem", marginBottom: "16px" }}>
+          <FileText size={16} color="#94a3b8" /> {exam.questionsCount} Preguntas • {exam.duration} min
         </div>
-        
-        {/* Acciones Expandibles */}
-        <div style={{ display: "flex", gap: "6px" }}>
-          <ExpandingButton small icon={Edit2} label="Editar" onClick={onEdit} variant="secondary" />
-          <ExpandingButton small icon={Trash2} label="Borrar" onClick={onDelete} variant="danger" />
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/resultados`)} style={{ flex: 1, backgroundColor: "#1B396A", color: "white", padding: "10px", borderRadius: "10px", fontWeight: "700", fontSize: "0.9rem", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px" }}>
+            Resultados
+          </button>
+          <button onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}`)} style={{ padding: "10px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: "10px" }} title="Configurar Examen">
+            <Settings size={18}/>
+          </button>
+          <button onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/simulacion`)} style={{ padding: "10px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: "10px" }} title="Simular vista de alumno">
+            <Play size={18}/>
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-export default function EvaluacionesPage() {
+export default function ListaEvaluacionesPage() {
   const params = useParams();
   const router = useRouter();
-  const [activeUnit, setActiveUnit] = useState<number | null>(1);
+  const courseId = params?.id as string;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [units, setUnits] = useState<any[]>([]);
+  const [evaluaciones, setEvaluaciones] = useState<any[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
-  const unidades = [
-    { 
-      numero: 1, 
-      titulo: "Gestión de Proyectos de Software", 
-      examenes: [
-        { id: "1", titulo: "Examen Parcial: Metodologías Ágiles", fecha: "2026-03-12", hora: "09:00", publicado: true, puntos: 100 },
-        { id: "2", titulo: "Quiz: Scrum vs Kanban", fecha: "2026-03-18", hora: "11:00", publicado: false, puntos: 100 }
-      ] 
-    },
-    { numero: 2, titulo: "Modelado y Diseño UML", examenes: [] }
-  ];
+  useEffect(() => {
+    setIsMounted(true);
+    setUnits([{ id: "u1", unit_number: 1, name: "Fundamentos de Redes" }, { id: "u2", unit_number: 2, name: "Capa de Red y Enrutamiento" }]);
+    setEvaluaciones([
+      { id: "ev-1", unit_id: "u1", title: "Examen Teórico: OSI", description: "Evaluación de opción múltiple sobre las 7 capas.", date: "20 Mar, 2026", status: "completado", questionsCount: 20, duration: 45 },
+      { id: "ev-2", unit_id: "u2", title: "Examen Práctico: Subnetting", description: "Resolución de casos de estudio de IP.", date: "15 Abr, 2026", status: "activo", questionsCount: 10, duration: 60 },
+    ]);
+  }, [courseId]);
+
+  if (!isMounted) return null;
 
   return (
-    <div style={{ padding: "40px", maxWidth: "1250px", margin: "0 auto" }}>
-      
-      {/* Header Estilo Materias */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
+    <div style={{ padding: "40px", maxWidth: "1300px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <h1 style={{ color: "#1B396A", fontSize: "2.4rem", fontWeight: "900", margin: 0 }}>Evaluaciones</h1>
-          <p style={{ color: "#64748b", marginTop: "4px", fontSize: "1.1rem" }}>Crea y gestiona los exámenes de tus alumnos.</p>
+          <h1 style={{ color: "#1B396A", fontSize: "2.8rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>Evaluaciones</h1>
+          <p style={{ color: "#64748b", fontSize: "1.1rem", fontWeight: "500", marginTop: "4px" }}>Generación y control de exámenes por IA</p>
         </div>
-        <ExpandingButton 
-          icon={Plus} 
-          label="Nuevo Examen" 
-          onClick={() => router.push(`/panel/materias/${params.id}/evaluaciones/nuevo`)} 
-        />
+        <button onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/nuevo`)} style={{ backgroundColor: "#1B396A", color: "white", padding: "12px 20px", borderRadius: "12px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+          <Plus size={18} /> Crear Examen
+        </button>
       </div>
 
-      {/* Unidades con Grid Interno */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {unidades.map((u) => (
-          <div key={u.numero} style={{ borderRadius: "24px", border: "1px solid #e2e8f0", backgroundColor: "white", overflow: "hidden" }}>
-            
-            {/* Cabecera Unidad */}
-            <div 
-              onClick={() => setActiveUnit(activeUnit === u.numero ? null : u.numero)}
-              style={{ padding: "24px 30px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", backgroundColor: activeUnit === u.numero ? "#F8FAFC" : "#fff" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "12px", backgroundColor: "#1B396A", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "900" }}>
-                  {u.numero}
-                </div>
-                <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.3rem", fontWeight: "800" }}>{u.titulo}</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: "40px", marginTop: "10px" }}>
+        {units.map(unit => {
+          const unitExams = evaluaciones.filter(e => e.unit_id === unit.id);
+          if (unitExams.length === 0) return null;
+          return (
+            <div key={unit.id}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px" }}>
+                <span style={{ backgroundColor: "#1B396A", color: "white", padding: "4px 10px", borderRadius: "8px", fontWeight: "900", fontSize: "0.9rem" }}>U{unit.unit_number}</span>
+                <h2 style={{ fontSize: "1.4rem", color: "#1e293b", margin: 0, fontWeight: "800" }}>{unit.name}</h2>
               </div>
-              {activeUnit === u.numero ? <ChevronUp color="#94a3b8" /> : <ChevronDown color="#94a3b8" />}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px", alignItems: "start" }}>
+                {unitExams.map(exam => <ExamHoverCard key={exam.id} exam={exam} courseId={courseId} />)}
+              </div>
             </div>
-
-            {/* Grid de Cards (Aquí está el cambio) */}
-            {activeUnit === u.numero && (
-              <div style={{ padding: "30px", borderTop: "1px solid #f1f5f9", backgroundColor: "#FCFDFE" }}>
-                {u.examenes.length > 0 ? (
-                  <div style={{ 
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", 
-                    gap: "20px" 
-                  }}>
-                    {u.examenes.map(ex => (
-                      <ExamenCard 
-                        key={ex.id} 
-                        examen={ex} 
-                        onEdit={() => router.push(`/panel/materias/${params.id}/evaluaciones/nuevo`)}
-                        onDelete={() => {}}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
-                    No hay exámenes en esta unidad.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

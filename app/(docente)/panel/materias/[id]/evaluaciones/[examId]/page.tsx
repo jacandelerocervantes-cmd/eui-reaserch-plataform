@@ -17,7 +17,7 @@ const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", smal
       case "secondary": return { bg: "white", hoverBg: "#f8fafc", text: "#1B396A", border: "#cbd5e1" };
       case "ai": return { bg: "#f0f7ff", hoverBg: "#e0efff", text: "#2563eb", border: "#bfdbfe" };
       case "success": return { bg: "#10b981", hoverBg: "#059669", text: "white", border: "transparent" };
-      case "notify": return { bg: "#f59e0b", hoverBg: "#d97706", text: "white", border: "transparent" }; // <- AÑADIDO
+      case "notify": return { bg: "#f59e0b", hoverBg: "#d97706", text: "white", border: "transparent" };
       default: return { bg: "white", hoverBg: "#f8fafc", text: "#64748b", border: "#cbd5e1" };
     }
   };
@@ -43,19 +43,16 @@ export default function RevisionExamenPage() {
   const params = useParams();
   const router = useRouter();
 
-  // Mock de Alumnos (Simulación de entrega) original mantenido
   const [alumnos, setAlumnos] = useState([
     { id: "1", matricula: "19080123", nombre: "Candelero Cervantes Juan Antonio", entregado: true, score_ia: 85, final_score: 85, revisado: false },
     { id: "2", matricula: "19080124", nombre: "López García María Elena", entregado: true, score_ia: 92, final_score: 92, revisado: true },
     { id: "3", matricula: "19080125", nombre: "Pérez Ruíz Ricardo", entregado: false, score_ia: 0, final_score: 0, revisado: false },
   ]);
 
-  // Mensaje de sincronización actualizado
   const handleSyncGrades = () => {
     alert("Enviando estas calificaciones a la columna 'EVAL' de la Sábana General...");
   };
 
-  // NUEVO: Función para notificar masivamente
   const handleMassNotify = () => {
     if(confirm("¿Deseas enviar los resultados finales y el feedback de IA por correo a todos los alumnos calificados?")) {
       alert("Resultados enviados exitosamente.");
@@ -79,14 +76,13 @@ export default function RevisionExamenPage() {
           </div>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
-          {/* Botones combinados de ambas versiones */}
           <ExpandingButton icon={Sparkles} label="Revisión Masiva IA" variant="ai" />
           <ExpandingButton icon={Send} label="Notificar al Grupo" onClick={handleMassNotify} variant="notify" />
           <ExpandingButton icon={Save} label="Guardar en Sábana" onClick={handleSyncGrades} variant="success" />
         </div>
       </div>
 
-      {/* FILTROS Y BÚSQUEDA (Originales intactos) */}
+      {/* FILTROS Y BÚSQUEDA */}
       <div style={{ backgroundColor: "white", padding: "15px 25px", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ position: "relative", width: "400px" }}>
           <Search size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
@@ -145,11 +141,13 @@ export default function RevisionExamenPage() {
                 </td>
                 <td style={{ padding: "18px 25px", textAlign: "right" }}>
                   <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* Botón añadido de Feedback IA */}
                     <ExpandingButton small icon={Sparkles} label="Feedback IA" variant="ai" disabled={!a.entregado} />
-                    {/* Botones e iconos originales */}
                     <ExpandingButton small icon={Eye} label="Revisar Reactivos" onClick={() => {}} variant="secondary" disabled={!a.entregado} />
-                    {a.entregado && !a.revisado && <AlertCircle size={18} color="#f59e0b" title="Requiere revisión manual" />}
+                    {a.entregado && !a.revisado && (
+                      <span title="Requiere revisión manual" style={{ display: "flex", alignItems: "center" }}>
+                        <AlertCircle size={18} color="#f59e0b" />
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>

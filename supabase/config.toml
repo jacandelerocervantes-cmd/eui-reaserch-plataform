@@ -397,3 +397,47 @@ entrypoint = "./functions/inicio-bridge/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/inicio-bridge/*.html" ]
+
+[functions.docente-copilot]
+enabled = true
+verify_jwt = true
+import_map = "./functions/docente-copilot/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/docente-copilot/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/docente-copilot/*.html" ]
+
+[functions.bridge-gateway]
+enabled = true
+verify_jwt = true
+import_map = "./functions/bridge-gateway/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/bridge-gateway/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/bridge-gateway/*.html" ]
+
+[functions.create-course]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-course/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-course/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-course/*.html" ]
+
+[functions.import-students]
+enabled = true
+verify_jwt = true
+import_map = "./functions/import-students/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/import-students/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/import-students/*.html" ]

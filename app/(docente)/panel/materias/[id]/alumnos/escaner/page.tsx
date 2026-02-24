@@ -171,11 +171,8 @@ export default function LectorInSituAlumno() {
             {paso === 1 && (
                 <div className="space-y-6 text-center animate-in fade-in duration-300">
                     <div className="bg-slate-100 p-4 rounded-[20px] overflow-hidden border-2 border-dashed border-slate-300">
-                        <Scanner 
-                           onScan={(result) => handleScan(result[0].rawValue)} 
-                           options={{ delayBetweenScanAttempts: 1000 }}
-                           components={{ audio: false }}
-                        />
+                        {/* AQUÍ ESTÁ EL SCANNER CORREGIDO */}
+                        <Scanner onScan={(result) => handleScan(result[0].rawValue)} />
                     </div>
                     <div className="flex items-center justify-center gap-2 text-[#1B396A] font-bold">
                         <Camera className="w-5 h-5" /> Apunta al QR del pizarrón

@@ -75,18 +75,24 @@ export default function PanelPage() {
 
   const handleSubmitModal = async (name: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert("Debes iniciar sesión.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return alert("Debes iniciar sesión.");
 
       if (modalMode === "create") {
-        const { data, error } = await supabase
-          .from("courses")
-          .insert([{ title: name, teacher_id: user.id }])
-          .select()
-          .single();
+        // LLAMADA A EDGE FUNCTION PARA CREACIÓN HÍBRIDA (DB + GOOGLE)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-course`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ title: name })
+        });
 
-        if (error) throw error;
-        setCourses([data, ...courses]);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Error en la creación maestra");
+        
+        setCourses([result.course, ...courses]);
       } else if (modalMode === "edit" && selectedCourseId) {
         const { data, error } = await supabase
           .from("courses")
@@ -98,9 +104,9 @@ export default function PanelPage() {
         if (error) throw error;
         setCourses(courses.map(c => c.id === selectedCourseId ? data : c));
       }
-    } catch (error) {
-      console.error("Error guardando:", error);
-      throw error;
+    } catch (error: any) {
+      console.error("Error en operación maestra:", error.message);
+      alert(error.message);
     }
   };
 
@@ -109,8 +115,6 @@ export default function PanelPage() {
   return (
     <div className={styles.pageContainer}>
       <main className={styles.mainContent}>
-        
-        {/* Cabecera limpia, SIN el botón viejo */}
         <header className={styles.pageHeader}>
           <div className={styles.titleGroup}>
             <h2 className={styles.pageTitle}>Panel de Gestión</h2>
@@ -138,13 +142,10 @@ export default function PanelPage() {
             <p>No tienes asignaturas creadas en este periodo.</p>
           </div>
         )}
-
       </main>
 
-      {/* AQUÍ ESTÁ EL NUEVO BOTÓN FLOTANTE */}
       <FloatingActionButton onClick={handleOpenCreate} />
 
-      {/* EL MODAL QUE YA FUNCIONA CON SUPABASE */}
       <CourseModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -119,24 +119,36 @@ export default function ListaAlumnos() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const studentData = {
-        course_id: courseId, ...newStudent,
-        apellido_paterno: newStudent.apellido_paterno.trim(),
-        nombres: newStudent.nombres.trim(),
-        team_id: newStudent.team_id || null
-      };
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sesión expirada");
 
-      if (editingStudent) {
-        await supabase.from("students").update(studentData).eq("id", editingStudent);
-      } else {
-        await supabase.from("students").insert([studentData]);
-      }
+      // LLAMADA A EDGE FUNCTION: Orquestación de Inscripción Manual
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/enroll-manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          courseId,
+          mode: editingStudent ? 'edit' : 'create',
+          studentId: editingStudent,
+          studentData: newStudent
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Falla en registro maestro");
       
       setShowModal(false);
       setEditingStudent(null);
       setNewStudent({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "", team_id: "" });
       fetchData();
-    } catch (e) { alert("Error al guardar"); } finally { setIsSubmitting(false); }
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEdit = (alumno: Student) => {
@@ -153,17 +165,60 @@ export default function ListaAlumnos() {
   };
 
   const handleDeleteStudent = async (id: string) => {
-    if (!confirm("¿Seguro que quieres eliminar a este alumno?")) return;
+    if (!confirm("¿Seguro que quieres eliminar a este alumno? Esto lo borrará también de la Sábana.")) return;
     try {
-      await supabase.from("students").delete().eq("id", id);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/enroll-manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ courseId, mode: 'delete', studentId: id })
+      });
+
+      if (!response.ok) throw new Error("Error al eliminar");
       fetchData();
-    } catch (e) { alert("Error al eliminar"); }
+    } catch (e: any) { alert(e.message); }
   };
 
-  const handleGeminiImport = () => {
+  const handleGeminiImport = async () => {
     if (!selectedFile) return;
     setImportStatus('analyzing');
-    setTimeout(() => { setImportStatus('success'); setTimeout(() => { setShowImportModal(false); setImportStatus('idle'); fetchData(); }, 2000); }, 3000);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Convertir archivo a Base64 para enviarlo a la Edge Function
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      reader.onload = async () => {
+        const base64File = (reader.result as string).split(',')[1];
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/import-ia-students`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ courseId, file: base64File })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+
+        setImportStatus('success');
+        setTimeout(() => {
+          setShowImportModal(false);
+          setImportStatus('idle');
+          fetchData();
+        }, 2000);
+      };
+    } catch (e: any) {
+      alert(`Error IA: ${e.message}`);
+      setImportStatus('idle');
+    }
   };
 
   const filteredStudents = students.filter(s => 

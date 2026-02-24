@@ -3,17 +3,16 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { QrCode, Timer, Save, MapPin, Check, X, AlertTriangle, XCircle, UsersRound } from "lucide-react";
+import { QrCode, Timer, Save, MapPin, Check, X, AlertTriangle, XCircle, UsersRound, MapPinOff } from "lucide-react";
+import QRCode from "react-qr-code"; // <-- La librería real del QR
 
 type Student = {
   id: string;
   matricula: string;
-  apellido_paterno: string;
-  apellido_materno: string | null;
-  nombres: string;
+  nombre_completo: string;
 };
 
-// COMPONENTE EXPANDIBLE UNIFICADO: Solo icono por defecto, se estira para mostrar texto en hover.
+// COMPONENTE EXPANDIBLE UNIFICADO
 const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", type = "button", disabled = false }: any) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -69,13 +68,14 @@ export default function PaseDeLista() {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geocercaActiva, setGeocercaActiva] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(300); 
   const [isActive, setIsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [sesion, setSesion] = useState("1");
-  const [sesionesGuardadasHoy, setSesionesGuardadasHoy] = useState<string[]>([]);
+  const [sesionId, setSesionId] = useState<string | null>(null);
+  const [qrHash, setQrHash] = useState<string | null>(null);
   
   const [asistencia, setAsistencia] = useState<Record<string, number>>({});
 
@@ -84,34 +84,116 @@ export default function PaseDeLista() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const today = new Date().toLocaleDateString('en-CA'); 
+      // 1. Verificar si la materia tiene Geocerca configurada
+      const { data: geocerca } = await supabase
+        .from("geocercas_materia")
+        .select("id")
+        .eq("materia_id", courseId)
+        .single();
+      
+      if (geocerca) setGeocercaActiva(true);
 
-      const { data: studentsData } = await supabase.from("students").select("id, matricula, apellido_paterno, apellido_materno, nombres").eq("course_id", courseId).order("apellido_paterno", { ascending: true });
-      if (studentsData) setStudents(studentsData);
+      // 2. Traer alumnos inscritos desde la nueva estructura SQL
+      const { data: inscripciones } = await supabase
+        .from("inscripciones")
+        .select(`
+          perfiles ( id, matricula_rfc, nombre_completo )
+        `)
+        .eq("materia_id", courseId);
 
-      const { data: attendanceData } = await supabase.from("attendance").select("session_number").eq("course_id", courseId).eq("session_date", today);
-
-      if (attendanceData) {
-        const completedSessions = Array.from(new Set(attendanceData.map(a => a.session_number.toString())));
-        setSesionesGuardadasHoy(completedSessions);
-        
-        if (completedSessions.includes("1") && !completedSessions.includes("2")) setSesion("2");
+      if (inscripciones) {
+        const mappedStudents = inscripciones.map((i: any) => ({
+          id: i.perfiles.id,
+          matricula: i.perfiles.matricula_rfc,
+          nombre_completo: i.perfiles.nombre_completo
+        }));
+        setStudents(mappedStudents);
       }
-    } catch (error) { console.error("Error cargando datos:", error); } finally { setLoading(false); }
+    } catch (error) { 
+      console.error("Error cargando datos:", error); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
+  // ========================================================================
+  // MOTOR DE SUPABASE REALTIME (Escucha validaciones del alumno en vivo)
+  // ========================================================================
+  useEffect(() => {
+    let channel: any;
+    
+    if (isActive && sesionId) {
+      channel = supabase
+        .channel('asistencias-en-vivo')
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'asistencias_validadas',
+            filter: `sesion_id=eq.${sesionId}` 
+        }, (payload) => {
+            // ¡MAGIA! Un alumno acaba de validar su GPS y QR. Lo ponemos en verde.
+            setAsistencia(prev => ({ ...prev, [payload.new.alumno_id]: 1 }));
+        })
+        .subscribe();
+    }
+
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [isActive, sesionId]);
+
+  // ========================================================================
+  // TEMPORIZADOR Y CONTROL DE SESIÓN
+  // ========================================================================
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    else if (timeLeft === 0) setIsActive(false);
+    else if (timeLeft === 0) terminarSesionAutomatica();
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
 
-  const startTimer = () => {
-    const estadoInicial: Record<string, number> = {};
-    students.forEach(student => { estadoInicial[student.id] = 0; });
-    setAsistencia(estadoInicial);
-    setIsActive(true);
+  const startTimer = async () => {
+    if (!geocercaActiva) {
+        alert("Debes configurar la ubicación del salón (Geocerca) antes de pasar lista.");
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Generamos un Hash único para el QR
+      const nuevoHash = crypto.randomUUID();
+      
+      // Calculamos expiración (5 minutos)
+      const expiraEn = new Date();
+      expiraEn.setMinutes(expiraEn.getMinutes() + 5);
+
+      // Creamos la sesión In-Situ en la BD
+      const { data: nuevaSesion, error } = await supabase
+        .from("sesiones_insitu")
+        .insert({
+          materia_id: courseId,
+          tipo: 'pase_lista',
+          codigo_qr_hash: nuevoHash,
+          fecha_expiracion: expiraEn.toISOString()
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      setSesionId(nuevaSesion.id);
+      setQrHash(nuevoHash);
+
+      // Reiniciamos UI
+      const estadoInicial: Record<string, number> = {};
+      students.forEach(student => { estadoInicial[student.id] = 0; }); // Todos con falta por defecto
+      setAsistencia(estadoInicial);
+      
+      setTimeLeft(300);
+      setIsActive(true);
+    } catch (error) {
+      alert("Error al iniciar sesión in-situ.");
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const formatTime = (seconds: number) => {
@@ -124,10 +206,20 @@ export default function PaseDeLista() {
     setAsistencia(prev => ({ ...prev, [id]: valor }));
   };
 
-  const cancelarPase = () => {
+  const terminarSesionAutomatica = async () => {
     setIsActive(false);
+    if (sesionId) {
+       // Congelamos el QR en la BD para que nadie más se registre
+       await supabase.from("sesiones_insitu").update({ is_activa: false }).eq("id", sesionId);
+    }
+  };
+
+  const cancelarPase = async () => {
+    await terminarSesionAutomatica();
     setTimeLeft(300);
     setAsistencia({});
+    setSesionId(null);
+    setQrHash(null);
   };
 
   const guardarAsistencia = async () => {
@@ -135,19 +227,32 @@ export default function PaseDeLista() {
     
     setIsSaving(true);
     try {
-      const today = new Date().toLocaleDateString('en-CA');
-      const recordsToInsert = students.map(student => ({
-        course_id: courseId, student_id: student.id, session_date: today, session_number: parseInt(sesion),
-        status: asistencia[student.id] ?? 0 
-      }));
+      await terminarSesionAutomatica(); // Cerrar la sesión QR
+      
+      // Aquí el maestro guarda manualmente a los que puso retardo (0.5) 
+      // o a los que no traían celular pero justificaron.
+      // Filtramos a los que el maestro les puso "Falta(0)" porque no se insertan en 'asistencias_validadas'.
+      const manualOverrides = Object.entries(asistencia)
+        .filter(([_, valor]) => valor > 0)
+        .map(([alumno_id, valor]) => ({
+            sesion_id: sesionId,
+            alumno_id: alumno_id,
+        }));
 
-      const { error } = await supabase.from("attendance").upsert(recordsToInsert, { onConflict: "student_id, session_date, session_number" });
-      if (error) throw error;
+      if(manualOverrides.length > 0){
+          // Usamos upsert por si el alumno ya se había registrado vía Realtime
+          await supabase.from("asistencias_validadas").upsert(manualOverrides, { onConflict: "sesion_id, alumno_id" });
+      }
 
-      alert(`¡Asistencia de la Sesión ${sesion} guardada con éxito!`);
-      cancelarPase();
-      fetchData(); 
-    } catch (error) { alert("Hubo un error al guardar la asistencia."); } finally { setIsSaving(false); }
+      alert(`¡Asistencia In-Situ guardada y sellada con éxito!`);
+      setAsistencia({});
+      setSesionId(null);
+      setTimeLeft(300);
+    } catch (error) { 
+        alert("Hubo un error al guardar la asistencia."); 
+    } finally { 
+        setIsSaving(false); 
+    }
   };
 
   return (
@@ -156,15 +261,21 @@ export default function PaseDeLista() {
       {/* CABECERA */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 8px 0" }}>Pase de Lista Dinámico</h1>
-          <p style={{ color: "#64748b", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-            <MapPin size={18} /> Validación por Geolocalización activada
-          </p>
+          <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 8px 0" }}>Radar de Clase (In-Situ)</h1>
+          {geocercaActiva ? (
+            <p style={{ color: "#10b981", margin: 0, display: "flex", alignItems: "center", gap: "8px", fontWeight: "600" }}>
+                <MapPin size={18} /> Geocerca del Salón Activa
+            </p>
+          ) : (
+            <p style={{ color: "#ef4444", margin: 0, display: "flex", alignItems: "center", gap: "8px", fontWeight: "600" }}>
+                <MapPinOff size={18} /> Geocerca no configurada (Requiere acción)
+            </p>
+          )}
         </div>
 
         {/* BOTÓN EXPANDIBLE DE GUARDAR */}
         <ExpandingButton 
-          icon={Save} label={isSaving ? "Guardando..." : "Guardar Asistencia"} 
+          icon={Save} label={isSaving ? "Sellando Sesión..." : "Sellar Asistencia"} 
           onClick={guardarAsistencia} disabled={!isActive || isSaving} variant="primary"
         />
       </header>
@@ -178,56 +289,49 @@ export default function PaseDeLista() {
           {formatTime(timeLeft)}
         </div>
 
-        {!isActive && (
-          <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-            <label style={{ color: "#64748b", fontWeight: "600", fontSize: "0.95rem" }}>Sesión del día:</label>
-            <select 
-              value={sesion} onChange={(e) => setSesion(e.target.value)}
-              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", outline: "none", color: "#1B396A", fontWeight: "600", cursor: "pointer" }}
-            >
-              <option value="1" disabled={sesionesGuardadasHoy.includes("1")}>Sesión 1 {sesionesGuardadasHoy.includes("1") ? "(Completada)" : ""}</option>
-              <option value="2" disabled={sesionesGuardadasHoy.includes("2")}>Sesión 2 {sesionesGuardadasHoy.includes("2") ? "(Completada)" : ""}</option>
-            </select>
-          </div>
-        )}
-
         {/* ÁREA DEL QR */}
         <div style={{ width: "250px", height: "250px", backgroundColor: "#f8fafc", border: "2px dashed #cbd5e1", borderRadius: "16px", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", marginBottom: "20px" }}>
           {!isActive ? (
-            // ESTADO INACTIVO: Botón Expandible para "Generar QR"
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
               <UsersRound size={50} color="#cbd5e1" />
               <ExpandingButton 
                 icon={QrCode} 
-                label={(sesionesGuardadasHoy.includes("1") && sesionesGuardadasHoy.includes("2")) ? "Día Completado" : "Generar QR"} 
+                label={isSaving ? "Generando..." : "Generar QR Dinámico"} 
                 onClick={startTimer} 
-                disabled={sesionesGuardadasHoy.includes("1") && sesionesGuardadasHoy.includes("2")} 
+                disabled={!geocercaActiva || isSaving} 
                 variant="primary" 
               />
             </div>
           ) : (
-            // ESTADO ACTIVO: Se muestra el QR real y el texto escaneando
             <>
-              <QrCode size={150} color="#1B396A" />
-              <p style={{ margin: "10px 0 0 0", color: "#10b981", fontSize: "0.85rem", fontWeight: "700" }}>Escaneando dispositivos...</p>
+              {/* QR REAL RENDERIZADO AQUÍ */}
+              <div style={{ background: 'white', padding: '10px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                 <QRCode 
+                   value={qrHash || "Generando..."} 
+                   size={130} 
+                   fgColor="#1B396A" 
+                 />
+              </div>
+              <p style={{ margin: "15px 0 0 0", color: "#10b981", fontSize: "0.85rem", fontWeight: "800" }}>Escaneando dispositivos...</p>
+              <p style={{ margin: "5px 0 0 0", color: "#94a3b8", fontSize: "0.65rem", fontFamily: "monospace" }}>HASH: {qrHash?.split('-')[0]}...</p>
             </>
           )}
         </div>
 
         {/* BOTÓN EXPANDIBLE DE CANCELAR */}
         <div style={{ height: "48px", display: "flex", justifyContent: "center", width: "100%", opacity: isActive ? 1 : 0, pointerEvents: isActive ? "auto" : "none", transition: "opacity 0.2s" }}>
-          <ExpandingButton icon={XCircle} label="Cancelar Sesión" onClick={cancelarPase} variant="cancel" />
+          <ExpandingButton icon={XCircle} label="Terminar QR" onClick={cancelarPase} variant="cancel" />
         </div>
       </div>
 
       {/* PANEL INFERIOR: LA LISTA DE ALUMNOS REALES */}
       <div style={{ backgroundColor: "white", borderRadius: "16px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
         <div style={{ backgroundColor: "#f8fafc", padding: "20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#1B396A" }}>Registro en Tiempo Real</h2>
+          <h2 style={{ margin: 0, fontSize: "1.2rem", color: "#1B396A" }}>Registro en Tiempo Real (Supabase)</h2>
           {isActive ? (
-            <span style={{ backgroundColor: "#10b981", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}><span style={{width: "8px", height: "8px", backgroundColor: "white", borderRadius: "50%", display: "inline-block", animation: "pulse 1.5s infinite"}}></span>Sesión {sesion} Activa</span>
+            <span style={{ backgroundColor: "#10b981", color: "white", padding: "4px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}><span style={{width: "8px", height: "8px", backgroundColor: "white", borderRadius: "50%", display: "inline-block", animation: "pulse 1.5s infinite"}}></span>Recepción Satelital Activa</span>
           ) : (
-            <span style={{ backgroundColor: "#e2e8f0", color: "#64748b", padding: "4px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "600" }}>Esperando inicio...</span>
+            <span style={{ backgroundColor: "#e2e8f0", color: "#64748b", padding: "4px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "600" }}>Transmisión apagada</span>
           )}
         </div>
         
@@ -235,21 +339,21 @@ export default function PaseDeLista() {
           <thead>
             <tr style={{ color: "#64748b", fontSize: "0.85rem", textTransform: "uppercase" }}>
               <th style={{ padding: "16px 20px" }}>Matrícula & Nombre</th>
-              <th style={{ padding: "16px 20px", textAlign: "right" }}>Estado Manual</th>
+              <th style={{ padding: "16px 20px", textAlign: "right" }}>Anulación Manual (Docente)</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-               <tr><td colSpan={2} style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>Cargando alumnos de la materia...</td></tr>
+               <tr><td colSpan={2} style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>Consultando base de datos...</td></tr>
             ) : students.length === 0 ? (
-               <tr><td colSpan={2} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>Agrega alumnos a la materia para poder pasar lista.</td></tr>
+               <tr><td colSpan={2} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>Agrega alumnos a la materia ('inscripciones') para poder pasar lista.</td></tr>
             ) : (
               students.map((alumno) => (
-                <tr key={alumno.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <tr key={alumno.id} style={{ borderBottom: "1px solid #f1f5f9", backgroundColor: asistencia[alumno.id] === 1 ? '#f0fdf4' : 'transparent' }}>
                   <td style={{ padding: "16px 20px" }}>
                     <div style={{ color: "#64748b", fontFamily: "monospace", fontSize: "0.85rem", marginBottom: "4px" }}>{alumno.matricula}</div>
                     <div style={{ color: "#1B396A", fontWeight: "600", opacity: isActive ? 1 : 0.5 }}>
-                      {`${alumno.apellido_paterno} ${alumno.apellido_materno || ""} ${alumno.nombres}`}
+                      {alumno.nombre_completo}
                     </div>
                   </td>
                   <td style={{ padding: "16px 20px" }}>

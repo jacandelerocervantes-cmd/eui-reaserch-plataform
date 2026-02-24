@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import {
   Settings, LogOut, GraduationCap, Beaker, FlaskConical, 
   Sparkles, LayoutGrid, Mail, Calendar, CheckSquare,
-  Briefcase, Library, FileSignature, Globe, Book, Microscope
+  Briefcase, Library, FileSignature, Globe, Book, Microscope,
+  ClipboardList, Camera, Database
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { FloatingCopilot } from "@/components/ia/FloatingCopilot";
@@ -16,12 +17,13 @@ export default function MasterSidebar() {
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const ICON_SIZE = 24;
 
-  // 1. LOS 4 PILARES (Siempre visibles arriba)
+  // 1. LOS 5 PILARES (Ahora incluyendo el Mundo Terracota)
   const mainModules = [
     { name: "Inicio", icon: <LayoutGrid size={ICON_SIZE} />, path: "/inicio", color: "#64748b" },
     { name: "Docencia", icon: <GraduationCap size={ICON_SIZE} />, path: "/panel", color: "#3b82f6" },
     { name: "Investigación", icon: <Beaker size={ICON_SIZE} />, path: "/investigacion", color: "#f59e0b" },
     { name: "Laboratorio", icon: <FlaskConical size={ICON_SIZE} />, path: "/laboratorio", color: "#10b981" },
+    { name: "Campo", icon: <Globe size={ICON_SIZE} />, path: "/campo", color: "#ea580c" },
   ];
 
   // 2. HERRAMIENTAS DINÁMICAS (Cambian según el módulo activo)
@@ -46,6 +48,14 @@ export default function MasterSidebar() {
         { name: "Estación Control", icon: <Microscope size={20} />, path: "/laboratorio/laboratorio" },
       ];
     }
+    // Lógica para el Mundo Terracota
+    if (pathname.startsWith("/campo")) {
+      return [
+        { name: "Misiones", icon: <ClipboardList size={20} />, path: "/campo" },
+        { name: "Captura GPS", icon: <Camera size={20} />, path: "/campo/captura" },
+        { name: "Bóveda Local", icon: <Database size={20} />, path: "/campo/sincronizar" },
+      ];
+    }
     return [];
   };
 
@@ -57,7 +67,7 @@ export default function MasterSidebar() {
       <div className={styles.scrollContainer}>
         <nav className={styles.nav}>
           
-          {/* SECCIÓN 1: LOS 4 MUNDOS */}
+          {/* SECCIÓN 1: LOS MUNDOS */}
           {mainModules.map((module, index) => {
             const isActive = pathname.startsWith(module.path);
             return (
@@ -108,7 +118,7 @@ export default function MasterSidebar() {
         </nav>
       </div>
 
-      {/* SECCIÓN 2: FOOTER (CONFIG Y AI) */}
+      {/* FOOTER (CONFIG Y AI) */}
       <div className={styles.footer}>
         <div className={styles.separator} />
         

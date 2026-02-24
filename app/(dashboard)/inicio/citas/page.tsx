@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { 
   Calendar as CalendarIcon, Clock, Video, User, 
   CheckCircle2, XCircle, Plus, Filter, 
-  Settings2, ExternalLink, Mail
+  Settings2, ExternalLink, Mail,
+  Bookmark
 } from "lucide-react";
 
 // --- BOTÓN PREMIUM REUTILIZABLE ---

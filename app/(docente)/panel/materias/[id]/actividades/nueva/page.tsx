@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { 
-  Save, X, Wand2, Plus, Trash2 
+  Save, X, Wand2, Plus, Trash2, Lock, ShieldCheck, AlertCircle 
 } from "lucide-react";
 
 // --- COMPONENTE PREMIUM: BOTÓN EXPANDIBLE ---
@@ -49,6 +49,11 @@ export default function NuevaActividadPage() {
   const [criteria, setCriteria] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // --- ESTADOS PARA EL CANDADO DE ASISTENCIA ---
+  const [requireAttendance, setRequireAttendance] = useState(false);
+  const [pastSessions, setPastSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+
   // ESTADO LIMPIO PARA NUEVA ACTIVIDAD
   const [formData, setFormData] = useState({
     title: "",
@@ -73,14 +78,23 @@ export default function NuevaActividadPage() {
   }, [courseId]);
 
   const fetchData = async () => {
-    // SIMULACRO DE CARGA INICIAL
+    // 1. SIMULACRO DE CARGA INICIAL (Unidades y Criterios)
     setUnits([{ id: "u1", unit_number: 1 }, { id: "u2", unit_number: 2 }]);
     setCriteria([
       { id: "c1", unit_id: "u1", name: "Criterio de Desempeño" },
-      { id: "c2", unit_id: "u1", name: "Asistencia (No debe salir)" }, // Se filtrará
-      { id: "c3", unit_id: "u1", name: "Evaluación Escrita" }, // Se filtrará
+      { id: "c2", unit_id: "u1", name: "Asistencia (No debe salir)" }, 
+      { id: "c3", unit_id: "u1", name: "Evaluación Escrita" }, 
       { id: "c4", unit_id: "u1", name: "Criterio de Producto" }
     ]);
+
+    // 2. FETCH REAL: Traer sesiones pasadas para el candado de asistencia
+    const { data: sesiones } = await supabase
+      .from('sesiones_insitu')
+      .select('id, fecha_creacion, tipo')
+      .eq('materia_id', courseId)
+      .order('fecha_creacion', { ascending: false });
+    
+    if (sesiones) setPastSessions(sesiones);
   };
 
   const handleAddRubricRow = () => {
@@ -111,13 +125,16 @@ export default function NuevaActividadPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isRubricValid) return alert("La rúbrica de IA debe sumar exactamente 100%.");
+    if (requireAttendance && !selectedSessionId) return alert("Debes seleccionar a qué clase se vincula el candado de asistencia.");
     
-    alert("Actividad creada y guardada correctamente.");
+    // Aquí iría el insert real a Supabase mapeando `requiere_sesion_id: requireAttendance ? selectedSessionId : null`
+    // const payload = { ...formData, materia_id: courseId, requiere_sesion_id: requireAttendance ? selectedSessionId : null };
+    
+    alert(`Actividad creada con éxito. ${requireAttendance ? 'Candado de asistencia ACTIVADO.' : 'Libre acceso.'}`);
     router.push(`/panel/materias/${courseId}/actividades`);
   };
 
   // --- FILTRO DE NEGOCIO ESTRICTO ---
-  // Ocultamos criterios que contengan "asist" o "evaluaci"
   const filteredCriteria = criteria.filter(c => {
     if (c.unit_id !== formData.unit_id) return false;
     const nameLower = c.name.toLowerCase();
@@ -159,10 +176,57 @@ export default function NuevaActividadPage() {
                 {units.map(u => <option key={u.id} value={u.id}>Unidad {u.unit_number}</option>)}
               </select>
               <select required value={formData.criteria_id} onChange={e => setFormData({...formData, criteria_id: e.target.value})} style={{ padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", outline: "none", fontSize: "1rem", color: "#334155", backgroundColor: "white", cursor: "pointer" }}>
-                <option value="">Selecciona Criterio (Excluye asist/eval)</option>
+                <option value="">Selecciona Criterio</option>
                 {filteredCriteria.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* 🔒 NUEVO BLOQUE: EL CANDADO DE ASISTENCIA */}
+          <div style={{ backgroundColor: requireAttendance ? "#f0fdf4" : "white", padding: "32px", borderRadius: "24px", border: `1px solid ${requireAttendance ? '#bbf7d0' : '#e2e8f0'}`, transition: "all 0.3s" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: requireAttendance ? "20px" : "0" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px 0", color: requireAttendance ? "#166534" : "#1B396A", fontSize: "1.2rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                  {requireAttendance ? <ShieldCheck size={24} /> : <Lock size={20} />}
+                  Candado de Asistencia In-Situ
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.9rem", color: requireAttendance ? "#15803d" : "#64748b", fontWeight: "500", maxWidth: "80%" }}>
+                  Si se activa, solo los alumnos que validaron su ubicación y escanearon el QR presencialmente podrán entregar esta tarea.
+                </p>
+              </div>
+              
+              {/* Toggle Switch Personalizado */}
+              <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                <div style={{ position: "relative" }}>
+                  <input type="checkbox" checked={requireAttendance} onChange={(e) => { setRequireAttendance(e.target.checked); if(!e.target.checked) setSelectedSessionId(""); }} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <div style={{ width: "50px", height: "26px", backgroundColor: requireAttendance ? "#10b981" : "#cbd5e1", borderRadius: "50px", transition: "background-color 0.3s" }}></div>
+                  <div style={{ position: "absolute", top: "2px", left: requireAttendance ? "26px" : "2px", width: "22px", height: "22px", backgroundColor: "white", borderRadius: "50%", transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}></div>
+                </div>
+              </label>
+            </div>
+
+            {/* Desplegable de Sesiones Pasadas */}
+            {requireAttendance && (
+              <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#15803d", fontSize: "0.85rem", fontWeight: "700", marginBottom: "8px", textTransform: "uppercase" }}>
+                  <AlertCircle size={14} /> Vincular a la clase de:
+                </div>
+                <select 
+                  required={requireAttendance} 
+                  value={selectedSessionId} 
+                  onChange={e => setSelectedSessionId(e.target.value)} 
+                  style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #bbf7d0", outline: "none", fontSize: "1rem", color: "#166534", backgroundColor: "white", cursor: "pointer", fontWeight: "600" }}
+                >
+                  <option value="">Selecciona una clase anterior registrada...</option>
+                  {pastSessions.map(s => (
+                    <option key={s.id} value={s.id}>
+                      Día: {new Date(s.fecha_creacion).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} - ({s.tipo.replace('_', ' ').toUpperCase()})
+                    </option>
+                  ))}
+                  {pastSessions.length === 0 && <option disabled>No hay sesiones In-Situ registradas aún.</option>}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -175,7 +239,7 @@ export default function NuevaActividadPage() {
           </div>
 
           <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justify-content: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.2rem", fontWeight: "800" }}>Rúbrica de IA</h3>
               <span style={{ fontSize: "0.85rem", fontWeight: "800", color: isRubricValid ? "#10b981" : "#ef4444", backgroundColor: isRubricValid ? "#dcfce7" : "#fee2e2", padding: "4px 10px", borderRadius: "8px" }}>
                 {totalRubricWeight}%

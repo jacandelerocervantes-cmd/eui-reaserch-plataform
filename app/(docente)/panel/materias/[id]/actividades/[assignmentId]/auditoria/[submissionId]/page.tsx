@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { 
   Wand2, CheckCircle2, MessageSquare, Save, 
-  ChevronLeft, ChevronRight, Loader2
+  ChevronLeft, ChevronRight, Loader2, ArrowLeft
 } from "lucide-react";
 
-// --- COMPONENTE PREMIUM: BOTÓN EXPANDIBLE (ADN UNIFICADO) ---
+// --- COMPONENTE PREMIUM: BOTÓN EXPANDIBLE (TU ADN) ---
 const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", disabled = false, defaultExpanded = false, loading = false }: any) => {
   const [isHovered, setIsHovered] = useState(false);
-  
-  // Colores basados en tus diseños
   const bg = variant === "primary" ? "#152c54" : variant === "success" ? "#10b981" : "white";
   const color = variant === "default" ? "#64748b" : "white";
-
-  // El botón se expande si está el mouse encima O si lo forzamos por prop
   const expanded = isHovered || defaultExpanded;
 
   return (
@@ -27,85 +24,138 @@ const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", disa
       style={{
         display: "flex", alignItems: "center", justifyContent: "center", 
         gap: expanded && !loading ? "10px" : "0px",
-        backgroundColor: bg, 
-        color: color, 
-        border: "1px solid transparent", 
-        borderRadius: "14px", 
-        padding: expanded && !loading ? "0 20px" : "0", 
-        height: "52px", 
-        fontWeight: "900", 
-        fontSize: "1rem", 
+        backgroundColor: bg, color: color, border: "1px solid transparent", 
+        borderRadius: "14px", padding: expanded && !loading ? "0 20px" : "0", 
+        height: "52px", fontWeight: "900", fontSize: "1rem", 
         cursor: (disabled || loading) ? "not-allowed" : "pointer",
         transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)", 
-        overflow: "hidden", 
-        whiteSpace: "nowrap", 
-        boxShadow: "0 8px 15px rgba(0,0,0,0.1)", 
-        minWidth: "52px",
+        overflow: "hidden", whiteSpace: "nowrap", 
+        boxShadow: "0 8px 15px rgba(0,0,0,0.1)", minWidth: "52px",
         opacity: (disabled || loading) ? 0.7 : 1
       }}
     >
-      {loading ? (
-        <Loader2 size={22} className="animate-spin" />
-      ) : (
-        Icon && <Icon size={22} style={{ flexShrink: 0 }} />
-      )}
-      
+      {loading ? <Loader2 size={22} className="animate-spin" /> : (Icon && <Icon size={22} style={{ flexShrink: 0 }} />)}
       <span style={{ 
         maxWidth: expanded && !loading ? "200px" : "0px", 
         opacity: expanded && !loading ? 1 : 0, 
         transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)", 
         display: "inline-block" 
-      }}>
-        {label}
-      </span>
+      }}>{label}</span>
     </button>
   );
 };
 
 export default function AuditoriaIndividualPage() {
-  const [scores, setScores] = useState<any>({ "Contenido": 85, "Análisis": 90, "Formato": 100 });
-  const [feedback, setFeedback] = useState("El alumno demuestra un dominio técnico sobresaliente.");
+  const params = useParams();
+  const router = useRouter();
+  const { id: courseId, assignmentId, submissionId } = params;
+
+  // ESTADOS REALES
+  const [submission, setSubmission] = useState<any>(null);
+  const [scores, setScores] = useState<any>({});
+  const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Lógica técnica de Certeza AIA:
-  // $$NotaFinal = \sum_{i=1}^{n} (Reactivo_i \times Peso_i)$$
+  useEffect(() => {
+    if (submissionId) fetchRealData();
+  }, [submissionId]);
+
+  const fetchRealData = async () => {
+    setLoading(true);
+    try {
+      const { data: sub } = await supabase
+        .from('submissions')
+        .select(`*, students(*)`)
+        .eq('id', submissionId)
+        .single();
+
+      if (sub) {
+        setSubmission(sub);
+        // Priorizamos la nota final si ya existe, si no, la de la IA
+        setScores(sub.metadata || {}); 
+        setFeedback(sub.final_feedback || sub.ai_feedback || "");
+        setIsPublished(sub.status === 'completed');
+      }
+    } catch (error) {
+      console.error("Error cargando auditoría:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Nota Final Calculada Dinámicamente
   const total = useMemo(() => {
     const values = Object.values(scores) as number[];
+    if (values.length === 0) return submission?.ai_score || 0;
     return values.reduce((a, b) => a + b, 0) / values.length;
-  }, [scores]);
+  }, [scores, submission]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const { error } = await supabase
+        .from('submissions')
+        .update({
+          final_score: total,
+          final_feedback: feedback,
+          metadata: scores
+        })
+        .eq('id', submissionId);
+
+      if (error) throw error;
+      setToast("💾 Cambios guardados en DB.");
+    } catch (e) {
+      setToast("❌ Error al guardar.");
+    } finally {
       setIsSaving(false);
-      setToast("💾 Cambios guardados.");
       setTimeout(() => setToast(null), 2000);
-    }, 1000);
+    }
   };
 
-  const handlePublish = () => {
-    setIsPublished(true);
-    setToast("🎓 Calificación publicada.");
-    setTimeout(() => setToast(null), 2000);
+  const handlePublish = async () => {
+    try {
+      const { error } = await supabase
+        .from('submissions')
+        .update({ status: 'completed', graded_at: new Date().toISOString() })
+        .eq('id', submissionId);
+
+      if (error) throw error;
+      setIsPublished(true);
+      setToast("🎓 Calificación publicada al alumno.");
+    } catch (e) {
+      setToast("❌ Error al publicar.");
+    } finally {
+      setTimeout(() => setToast(null), 2000);
+    }
   };
+
+  // Obtener URL del PDF desde Storage
+  const pdfUrl = submission?.file_path 
+    ? supabase.storage.from('evidencias').getPublicUrl(submission.file_path).data.publicUrl 
+    : null;
+
+  if (loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 className="animate-spin" size={48} color="#1B396A" /></div>;
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", backgroundColor: "white", position: "relative" }}>
       
-      {/* NOTIFICACIÓN TOAST */}
       {toast && (
-        <div style={{ position: "fixed", bottom: "110px", right: "40px", backgroundColor: "#152c54", color: "white", padding: "12px 24px", borderRadius: "12px", fontWeight: "800", boxShadow: "0 10px 20px rgba(0,0,0,0.2)", zIndex: 1000, animation: "fadeIn 0.3s ease" }}>
+        <div style={{ position: "fixed", bottom: "110px", right: "40px", backgroundColor: "#152c54", color: "white", padding: "12px 24px", borderRadius: "12px", fontWeight: "800", boxShadow: "0 10px 20px rgba(0,0,0,0.2)", zIndex: 1000 }}>
           {toast}
         </div>
       )}
 
       {/* HEADER DE TRABAJO */}
       <div style={{ height: "80px", padding: "0 30px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ textAlign: "left" }}>
-          <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "950", color: "#1B396A", letterSpacing: "-0.02em" }}>García López, María</h2>
-          <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>Auditoría en Tiempo Real</span>
+        <div style={{ textAlign: "left", display: "flex", alignItems: "center", gap: "15px" }}>
+          <button onClick={() => router.back()} style={{ border: "none", background: "none", cursor: "pointer", color: "#1B396A" }}><ArrowLeft /></button>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "950", color: "#1B396A", letterSpacing: "-0.02em" }}>{submission?.students?.apellido_paterno}, {submission?.students?.nombres}</h2>
+            <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>Auditoría en Tiempo Real</span>
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
@@ -114,26 +164,27 @@ export default function AuditoriaIndividualPage() {
              <button style={{ width: "48px", height: "48px", borderRadius: "14px", border: "1px solid #cbd5e1", background: "white", cursor: "pointer", color: "#64748b" }}><ChevronRight size={22}/></button>
           </div>
           
-          {/* BOTÓN PUBLICAR: SOLO ICONO INICIALMENTE */}
           <ExpandingButton 
             icon={CheckCircle2} 
             label={isPublished ? "Publicado" : "Publicar"} 
             onClick={handlePublish} 
             variant="success" 
             disabled={isPublished}
-            defaultExpanded={false}
           />
         </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         
-        {/* Lado Izquierdo: Documento */}
-        <div style={{ flex: 1, backgroundColor: "#525659", padding: "50px", overflowY: "auto", display: "flex", justifyContent: "center" }}>
-          <div style={{ width: "100%", maxWidth: "850px", minHeight: "1100px", backgroundColor: "white", boxShadow: "0 30px 60px rgba(0,0,0,0.5)", padding: "80px" }}>
-             <h1 style={{ textAlign: "center", fontSize: "2rem", fontWeight: "1000", color: "#1B396A", borderBottom: "4px solid #1B396A", paddingBottom: "25px", marginBottom: "50px" }}>REPORTE TÉCNICO</h1>
-             <p style={{ lineHeight: "2", fontSize: "1.15rem", color: "#1e293b" }}>[ Evidencia del alumno ]</p>
-          </div>
+        {/* Lado Izquierdo: Visor de PDF Real */}
+        <div style={{ flex: 1, backgroundColor: "#525659", display: "flex", justifyContent: "center", overflow: "hidden" }}>
+          {pdfUrl ? (
+            <iframe src={`${pdfUrl}#toolbar=0`} width="100%" height="100%" style={{ border: "none" }} />
+          ) : (
+            <div style={{ padding: "50px", width: "100%", maxWidth: "850px", backgroundColor: "white", marginTop: "20px", textAlign: "center" }}>
+              Cargando documento...
+            </div>
+          )}
         </div>
 
         {/* Lado Derecho: Controles IA */}
@@ -141,7 +192,7 @@ export default function AuditoriaIndividualPage() {
           <div style={{ flex: 1, overflowY: "auto", padding: "35px" }}>
             <div style={{ backgroundColor: "#f5f3ff", padding: "20px", borderRadius: "20px", marginBottom: "40px", display: "flex", gap: "15px", border: "1px solid #ddd6fe", alignItems: "center" }}>
               <div style={{ backgroundColor: "#8b5cf6", padding: "10px", borderRadius: "12px", color: "white" }}><Wand2 size={26} /></div>
-              <span style={{ fontWeight: "900", color: "#6b21a8", fontSize: "1.05rem" }}>Certeza AIA Sugiere:</span>
+              <span style={{ fontWeight: "900", color: "#6b21a8", fontSize: "1.05rem" }}>Certeza AIA Sugiere: {submission?.ai_score}</span>
             </div>
 
             {Object.keys(scores).map(key => (
@@ -164,21 +215,18 @@ export default function AuditoriaIndividualPage() {
             </div>
           </div>
 
-          {/* FOOTER: Calificación y Botón Guardar */}
           <div style={{ padding: "35px", borderTop: "2px solid #f1f5f9", backgroundColor: "#f8fafc" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: "800", textTransform: "uppercase" }}>Nota Calculada</div>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: "800", textTransform: "uppercase" }}>Nota Final</div>
                 <div style={{ fontSize: "3.2rem", fontWeight: "1000", color: "#1B396A", lineHeight: 1 }}>{total.toFixed(1)}</div>
               </div>
               
-              {/* BOTÓN GUARDAR: SOLO ICONO INICIALMENTE, SE EXPANDE AL HOVER */}
               <ExpandingButton 
                 icon={Save} 
                 label="Guardar" 
                 onClick={handleSave} 
                 variant="primary" 
-                defaultExpanded={false} 
                 loading={isSaving}
               />
             </div>
@@ -187,7 +235,6 @@ export default function AuditoriaIndividualPage() {
       </div>
 
       <style jsx>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
       `}</style>

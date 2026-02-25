@@ -6,10 +6,17 @@ import {
   Save, Trash2, Calendar, BookOpen, Target, 
   ClipboardCheck, ArrowRight, Loader2
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Inicializamos Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function VistaPreviaExtraccion() {
   const [isMounted, setIsMounted] = useState(false);
-  const [step, setStep] = useState("analizando"); // analizando | revisando | guardado
+  const [step, setStep] = useState("analizando"); // analizando | revisando | guardado | error
+  const [isSaving, setIsSaving] = useState(false);
 
   // Simulación de los datos que la IA extrajo del PDF
   const [courseData, setCourseData] = useState({
@@ -36,6 +43,34 @@ export default function VistaPreviaExtraccion() {
     // Simular tiempo de lectura de la IA
     setTimeout(() => setStep("revisando"), 3000);
   }, []);
+
+  // Función para enviar los datos a la Edge Function setup-materia
+  const handleGuardar = async () => {
+    try {
+      setIsSaving(true);
+      
+      const { data, error } = await supabase.functions.invoke('setup-materia', {
+        body: { 
+          action: 'setupMateria', // Acción que espera tu Router.gs
+          payload: courseData    // Ajustado de 'materia' a 'payload' para que el Router lo lea bien
+        }
+      });
+
+      if (error) throw error;
+
+      if (data && data.success) {
+        setStep("guardado");
+      } else {
+        console.error("Error en la respuesta:", data);
+        alert("Hubo un problema al configurar la materia en Google Sheets.");
+      }
+    } catch (err) {
+      console.error("Error al guardar:", err);
+      alert("Error de conexión con el servidor.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -70,10 +105,25 @@ export default function VistaPreviaExtraccion() {
             <div style={{ display: "flex", gap: "12px" }}>
               <button style={{ backgroundColor: "#f1f5f9", color: "#64748b", border: "none", padding: "12px 24px", borderRadius: "14px", fontWeight: "700", cursor: "pointer" }}>Descartar</button>
               <button 
-                onClick={() => setStep("guardado")}
-                style={{ backgroundColor: "#1B396A", color: "white", border: "none", padding: "12px 32px", borderRadius: "14px", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", boxShadow: "0 10px 15px -3px rgba(27, 57, 106, 0.3)" }}
+                onClick={handleGuardar}
+                disabled={isSaving}
+                style={{ 
+                  backgroundColor: "#1B396A", 
+                  color: "white", 
+                  border: "none", 
+                  padding: "12px 32px", 
+                  borderRadius: "14px", 
+                  fontWeight: "800", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "10px", 
+                  cursor: isSaving ? "not-allowed" : "pointer", 
+                  boxShadow: "0 10px 15px -3px rgba(27, 57, 106, 0.3)",
+                  opacity: isSaving ? 0.7 : 1
+                }}
               >
-                <Save size={20} /> Guardar y Configurar Todo
+                {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                {isSaving ? "Configurando..." : "Guardar y Configurar Todo"}
               </button>
             </div>
           </header>
@@ -155,10 +205,10 @@ export default function VistaPreviaExtraccion() {
             <p style={{ color: "#64748b", marginTop: "8px" }}>Hemos creado las unidades, rúbricas y el calendario según tu Syllabus.</p>
           </div>
           <button 
-            onClick={() => window.location.href = "/panel"}
+            onClick={() => window.location.href = "/inicio"}
             style={{ backgroundColor: "#1B396A", color: "white", border: "none", padding: "14px 32px", borderRadius: "14px", fontWeight: "800", cursor: "pointer" }}
           >
-            Ir a Mis Materias
+            Ir al Centro de Mando
           </button>
         </div>
       )}

@@ -257,43 +257,58 @@ export default function ConfiguracionCalificaciones() {
     setLoading(false);
   };
 
-  const handleExportToSheets = () => {
-    let csvContent = "\uFEFF"; 
-    const headers = ["Matricula", "Alumno"];
-    units.forEach(u => headers.push(`U${u.unit_number}: ${u.name}`));
-    headers.push("PROMEDIO FINAL", "ESTATUS");
-    csvContent += headers.join(",") + "\n";
+  // --- LÓGICA DE EXPORTACIÓN ACTUALIZADA CON EDGE FUNCTION ---
+  const handleExportToSheets = async () => {
+    setIsSaving(true);
+    try {
+      // 1. Obtenemos todas las calificaciones para armar la sábana completa
+      const unitIds = units.map(u => u.id);
+      const actIds = activities.filter(a => unitIds.includes(a.unit_id)).map(a => a.id);
+      const { data: fullGrades } = await supabase.from("grades").select("*").in("activity_id", actIds);
 
-    students.forEach(s => {
-      let row = [`"${s.matricula}"`, `"${s.apellido_paterno} ${s.apellido_materno || ""} ${s.nombres}"`];
-      let sumOfAverages = 0;
-      let unitsCount = units.length;
+      // 2. Preparamos el Payload estructurado
+      const matrixData = {
+        unidades: units.map(u => ({
+          numero: u.unit_number, 
+          nombre: u.name,
+          criterios: activities.filter(a => a.unit_id === u.id).map(a => ({ nombre: a.name, valor: a.weight_percentage }))
+        })),
+        alumnos: students.map(s => {
+          let finalSum = 0;
+          const unidadesAlumno = units.map(u => {
+            let uSum = 0;
+            const notasCriterios = activities.filter(a => a.unit_id === u.id).map(act => {
+              // Buscar en estados locales primero, si no en fullGrades
+              const scoreStr = grades[`${s.id}_${act.id}`];
+              const score = scoreStr !== undefined ? Number(scoreStr) : (fullGrades?.find(g => g.student_id === s.id && g.activity_id === act.id)?.score || 0);
+              uSum += (score * (act.weight_percentage / 100));
+              return score;
+            });
+            finalSum += uSum;
+            return { promedioUnidad: uSum.toFixed(1), notas: notasCriterios };
+          });
+          
+          return { 
+            matricula: s.matricula, 
+            nombre: `${s.apellido_paterno} ${s.apellido_materno || ""} ${s.nombres}`.trim(), 
+            unidades: unidadesAlumno, 
+            promedioFinal: units.length > 0 ? (finalSum / units.length).toFixed(1) : "0.0" 
+          };
+        })
+      };
 
-      units.forEach(u => {
-        let uAvg = 0;
-        activities.filter(a => a.unit_id === u.id).forEach(act => {
-          const scoreStr = grades[`${s.id}_${act.id}`];
-          const score = scoreStr !== undefined ? Number(scoreStr) : (allGrades.find(g => g.student_id === s.id && g.activity_id === act.id)?.score || 0);
-          uAvg += (score * (act.weight_percentage / 100));
-        });
-        sumOfAverages += uAvg;
-        row.push(uAvg.toFixed(1));
+      // 3. Enviamos a Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('sync-grading-matrix', {
+        body: { courseId, matrixData }
       });
 
-      const finalAvg = unitsCount > 0 ? (sumOfAverages / unitsCount) : 0;
-      const status = finalAvg >= 70 ? "APROBADO" : "REPROBADO";
-      row.push(finalAvg.toFixed(1), `"${status}"`);
-      csvContent += row.join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Acta_Final_GoogleSheets.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      if (error || !data.success) throw new Error(data?.error || "Error de sincronización con el servidor");
+      alert("🚀 ¡Sábana de Calificaciones sincronizada en Google Drive!");
+    } catch (error: any) {
+      alert(error.message || "Ocurrió un error al exportar");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // --- NUEVA LÓGICA DE SÁBANA ---

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { 
   ArrowLeft, CheckCircle2, Clock, AlertCircle, 
-  Search, Eye, Save, Sparkles, BarChart3, Send
+  Search, Eye, Save, Sparkles, BarChart3, Send, Loader2, ChevronRight
 } from "lucide-react";
 
-// --- COMPONENTE: ExpandingButton ---
-const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", small = false, disabled = false }: any) => {
+// --- COMPONENTE: ExpandingButton (Diseño Premium EUI) ---
+const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", small = false, disabled = false, loading = false }: any) => {
   const [isHovered, setIsHovered] = useState(false);
   const getStyles = () => {
     if (disabled) return { bg: "#f1f5f9", text: "#94a3b8", border: "#e2e8f0" };
@@ -25,16 +26,18 @@ const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", smal
   return (
     <button
       onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
-      onClick={onClick} disabled={disabled}
+      onClick={onClick} disabled={disabled || loading}
       style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: isHovered && !disabled ? "8px" : "0px",
-        backgroundColor: isHovered && !disabled ? style.hoverBg : style.bg, color: style.text, 
-        border: `1px solid ${style.border}`, borderRadius: "10px", padding: "0 12px", height: small ? "36px" : "44px",
-        fontWeight: "600", transition: "all 0.3s", overflow: "hidden", whiteSpace: "nowrap", cursor: disabled ? "not-allowed" : "pointer"
+        display: "flex", alignItems: "center", justifyContent: "center", gap: (isHovered || loading) && !disabled ? "8px" : "0px",
+        backgroundColor: (isHovered || loading) && !disabled ? style.hoverBg : style.bg, color: style.text, 
+        border: `1px solid ${style.border}`, borderRadius: "12px", padding: "0 16px", height: small ? "38px" : "48px",
+        fontWeight: "700", transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)", overflow: "hidden", whiteSpace: "nowrap", cursor: disabled ? "not-allowed" : "pointer"
       }}
     >
-      {Icon && <Icon size={small ? 16 : 18} />}
-      <span style={{ maxWidth: isHovered ? "200px" : "0px", opacity: isHovered ? 1 : 0, transition: "0.3s" }}>{label}</span>
+      {loading ? <Loader2 size={18} className="animate-spin" /> : (Icon && <Icon size={small ? 16 : 20} />)}
+      <span style={{ maxWidth: (isHovered || loading) ? "250px" : "0px", opacity: (isHovered || loading) ? 1 : 0, transition: "0.4s" }}>
+        {label}
+      </span>
     </button>
   );
 };
@@ -42,111 +45,197 @@ const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", smal
 export default function RevisionExamenPage() {
   const params = useParams();
   const router = useRouter();
+  const { id: courseId, examId } = params;
 
-  const [alumnos, setAlumnos] = useState([
-    { id: "1", matricula: "19080123", nombre: "Candelero Cervantes Juan Antonio", entregado: true, score_ia: 85, final_score: 85, revisado: false },
-    { id: "2", matricula: "19080124", nombre: "López García María Elena", entregado: true, score_ia: 92, final_score: 92, revisado: true },
-    { id: "3", matricula: "19080125", nombre: "Pérez Ruíz Ricardo", entregado: false, score_ia: 0, final_score: 0, revisado: false },
-  ]);
+  const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [examInfo, setExamInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const handleSyncGrades = () => {
-    alert("Enviando estas calificaciones a la columna 'EVAL' de la Sábana General...");
+  useEffect(() => {
+    if (examId) fetchData();
+  }, [examId]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data: exam } = await supabase.from('evaluations').select('*, units(name)').eq('id', examId).single();
+      setExamInfo(exam);
+
+      // Cargar alumnos y sus respuestas
+      const { data: students } = await supabase
+        .from('enrollments')
+        .select(`
+          student_id,
+          students (id, matricula, nombres, apellido_paterno, apellido_materno),
+          evaluation_responses (id, score_ia, final_score, status, metadata)
+        `)
+        .eq('course_id', courseId);
+
+      if (students) {
+        const formatted = students.map((s: any) => ({
+          id: s.students.id,
+          matricula: s.students.matricula,
+          nombre: `${s.students.apellido_paterno} ${s.students.apellido_materno} ${s.students.nombres}`,
+          entregado: s.evaluation_responses.length > 0,
+          score_ia: s.evaluation_responses[0]?.score_ia || 0,
+          final_score: s.evaluation_responses[0]?.final_score || 0,
+          revisado: s.evaluation_responses[0]?.status === 'completed',
+          responseId: s.evaluation_responses[0]?.id
+        }));
+        setAlumnos(formatted);
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  const handleMassNotify = () => {
-    if(confirm("¿Deseas enviar los resultados finales y el feedback de IA por correo a todos los alumnos calificados?")) {
-      alert("Resultados enviados exitosamente.");
-    }
+  // --- ACCIÓN 1: Revisión Masiva IA (Edge Function) ---
+  const handleBulkIA = async () => {
+    setIsAIProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-evaluate-exams', {
+        body: { examId, studentIds: alumnos.filter(a => a.entregado).map(a => a.id) }
+      });
+      if (error) throw error;
+      fetchData(); // Recargar datos tras procesar
+    } catch (e: any) { alert("Certeza AIA: " + e.message); }
+    finally { setIsAIProcessing(false); }
   };
+
+  // --- ACCIÓN 2: Sincronizar con Sábana (Apps Script Router) ---
+  const handleSyncGrades = async () => {
+    setIsSyncing(true);
+    try {
+      const ROUTER_URL = "TU_URL_DEL_ROUTER_PRINCIPAL";
+      await fetch(ROUTER_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: 'actualizarSabanaNotas', // Esta acción llama a tu función de GAS
+          payload: {
+            googleSheetId: examInfo?.google_sheet_id, // Si lo tienes guardado
+            dataMatrix: {
+              unidades: [{ numero: examInfo?.units?.unit_number, nombre: examInfo?.units?.name, criterios: [{ nombre: "Examen", valor: 100 }] }],
+              alumnos: alumnos.map(a => ({
+                matricula: a.matricula,
+                nombre: a.nombre,
+                unidades: [{
+                  notas: [a.final_score],
+                  promedioUnidad: a.final_score
+                }],
+                promedioFinal: a.final_score
+              }))
+            }
+          }
+        })
+      });
+      alert("Sábana de notas actualizada en Google Sheets.");
+    } catch (e) { alert("Error al sincronizar."); }
+    finally { setIsSyncing(false); }
+  };
+
+  const filteredAlumnos = alumnos.filter(a => 
+    a.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    a.matricula.includes(searchTerm)
+  );
+
+  if (loading) return (
+    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Loader2 className="animate-spin" size={48} color="#1B396A" />
+    </div>
+  );
 
   return (
-    <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto", backgroundColor: "#F8FAFC", minHeight: "100vh" }}>
+    <div style={{ padding: "40px", maxWidth: "1300px", margin: "0 auto", backgroundColor: "#F8FAFC", minHeight: "100vh" }}>
       
       {/* HEADER: INFO EXAMEN */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <button onClick={() => router.back()} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><ArrowLeft /></button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+          <button onClick={() => router.back()} style={{ background: "white", border: "1px solid #e2e8f0", padding: "10px", borderRadius: "12px", cursor: "pointer", color: "#64748b", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}><ArrowLeft size={20}/></button>
           <div>
-            <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "900", margin: 0 }}>Resultados: Parcial 1 SQL</h1>
-            <div style={{ display: "flex", gap: "15px", marginTop: "5px", fontSize: "0.85rem", color: "#64748b" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><BarChart3 size={14} /> Unidad 1</span>
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><Clock size={14} /> 60 Minutos</span>
-              <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><CheckCircle2 size={14} color="#10b981" /> 2 / 3 Entregados</span>
+            <h1 style={{ color: "#1B396A", fontSize: "2.2rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>{examInfo?.title}</h1>
+            <div style={{ display: "flex", gap: "20px", marginTop: "8px", fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><BarChart3 size={16} /> {examInfo?.units?.name}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><CheckCircle2 size={16} color="#10b981" /> {alumnos.filter(a => a.entregado).length} / {alumnos.length} Entregas</span>
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <ExpandingButton icon={Sparkles} label="Revisión Masiva IA" variant="ai" />
-          <ExpandingButton icon={Send} label="Notificar al Grupo" onClick={handleMassNotify} variant="notify" />
-          <ExpandingButton icon={Save} label="Guardar en Sábana" onClick={handleSyncGrades} variant="success" />
+        <div style={{ display: "flex", gap: "12px" }}>
+          <ExpandingButton icon={Sparkles} label="Revisión Masiva IA" variant="ai" onClick={handleBulkIA} loading={isAIProcessing} />
+          <ExpandingButton icon={Send} label="Notificar Resultados" variant="notify" />
+          <ExpandingButton icon={Save} label="Sincronizar Sábana" onClick={handleSyncGrades} variant="success" loading={isSyncing} />
         </div>
       </div>
 
-      {/* FILTROS Y BÚSQUEDA */}
-      <div style={{ backgroundColor: "white", padding: "15px 25px", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ position: "relative", width: "400px" }}>
-          <Search size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
-          <input placeholder="Buscar por nombre o matrícula..." style={{ width: "100%", padding: "10px 15px 10px 40px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none" }} />
+      {/* FILTROS */}
+      <div style={{ backgroundColor: "white", padding: "20px 30px", borderRadius: "20px", border: "1px solid #e2e8f0", marginBottom: "30px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
+        <div style={{ position: "relative", width: "450px" }}>
+          <Search size={20} style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+          <input 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre o matrícula..." 
+            style={{ width: "100%", padding: "14px 14px 14px 48px", borderRadius: "14px", border: "1px solid #e2e8f0", outline: "none", fontSize: "1rem", fontWeight: "500" }} 
+          />
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <select style={{ padding: "10px", borderRadius: "10px", border: "1px solid #e2e8f0", backgroundColor: "white", color: "#1B396A", fontWeight: "600" }}>
-            <option>Todos los alumnos</option>
-            <option>Pendientes de entrega</option>
-            <option>Por revisar manual</option>
-          </select>
-        </div>
+        <select style={{ padding: "14px 20px", borderRadius: "14px", border: "1px solid #e2e8f0", backgroundColor: "white", color: "#1B396A", fontWeight: "700", outline: "none" }}>
+          <option>Todos los alumnos</option>
+          <option>Pendientes de entrega</option>
+          <option>Por revisar manual</option>
+        </select>
       </div>
 
       {/* TABLA DE REVISIÓN OPERATIVA */}
-      <div style={{ backgroundColor: "white", borderRadius: "20px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+      <div style={{ backgroundColor: "white", borderRadius: "24px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead style={{ backgroundColor: "#F8FAFC", textAlign: "left" }}>
             <tr>
-              <th style={{ padding: "15px 25px", color: "#64748b", fontSize: "0.75rem", fontWeight: "800" }}>ALUMNO / MATRÍCULA</th>
-              <th style={{ padding: "15px 25px", color: "#64748b", fontSize: "0.75rem", fontWeight: "800" }}>ESTADO DE ENTREGA</th>
-              <th style={{ padding: "15px 25px", color: "#64748b", fontSize: "0.75rem", fontWeight: "800" }}>SCORE IA</th>
-              <th style={{ padding: "15px 25px", color: "#64748b", fontSize: "0.75rem", fontWeight: "800" }}>CALIF. FINAL (100)</th>
-              <th style={{ padding: "15px 25px", color: "#64748b", fontSize: "0.75rem", fontWeight: "800", textAlign: "right" }}>ACCIONES</th>
+              <th style={{ padding: "20px 30px", color: "#64748b", fontSize: "0.75rem", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.05em" }}>Alumno / Matrícula</th>
+              <th style={{ padding: "20px 30px", color: "#64748b", fontSize: "0.75rem", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.05em" }}>Estado</th>
+              <th style={{ padding: "20px 30px", color: "#64748b", fontSize: "0.75rem", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.05em" }}>Score IA</th>
+              <th style={{ padding: "20px 30px", color: "#64748b", fontSize: "0.75rem", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.05em" }}>Calif. Final</th>
+              <th style={{ padding: "20px 30px", color: "#64748b", fontSize: "0.75rem", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {alumnos.map((a) => (
-              <tr key={a.id} style={{ borderBottom: "1px solid #f1f5f9", backgroundColor: a.entregado ? "white" : "#fafafa" }}>
-                <td style={{ padding: "18px 25px" }}>
-                  <div style={{ color: "#1B396A", fontWeight: "700" }}>{a.nombre}</div>
-                  <div style={{ color: "#94a3b8", fontSize: "0.75rem", fontFamily: "monospace" }}>{a.matricula}</div>
+            {filteredAlumnos.map((a) => (
+              <tr key={a.id} style={{ borderBottom: "1px solid #f1f5f9", backgroundColor: a.entregado ? "white" : "#fafafa", transition: "0.2s" }}>
+                <td style={{ padding: "22px 30px" }}>
+                  <div style={{ color: "#1B396A", fontWeight: "800", fontSize: "1.05rem" }}>{a.nombre}</div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.8rem", fontFamily: "monospace", fontWeight: "600", marginTop: "2px" }}>{a.matricula}</div>
                 </td>
-                <td style={{ padding: "18px 25px" }}>
+                <td style={{ padding: "22px 30px" }}>
                   {a.entregado ? (
-                    <span style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.85rem", fontWeight: "700" }}>
-                      <CheckCircle2 size={16} /> Entregado
+                    <span style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem", fontWeight: "800" }}>
+                      <CheckCircle2 size={18} /> Entregado
                     </span>
                   ) : (
-                    <span style={{ color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.85rem", fontWeight: "700" }}>
-                      <Clock size={16} /> Pendiente
+                    <span style={{ color: "#94a3b8", display: "flex", alignItems: "center", gap: "6px", fontSize: "0.9rem", fontWeight: "800" }}>
+                      <Clock size={18} /> Pendiente
                     </span>
                   )}
                 </td>
-                <td style={{ padding: "18px 25px", color: "#64748b", fontWeight: "700" }}>
-                  {a.entregado ? `${a.score_ia}/100` : "--"}
+                <td style={{ padding: "22px 30px", color: "#1B396A", fontWeight: "800", fontSize: "1.1rem" }}>
+                  {a.entregado ? <span style={{ backgroundColor: "#f0f7ff", padding: "4px 10px", borderRadius: "8px", color: "#2563eb" }}>{a.score_ia}</span> : "--"}
                 </td>
-                <td style={{ padding: "18px 25px" }}>
+                <td style={{ padding: "22px 30px" }}>
                   {a.entregado ? (
                     <input 
                       type="number" 
                       defaultValue={a.final_score} 
-                      style={{ width: "70px", padding: "8px", borderRadius: "8px", border: a.revisado ? "1px solid #e2e8f0" : "2px solid #f59e0b", textAlign: "center", fontWeight: "800", color: "#1B396A" }} 
+                      style={{ width: "80px", padding: "10px", borderRadius: "10px", border: a.revisado ? "1px solid #e2e8f0" : "2px solid #f59e0b", textAlign: "center", fontWeight: "900", color: "#1B396A", fontSize: "1.1rem", outline: "none" }} 
                     />
                   ) : "--"}
                 </td>
-                <td style={{ padding: "18px 25px", textAlign: "right" }}>
-                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center" }}>
-                    <ExpandingButton small icon={Sparkles} label="Feedback IA" variant="ai" disabled={!a.entregado} />
-                    <ExpandingButton small icon={Eye} label="Revisar Reactivos" onClick={() => {}} variant="secondary" disabled={!a.entregado} />
+                <td style={{ padding: "22px 30px", textAlign: "right" }}>
+                  <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", alignItems: "center" }}>
+                    <ExpandingButton small icon={Sparkles} label="Feedback" variant="ai" disabled={!a.entregado} />
+                    <ExpandingButton small icon={Eye} label="Revisar" onClick={() => router.push(`${params.examId}/revision/${a.id}`)} variant="secondary" disabled={!a.entregado} />
                     {a.entregado && !a.revisado && (
-                      <span title="Requiere revisión manual" style={{ display: "flex", alignItems: "center" }}>
-                        <AlertCircle size={18} color="#f59e0b" />
-                      </span>
+                      <div title="Requiere validación manual" style={{ color: "#f59e0b", display: "flex", alignItems: "center" }}>
+                        <AlertCircle size={22} />
+                      </div>
                     )}
                   </div>
                 </td>
@@ -155,6 +244,11 @@ export default function RevisionExamenPage() {
           </tbody>
         </table>
       </div>
+
+      <style jsx>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
+      `}</style>
     </div>
   );
 }

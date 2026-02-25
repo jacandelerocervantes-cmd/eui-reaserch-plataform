@@ -22,9 +22,24 @@ create type "public"."user_role" as enum ('admin', 'docente', 'alumno');
     "unit_id" uuid,
     "name" text not null,
     "weight_percentage" integer not null,
-    "created_at" timestamp with time zone default now()
+    "created_at" timestamp with time zone default now(),
+    "rubrica_ia_sugerida" jsonb
       );
 
+
+
+  create table "public"."anuncios" (
+    "id" uuid not null default extensions.uuid_generate_v4(),
+    "materia_id" uuid not null,
+    "autor_id" uuid not null,
+    "titulo" text not null,
+    "contenido" text not null,
+    "es_ia_generado" boolean default false,
+    "creado_en" timestamp with time zone default now()
+      );
+
+
+alter table "public"."anuncios" enable row level security;
 
 
   create table "public"."asistencias_validadas" (
@@ -174,18 +189,6 @@ alter table "public"."citas_asesoria" enable row level security;
 alter table "public"."courses" enable row level security;
 
 
-  create table "public"."criterios_evaluacion" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
-    "unidad_id" uuid,
-    "nombre" text not null,
-    "peso_porcentaje" integer not null,
-    "creado_en" timestamp with time zone default now()
-      );
-
-
-alter table "public"."criterios_evaluacion" enable row level security;
-
-
   create table "public"."enrollments" (
     "course_id" uuid not null,
     "student_id" uuid not null,
@@ -253,7 +256,8 @@ alter table "public"."equipos_lab" enable row level security;
     "randomize_questions" boolean default true,
     "randomize_options" boolean default true,
     "created_at" timestamp with time zone default now(),
-    "updated_at" timestamp with time zone default now()
+    "updated_at" timestamp with time zone default now(),
+    "ai_group_insight" text
       );
 
 
@@ -345,7 +349,9 @@ alter table "public"."literatura_referencias" enable row level security;
     "archivo_url" text not null,
     "tamano_bytes" bigint,
     "es_visible" boolean default false,
-    "creado_en" timestamp with time zone default now()
+    "creado_en" timestamp with time zone default now(),
+    "unit_id" uuid,
+    "es_hibrido_ia" boolean default false
       );
 
 
@@ -365,6 +371,19 @@ alter table "public"."materiales_boveda" enable row level security;
 
 
 alter table "public"."materias" enable row level security;
+
+
+  create table "public"."materias_avisos" (
+    "id" uuid not null default extensions.uuid_generate_v4(),
+    "materia_id" uuid not null,
+    "autor_id" uuid not null default auth.uid(),
+    "titulo" text not null,
+    "contenido" text not null,
+    "creado_en" timestamp with time zone default now()
+      );
+
+
+alter table "public"."materias_avisos" enable row level security;
 
 
   create table "public"."perfiles" (
@@ -494,20 +513,6 @@ alter table "public"."sesiones_insitu" enable row level security;
 
 
 
-  create table "public"."tareas" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
-    "materia_id" uuid not null,
-    "titulo" character varying(200) not null,
-    "descripcion" text,
-    "fecha_cierre" timestamp with time zone not null,
-    "requiere_sesion_id" uuid,
-    "creado_en" timestamp with time zone default now()
-      );
-
-
-alter table "public"."tareas" enable row level security;
-
-
   create table "public"."tareas_usuario" (
     "id" uuid not null default extensions.uuid_generate_v4(),
     "usuario_id" uuid,
@@ -562,30 +567,9 @@ alter table "public"."telemetria_iot" enable row level security;
 
 alter table "public"."tesistas" enable row level security;
 
-
-  create table "public"."unidades_aprendizaje" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
-    "materia_id" uuid,
-    "numero_unidad" integer not null,
-    "titulo" text not null,
-    "is_closed" boolean default false,
-    "creado_en" timestamp with time zone default now()
-      );
-
-
-alter table "public"."unidades_aprendizaje" enable row level security;
-
-
-  create table "public"."units" (
-    "id" uuid not null default gen_random_uuid(),
-    "course_id" uuid,
-    "unit_number" integer not null,
-    "title" text not null,
-    "created_at" timestamp with time zone default now()
-      );
-
-
 CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id);
+
+CREATE UNIQUE INDEX anuncios_pkey ON public.anuncios USING btree (id);
 
 CREATE UNIQUE INDEX asistencias_validadas_pkey ON public.asistencias_validadas USING btree (id);
 
@@ -612,8 +596,6 @@ CREATE UNIQUE INDEX citas_asesoria_pkey ON public.citas_asesoria USING btree (id
 CREATE UNIQUE INDEX course_units_pkey ON public.course_units USING btree (id);
 
 CREATE UNIQUE INDEX courses_pkey ON public.courses USING btree (id);
-
-CREATE UNIQUE INDEX criterios_evaluacion_pkey ON public.criterios_evaluacion USING btree (id);
 
 CREATE UNIQUE INDEX enrollments_pkey ON public.enrollments USING btree (course_id, student_id);
 
@@ -647,6 +629,8 @@ CREATE UNIQUE INDEX literatura_referencias_pkey ON public.literatura_referencias
 
 CREATE UNIQUE INDEX materiales_boveda_pkey ON public.materiales_boveda USING btree (id);
 
+CREATE UNIQUE INDEX materias_avisos_pkey ON public.materias_avisos USING btree (id);
+
 CREATE UNIQUE INDEX materias_pkey ON public.materias USING btree (id);
 
 CREATE UNIQUE INDEX perfiles_matricula_rfc_key ON public.perfiles USING btree (matricula_rfc);
@@ -669,8 +653,6 @@ CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id);
 
 CREATE UNIQUE INDEX submissions_pkey ON public.submissions USING btree (id);
 
-CREATE UNIQUE INDEX tareas_pkey ON public.tareas USING btree (id);
-
 CREATE UNIQUE INDEX tareas_usuario_pkey ON public.tareas_usuario USING btree (id);
 
 CREATE UNIQUE INDEX teams_pkey ON public.teams USING btree (id);
@@ -679,11 +661,9 @@ CREATE UNIQUE INDEX telemetria_iot_pkey ON public.telemetria_iot USING btree (id
 
 CREATE UNIQUE INDEX tesistas_pkey ON public.tesistas USING btree (id);
 
-CREATE UNIQUE INDEX unidades_aprendizaje_pkey ON public.unidades_aprendizaje USING btree (id);
-
-CREATE UNIQUE INDEX units_pkey ON public.units USING btree (id);
-
 alter table "public"."activities" add constraint "activities_pkey" PRIMARY KEY using index "activities_pkey";
+
+alter table "public"."anuncios" add constraint "anuncios_pkey" PRIMARY KEY using index "anuncios_pkey";
 
 alter table "public"."asistencias_validadas" add constraint "asistencias_validadas_pkey" PRIMARY KEY using index "asistencias_validadas_pkey";
 
@@ -706,8 +686,6 @@ alter table "public"."citas_asesoria" add constraint "citas_asesoria_pkey" PRIMA
 alter table "public"."course_units" add constraint "course_units_pkey" PRIMARY KEY using index "course_units_pkey";
 
 alter table "public"."courses" add constraint "courses_pkey" PRIMARY KEY using index "courses_pkey";
-
-alter table "public"."criterios_evaluacion" add constraint "criterios_evaluacion_pkey" PRIMARY KEY using index "criterios_evaluacion_pkey";
 
 alter table "public"."enrollments" add constraint "enrollments_pkey" PRIMARY KEY using index "enrollments_pkey";
 
@@ -735,6 +713,8 @@ alter table "public"."materiales_boveda" add constraint "materiales_boveda_pkey"
 
 alter table "public"."materias" add constraint "materias_pkey" PRIMARY KEY using index "materias_pkey";
 
+alter table "public"."materias_avisos" add constraint "materias_avisos_pkey" PRIMARY KEY using index "materias_avisos_pkey";
+
 alter table "public"."perfiles" add constraint "perfiles_pkey" PRIMARY KEY using index "perfiles_pkey";
 
 alter table "public"."profiles" add constraint "profiles_pkey" PRIMARY KEY using index "profiles_pkey";
@@ -753,8 +733,6 @@ alter table "public"."students" add constraint "students_pkey" PRIMARY KEY using
 
 alter table "public"."submissions" add constraint "submissions_pkey" PRIMARY KEY using index "submissions_pkey";
 
-alter table "public"."tareas" add constraint "tareas_pkey" PRIMARY KEY using index "tareas_pkey";
-
 alter table "public"."tareas_usuario" add constraint "tareas_usuario_pkey" PRIMARY KEY using index "tareas_usuario_pkey";
 
 alter table "public"."teams" add constraint "teams_pkey" PRIMARY KEY using index "teams_pkey";
@@ -763,13 +741,17 @@ alter table "public"."telemetria_iot" add constraint "telemetria_iot_pkey" PRIMA
 
 alter table "public"."tesistas" add constraint "tesistas_pkey" PRIMARY KEY using index "tesistas_pkey";
 
-alter table "public"."unidades_aprendizaje" add constraint "unidades_aprendizaje_pkey" PRIMARY KEY using index "unidades_aprendizaje_pkey";
-
-alter table "public"."units" add constraint "units_pkey" PRIMARY KEY using index "units_pkey";
-
 alter table "public"."activities" add constraint "activities_unit_id_fkey" FOREIGN KEY (unit_id) REFERENCES public.course_units(id) ON DELETE CASCADE not valid;
 
 alter table "public"."activities" validate constraint "activities_unit_id_fkey";
+
+alter table "public"."anuncios" add constraint "anuncios_autor_id_fkey" FOREIGN KEY (autor_id) REFERENCES public.perfiles(id) not valid;
+
+alter table "public"."anuncios" validate constraint "anuncios_autor_id_fkey";
+
+alter table "public"."anuncios" add constraint "anuncios_materia_id_fkey" FOREIGN KEY (materia_id) REFERENCES public.materias(id) ON DELETE CASCADE not valid;
+
+alter table "public"."anuncios" validate constraint "anuncios_materia_id_fkey";
 
 alter table "public"."asistencias_validadas" add constraint "asistencias_validadas_alumno_id_fkey" FOREIGN KEY (alumno_id) REFERENCES public.perfiles(id) ON DELETE CASCADE not valid;
 
@@ -859,14 +841,6 @@ alter table "public"."courses" add constraint "courses_teacher_id_fkey" FOREIGN 
 
 alter table "public"."courses" validate constraint "courses_teacher_id_fkey";
 
-alter table "public"."criterios_evaluacion" add constraint "criterios_evaluacion_peso_porcentaje_check" CHECK (((peso_porcentaje >= 0) AND (peso_porcentaje <= 100))) not valid;
-
-alter table "public"."criterios_evaluacion" validate constraint "criterios_evaluacion_peso_porcentaje_check";
-
-alter table "public"."criterios_evaluacion" add constraint "criterios_evaluacion_unidad_id_fkey" FOREIGN KEY (unidad_id) REFERENCES public.unidades_aprendizaje(id) ON DELETE CASCADE not valid;
-
-alter table "public"."criterios_evaluacion" validate constraint "criterios_evaluacion_unidad_id_fkey";
-
 alter table "public"."enrollments" add constraint "enrollments_course_id_fkey" FOREIGN KEY (course_id) REFERENCES public.courses(id) ON DELETE CASCADE not valid;
 
 alter table "public"."enrollments" validate constraint "enrollments_course_id_fkey";
@@ -881,10 +855,6 @@ alter table "public"."entregas" validate constraint "entregas_alumno_id_fkey";
 
 alter table "public"."entregas" add constraint "entregas_tarea_id_alumno_id_key" UNIQUE using index "entregas_tarea_id_alumno_id_key";
 
-alter table "public"."entregas" add constraint "entregas_tarea_id_fkey" FOREIGN KEY (tarea_id) REFERENCES public.tareas(id) ON DELETE CASCADE not valid;
-
-alter table "public"."entregas" validate constraint "entregas_tarea_id_fkey";
-
 alter table "public"."evaluations" add constraint "evaluations_evaluator_type_check" CHECK ((evaluator_type = ANY (ARRAY['ai'::text, 'peer'::text, 'teacher'::text]))) not valid;
 
 alter table "public"."evaluations" validate constraint "evaluations_evaluator_type_check";
@@ -892,10 +862,6 @@ alter table "public"."evaluations" validate constraint "evaluations_evaluator_ty
 alter table "public"."evaluations" add constraint "evaluations_submission_id_fkey" FOREIGN KEY (submission_id) REFERENCES public.submissions(id) ON DELETE CASCADE not valid;
 
 alter table "public"."evaluations" validate constraint "evaluations_submission_id_fkey";
-
-alter table "public"."exams" add constraint "exams_unit_id_fkey" FOREIGN KEY (unit_id) REFERENCES public.units(id) ON DELETE CASCADE not valid;
-
-alter table "public"."exams" validate constraint "exams_unit_id_fkey";
 
 alter table "public"."fondos_investigacion" add constraint "fondos_investigacion_proyecto_id_fkey" FOREIGN KEY (proyecto_id) REFERENCES public.proyectos_investigacion(id) ON DELETE CASCADE not valid;
 
@@ -943,9 +909,21 @@ alter table "public"."materiales_boveda" add constraint "materiales_boveda_mater
 
 alter table "public"."materiales_boveda" validate constraint "materiales_boveda_materia_id_fkey";
 
+alter table "public"."materiales_boveda" add constraint "materiales_boveda_unit_id_fkey" FOREIGN KEY (unit_id) REFERENCES public.course_units(id) ON DELETE CASCADE not valid;
+
+alter table "public"."materiales_boveda" validate constraint "materiales_boveda_unit_id_fkey";
+
 alter table "public"."materias" add constraint "materias_docente_id_fkey" FOREIGN KEY (docente_id) REFERENCES public.perfiles(id) ON DELETE CASCADE not valid;
 
 alter table "public"."materias" validate constraint "materias_docente_id_fkey";
+
+alter table "public"."materias_avisos" add constraint "materias_avisos_autor_id_fkey" FOREIGN KEY (autor_id) REFERENCES public.perfiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."materias_avisos" validate constraint "materias_avisos_autor_id_fkey";
+
+alter table "public"."materias_avisos" add constraint "materias_avisos_materia_id_fkey" FOREIGN KEY (materia_id) REFERENCES public.materias(id) ON DELETE CASCADE not valid;
+
+alter table "public"."materias_avisos" validate constraint "materias_avisos_materia_id_fkey";
 
 alter table "public"."perfiles" add constraint "perfiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
 
@@ -1005,14 +983,6 @@ alter table "public"."submissions" add constraint "submissions_team_id_fkey" FOR
 
 alter table "public"."submissions" validate constraint "submissions_team_id_fkey";
 
-alter table "public"."tareas" add constraint "tareas_materia_id_fkey" FOREIGN KEY (materia_id) REFERENCES public.materias(id) ON DELETE CASCADE not valid;
-
-alter table "public"."tareas" validate constraint "tareas_materia_id_fkey";
-
-alter table "public"."tareas" add constraint "tareas_requiere_sesion_id_fkey" FOREIGN KEY (requiere_sesion_id) REFERENCES public.sesiones_insitu(id) ON DELETE SET NULL not valid;
-
-alter table "public"."tareas" validate constraint "tareas_requiere_sesion_id_fkey";
-
 alter table "public"."tareas_usuario" add constraint "tareas_usuario_usuario_id_fkey" FOREIGN KEY (usuario_id) REFERENCES public.perfiles(id) ON DELETE CASCADE not valid;
 
 alter table "public"."tareas_usuario" validate constraint "tareas_usuario_usuario_id_fkey";
@@ -1036,14 +1006,6 @@ alter table "public"."tesistas" validate constraint "tesistas_director_id_fkey";
 alter table "public"."tesistas" add constraint "tesistas_progreso_check" CHECK (((progreso >= 0) AND (progreso <= 100))) not valid;
 
 alter table "public"."tesistas" validate constraint "tesistas_progreso_check";
-
-alter table "public"."unidades_aprendizaje" add constraint "unidades_aprendizaje_materia_id_fkey" FOREIGN KEY (materia_id) REFERENCES public.materias(id) ON DELETE CASCADE not valid;
-
-alter table "public"."unidades_aprendizaje" validate constraint "unidades_aprendizaje_materia_id_fkey";
-
-alter table "public"."units" add constraint "units_course_id_fkey" FOREIGN KEY (course_id) REFERENCES public.courses(id) ON DELETE CASCADE not valid;
-
-alter table "public"."units" validate constraint "units_course_id_fkey";
 
 grant delete on table "public"."activities" to "anon";
 
@@ -1086,6 +1048,48 @@ grant trigger on table "public"."activities" to "service_role";
 grant truncate on table "public"."activities" to "service_role";
 
 grant update on table "public"."activities" to "service_role";
+
+grant delete on table "public"."anuncios" to "anon";
+
+grant insert on table "public"."anuncios" to "anon";
+
+grant references on table "public"."anuncios" to "anon";
+
+grant select on table "public"."anuncios" to "anon";
+
+grant trigger on table "public"."anuncios" to "anon";
+
+grant truncate on table "public"."anuncios" to "anon";
+
+grant update on table "public"."anuncios" to "anon";
+
+grant delete on table "public"."anuncios" to "authenticated";
+
+grant insert on table "public"."anuncios" to "authenticated";
+
+grant references on table "public"."anuncios" to "authenticated";
+
+grant select on table "public"."anuncios" to "authenticated";
+
+grant trigger on table "public"."anuncios" to "authenticated";
+
+grant truncate on table "public"."anuncios" to "authenticated";
+
+grant update on table "public"."anuncios" to "authenticated";
+
+grant delete on table "public"."anuncios" to "service_role";
+
+grant insert on table "public"."anuncios" to "service_role";
+
+grant references on table "public"."anuncios" to "service_role";
+
+grant select on table "public"."anuncios" to "service_role";
+
+grant trigger on table "public"."anuncios" to "service_role";
+
+grant truncate on table "public"."anuncios" to "service_role";
+
+grant update on table "public"."anuncios" to "service_role";
 
 grant delete on table "public"."asistencias_validadas" to "anon";
 
@@ -1548,48 +1552,6 @@ grant trigger on table "public"."courses" to "service_role";
 grant truncate on table "public"."courses" to "service_role";
 
 grant update on table "public"."courses" to "service_role";
-
-grant delete on table "public"."criterios_evaluacion" to "anon";
-
-grant insert on table "public"."criterios_evaluacion" to "anon";
-
-grant references on table "public"."criterios_evaluacion" to "anon";
-
-grant select on table "public"."criterios_evaluacion" to "anon";
-
-grant trigger on table "public"."criterios_evaluacion" to "anon";
-
-grant truncate on table "public"."criterios_evaluacion" to "anon";
-
-grant update on table "public"."criterios_evaluacion" to "anon";
-
-grant delete on table "public"."criterios_evaluacion" to "authenticated";
-
-grant insert on table "public"."criterios_evaluacion" to "authenticated";
-
-grant references on table "public"."criterios_evaluacion" to "authenticated";
-
-grant select on table "public"."criterios_evaluacion" to "authenticated";
-
-grant trigger on table "public"."criterios_evaluacion" to "authenticated";
-
-grant truncate on table "public"."criterios_evaluacion" to "authenticated";
-
-grant update on table "public"."criterios_evaluacion" to "authenticated";
-
-grant delete on table "public"."criterios_evaluacion" to "service_role";
-
-grant insert on table "public"."criterios_evaluacion" to "service_role";
-
-grant references on table "public"."criterios_evaluacion" to "service_role";
-
-grant select on table "public"."criterios_evaluacion" to "service_role";
-
-grant trigger on table "public"."criterios_evaluacion" to "service_role";
-
-grant truncate on table "public"."criterios_evaluacion" to "service_role";
-
-grant update on table "public"."criterios_evaluacion" to "service_role";
 
 grant delete on table "public"."enrollments" to "anon";
 
@@ -2137,6 +2099,48 @@ grant truncate on table "public"."materias" to "service_role";
 
 grant update on table "public"."materias" to "service_role";
 
+grant delete on table "public"."materias_avisos" to "anon";
+
+grant insert on table "public"."materias_avisos" to "anon";
+
+grant references on table "public"."materias_avisos" to "anon";
+
+grant select on table "public"."materias_avisos" to "anon";
+
+grant trigger on table "public"."materias_avisos" to "anon";
+
+grant truncate on table "public"."materias_avisos" to "anon";
+
+grant update on table "public"."materias_avisos" to "anon";
+
+grant delete on table "public"."materias_avisos" to "authenticated";
+
+grant insert on table "public"."materias_avisos" to "authenticated";
+
+grant references on table "public"."materias_avisos" to "authenticated";
+
+grant select on table "public"."materias_avisos" to "authenticated";
+
+grant trigger on table "public"."materias_avisos" to "authenticated";
+
+grant truncate on table "public"."materias_avisos" to "authenticated";
+
+grant update on table "public"."materias_avisos" to "authenticated";
+
+grant delete on table "public"."materias_avisos" to "service_role";
+
+grant insert on table "public"."materias_avisos" to "service_role";
+
+grant references on table "public"."materias_avisos" to "service_role";
+
+grant select on table "public"."materias_avisos" to "service_role";
+
+grant trigger on table "public"."materias_avisos" to "service_role";
+
+grant truncate on table "public"."materias_avisos" to "service_role";
+
+grant update on table "public"."materias_avisos" to "service_role";
+
 grant delete on table "public"."perfiles" to "anon";
 
 grant insert on table "public"."perfiles" to "anon";
@@ -2515,48 +2519,6 @@ grant truncate on table "public"."submissions" to "service_role";
 
 grant update on table "public"."submissions" to "service_role";
 
-grant delete on table "public"."tareas" to "anon";
-
-grant insert on table "public"."tareas" to "anon";
-
-grant references on table "public"."tareas" to "anon";
-
-grant select on table "public"."tareas" to "anon";
-
-grant trigger on table "public"."tareas" to "anon";
-
-grant truncate on table "public"."tareas" to "anon";
-
-grant update on table "public"."tareas" to "anon";
-
-grant delete on table "public"."tareas" to "authenticated";
-
-grant insert on table "public"."tareas" to "authenticated";
-
-grant references on table "public"."tareas" to "authenticated";
-
-grant select on table "public"."tareas" to "authenticated";
-
-grant trigger on table "public"."tareas" to "authenticated";
-
-grant truncate on table "public"."tareas" to "authenticated";
-
-grant update on table "public"."tareas" to "authenticated";
-
-grant delete on table "public"."tareas" to "service_role";
-
-grant insert on table "public"."tareas" to "service_role";
-
-grant references on table "public"."tareas" to "service_role";
-
-grant select on table "public"."tareas" to "service_role";
-
-grant trigger on table "public"."tareas" to "service_role";
-
-grant truncate on table "public"."tareas" to "service_role";
-
-grant update on table "public"."tareas" to "service_role";
-
 grant delete on table "public"."tareas_usuario" to "anon";
 
 grant insert on table "public"."tareas_usuario" to "anon";
@@ -2725,89 +2687,27 @@ grant truncate on table "public"."tesistas" to "service_role";
 
 grant update on table "public"."tesistas" to "service_role";
 
-grant delete on table "public"."unidades_aprendizaje" to "anon";
 
-grant insert on table "public"."unidades_aprendizaje" to "anon";
+  create policy "Alumnos ven anuncios de sus materias"
+  on "public"."anuncios"
+  as permissive
+  for select
+  to public
+using ((EXISTS ( SELECT 1
+   FROM public.inscripciones
+  WHERE ((inscripciones.materia_id = anuncios.materia_id) AND (inscripciones.alumno_id = auth.uid())))));
 
-grant references on table "public"."unidades_aprendizaje" to "anon";
 
-grant select on table "public"."unidades_aprendizaje" to "anon";
 
-grant trigger on table "public"."unidades_aprendizaje" to "anon";
+  create policy "Docentes gestionan sus anuncios"
+  on "public"."anuncios"
+  as permissive
+  for all
+  to public
+using ((EXISTS ( SELECT 1
+   FROM public.materias
+  WHERE ((materias.id = anuncios.materia_id) AND (materias.docente_id = auth.uid())))));
 
-grant truncate on table "public"."unidades_aprendizaje" to "anon";
-
-grant update on table "public"."unidades_aprendizaje" to "anon";
-
-grant delete on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant insert on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant references on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant select on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant trigger on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant truncate on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant update on table "public"."unidades_aprendizaje" to "authenticated";
-
-grant delete on table "public"."unidades_aprendizaje" to "service_role";
-
-grant insert on table "public"."unidades_aprendizaje" to "service_role";
-
-grant references on table "public"."unidades_aprendizaje" to "service_role";
-
-grant select on table "public"."unidades_aprendizaje" to "service_role";
-
-grant trigger on table "public"."unidades_aprendizaje" to "service_role";
-
-grant truncate on table "public"."unidades_aprendizaje" to "service_role";
-
-grant update on table "public"."unidades_aprendizaje" to "service_role";
-
-grant delete on table "public"."units" to "anon";
-
-grant insert on table "public"."units" to "anon";
-
-grant references on table "public"."units" to "anon";
-
-grant select on table "public"."units" to "anon";
-
-grant trigger on table "public"."units" to "anon";
-
-grant truncate on table "public"."units" to "anon";
-
-grant update on table "public"."units" to "anon";
-
-grant delete on table "public"."units" to "authenticated";
-
-grant insert on table "public"."units" to "authenticated";
-
-grant references on table "public"."units" to "authenticated";
-
-grant select on table "public"."units" to "authenticated";
-
-grant trigger on table "public"."units" to "authenticated";
-
-grant truncate on table "public"."units" to "authenticated";
-
-grant update on table "public"."units" to "authenticated";
-
-grant delete on table "public"."units" to "service_role";
-
-grant insert on table "public"."units" to "service_role";
-
-grant references on table "public"."units" to "service_role";
-
-grant select on table "public"."units" to "service_role";
-
-grant trigger on table "public"."units" to "service_role";
-
-grant truncate on table "public"."units" to "service_role";
-
-grant update on table "public"."units" to "service_role";
 
 
   create policy "Alumnos insertan y ven su propia asistencia"
@@ -2903,49 +2803,12 @@ using ((auth.uid() = teacher_id));
 
 
 
-  create policy "Gestión de criterios por unidad"
-  on "public"."criterios_evaluacion"
-  as permissive
-  for all
-  to public
-using ((EXISTS ( SELECT 1
-   FROM (public.unidades_aprendizaje
-     JOIN public.materias ON ((materias.id = unidades_aprendizaje.materia_id)))
-  WHERE ((unidades_aprendizaje.id = criterios_evaluacion.unidad_id) AND (materias.docente_id = auth.uid())))));
-
-
-
-  create policy "Alumnos SOLO entregan si cumplen el candado de asistencia"
-  on "public"."entregas"
-  as permissive
-  for insert
-  to public
-with check (((alumno_id = auth.uid()) AND (EXISTS ( SELECT 1
-   FROM public.tareas t
-  WHERE ((t.id = entregas.tarea_id) AND ((t.requiere_sesion_id IS NULL) OR (EXISTS ( SELECT 1
-           FROM public.asistencias_validadas av
-          WHERE ((av.sesion_id = t.requiere_sesion_id) AND (av.alumno_id = auth.uid()))))))))));
-
-
-
   create policy "Alumnos leen y actualizan sus entregas"
   on "public"."entregas"
   as permissive
   for select
   to public
 using ((alumno_id = auth.uid()));
-
-
-
-  create policy "Docentes evalúan entregas"
-  on "public"."entregas"
-  as permissive
-  for all
-  to public
-using ((EXISTS ( SELECT 1
-   FROM (public.tareas t
-     JOIN public.materias m ON ((t.materia_id = m.id)))
-  WHERE ((t.id = entregas.tarea_id) AND (m.docente_id = auth.uid())))));
 
 
 
@@ -2991,6 +2854,15 @@ using ((EXISTS ( SELECT 1
 
 
 
+  create policy "Acceso total"
+  on "public"."horarios_docente"
+  as permissive
+  for all
+  to public
+using (true);
+
+
+
   create policy "Gestión de horarios propios"
   on "public"."horarios_docente"
   as permissive
@@ -2999,6 +2871,15 @@ using ((EXISTS ( SELECT 1
 using ((EXISTS ( SELECT 1
    FROM public.materias
   WHERE ((materias.id = horarios_docente.materia_id) AND (materias.docente_id = auth.uid())))));
+
+
+
+  create policy "Permitir todo a usuarios autenticados"
+  on "public"."horarios_docente"
+  as permissive
+  for all
+  to public
+using (true);
 
 
 
@@ -3073,6 +2954,28 @@ using ((auth.uid() = docente_id));
 
 
 
+  create policy "Alumnos ven avisos de sus materias"
+  on "public"."materias_avisos"
+  as permissive
+  for select
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM public.inscripciones
+  WHERE ((inscripciones.materia_id = materias_avisos.materia_id) AND (inscripciones.alumno_id = auth.uid())))));
+
+
+
+  create policy "Docentes gestionan avisos de sus materias"
+  on "public"."materias_avisos"
+  as permissive
+  for all
+  to authenticated
+using ((EXISTS ( SELECT 1
+   FROM public.materias
+  WHERE ((materias.id = materias_avisos.materia_id) AND (materias.docente_id = auth.uid())))));
+
+
+
   create policy "Lectura pública de perfiles"
   on "public"."perfiles"
   as permissive
@@ -3131,28 +3034,6 @@ using ((EXISTS ( SELECT 1
 
 
 
-  create policy "Alumnos ven tareas de sus materias"
-  on "public"."tareas"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.inscripciones
-  WHERE ((inscripciones.materia_id = tareas.materia_id) AND (inscripciones.alumno_id = auth.uid())))));
-
-
-
-  create policy "Docentes gestionan tareas"
-  on "public"."tareas"
-  as permissive
-  for all
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.materias
-  WHERE ((materias.id = tareas.materia_id) AND (materias.docente_id = auth.uid())))));
-
-
-
   create policy "Gestión de tareas propias"
   on "public"."tareas_usuario"
   as permissive
@@ -3186,17 +3067,6 @@ using (true);
   for all
   to public
 using ((director_id = auth.uid()));
-
-
-
-  create policy "Gestión de unidades por materia"
-  on "public"."unidades_aprendizaje"
-  as permissive
-  for all
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.materias
-  WHERE ((materias.id = unidades_aprendizaje.materia_id) AND (materias.docente_id = auth.uid())))));
 
 
 

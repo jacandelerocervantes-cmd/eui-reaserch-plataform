@@ -3,20 +3,51 @@
 import React, { useState, useEffect } from "react";
 import { 
   Mail, Star, Archive, Trash2, Search, 
-  Filter, ChevronRight, User, Sparkles, Send
+  Filter, ChevronRight, User, Sparkles, Send, Loader2
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Instanciamos el cliente de Supabase usando tus variables de entorno públicas
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function BandejaCorreo() {
   const [isMounted, setIsMounted] = useState(false);
   const [selectedMail, setSelectedMail] = useState<any>(null);
+  
+  // Estados para manejar los datos reales
+  const [emails, setEmails] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => setIsMounted(true), []);
+  useEffect(() => {
+    setIsMounted(true);
+    fetchEmails();
+  }, []);
 
-  const emails = [
-    { id: 1, from: "Juan Pérez (Alumno)", subject: "Duda sobre la Unidad 2", preview: "Hola maestro, tengo una duda sobre el ejercicio de subnetting...", time: "10:24 AM", category: "Alumnos", unread: true },
-    { id: 2, from: "Secretaría Académica", subject: "Reunión de Consejo", preview: "Se les convoca a la reunión ordinaria para revisar los indicadores...", time: "09:15 AM", category: "Institucional", unread: false },
-    { id: 3, from: "IEEE Xplore", subject: "Nueva publicación en tu área", preview: "Tu alerta de búsqueda 'Vision Artificial' tiene nuevos resultados...", time: "Ayer", category: "Investigación", unread: true }
-  ];
+  // Función que llama a tu Edge Function para obtener correos
+  const fetchEmails = async () => {
+    try {
+      setLoading(true);
+      // Invocamos la Edge Function sync-correo que ya tienes configurada
+      // Le pasamos la acción 'obtenerCorreos' en el cuerpo para tu Router.gs
+      const { data, error } = await supabase.functions.invoke('sync-correo', {
+        body: { action: 'obtenerCorreos' }
+      });
+      
+      if (error) throw error;
+      
+      if (data && data.success) {
+        // Asignamos la lista de correos. Si tu Router devuelve {success, data}, usamos data.data
+        const listaCorreos = Array.isArray(data.emails) ? data.emails : (data.data || []);
+        setEmails(listaCorreos);
+      }
+    } catch (error) {
+      console.error("Error al obtener la bandeja de entrada:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -31,32 +62,43 @@ export default function BandejaCorreo() {
             <input type="text" placeholder="Buscar en correo..." style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "0.9rem", outline: "none" }} />
           </div>
           <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "5px" }}>
-            {["Todos", "Alumnos", "Investigación"].map(cat => (
+            {["Todos", "Alumnos", "Institucional", "Investigación"].map(cat => (
               <span key={cat} style={{ padding: "6px 12px", backgroundColor: "#f1f5f9", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", cursor: "pointer", whiteSpace: "nowrap" }}>{cat}</span>
             ))}
           </div>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto" }} className="custom-scrollbar">
-          {emails.map(mail => (
-            <div 
-              key={mail.id} 
-              onClick={() => setSelectedMail(mail)}
-              style={{ 
-                padding: "20px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", 
-                backgroundColor: selectedMail?.id === mail.id ? "#f8fafc" : "white",
-                position: "relative"
-              }}
-            >
-              {mail.unread && <div style={{ position: "absolute", left: "8px", top: "25px", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3b82f6" }} />}
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: "800", color: "#1B396A" }}>{mail.from}</span>
-                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{mail.time}</span>
-              </div>
-              <div style={{ fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "4px" }}>{mail.subject}</div>
-              <div style={{ fontSize: "0.8rem", color: "#64748b", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{mail.preview}</div>
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#94a3b8", gap: "12px" }}>
+              <Loader2 size={32} className="animate-spin" color="#1B396A" />
+              <span style={{ fontSize: "0.9rem", fontWeight: "600" }}>Sincronizando con Gmail...</span>
             </div>
-          ))}
+          ) : emails.length === 0 ? (
+            <div style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "0.9rem" }}>
+              No hay correos recientes en tu bandeja.
+            </div>
+          ) : (
+            emails.map(mail => (
+              <div 
+                key={mail.id} 
+                onClick={() => setSelectedMail(mail)}
+                style={{ 
+                  padding: "20px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", 
+                  backgroundColor: selectedMail?.id === mail.id ? "#f8fafc" : "white",
+                  position: "relative"
+                }}
+              >
+                {mail.unread && <div style={{ position: "absolute", left: "8px", top: "25px", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3b82f6" }} />}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: "800", color: "#1B396A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "180px" }}>{mail.from}</span>
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", whiteSpace: "nowrap" }}>{mail.time}</span>
+                </div>
+                <div style={{ fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mail.subject}</div>
+                <div style={{ fontSize: "0.8rem", color: "#64748b", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{mail.snippet || mail.preview}</div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -66,7 +108,7 @@ export default function BandejaCorreo() {
           <>
             <div style={{ padding: "24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#1B396A", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "#1B396A", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "1.2rem", textTransform: "uppercase" }}>
                   {selectedMail.from[0]}
                 </div>
                 <div>
@@ -83,9 +125,8 @@ export default function BandejaCorreo() {
             
             <div style={{ padding: "32px", flex: 1, overflowY: "auto" }}>
               <h2 style={{ fontSize: "1.5rem", color: "#1B396A", fontWeight: "900", marginBottom: "24px" }}>{selectedMail.subject}</h2>
-              <p style={{ color: "#475569", lineHeight: "1.6", fontSize: "1rem" }}>
-                {selectedMail.preview} <br /><br />
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+              <p style={{ color: "#475569", lineHeight: "1.6", fontSize: "1rem", whiteSpace: "pre-wrap" }}>
+                {selectedMail.cuerpoCompleto || selectedMail.snippet || selectedMail.preview}
               </p>
             </div>
 
@@ -104,8 +145,12 @@ export default function BandejaCorreo() {
           </>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "#94a3b8" }}>
-            <Mail size={64} style={{ marginBottom: "16px", opacity: 0.2 }} />
-            <p style={{ fontWeight: "600" }}>Selecciona un correo para leerlo</p>
+            {loading ? (
+              <Loader2 size={64} className="animate-spin" style={{ marginBottom: "16px", opacity: 0.5 }} color="#1B396A" />
+            ) : (
+              <Mail size={64} style={{ marginBottom: "16px", opacity: 0.2 }} />
+            )}
+            <p style={{ fontWeight: "600" }}>{loading ? "Obteniendo correos..." : "Selecciona un correo para leerlo"}</p>
           </div>
         )}
       </section>

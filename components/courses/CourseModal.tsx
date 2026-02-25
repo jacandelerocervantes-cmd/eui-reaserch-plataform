@@ -2,7 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, X, Loader2 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import styles from "./CourseModal.module.css";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface CourseModalProps {
   isOpen: boolean;
@@ -33,6 +38,29 @@ export default function CourseModal({ isOpen, onClose, onSubmit, initialName = "
     
     setLoading(true);
     try {
+      // Si no hay nombre inicial, asumimos que es una creación de curso
+      if (!initialName) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // 1. Primero insertamos la materia básica en Supabase para obtener el ID
+          const { data: newCourse, error } = await supabase
+            .from('materias')
+            .insert([{ nombre: courseName, docente_id: user.id }])
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (newCourse) {
+            // 2. Disparamos la Edge Function para crear el entorno en Google
+            await supabase.functions.invoke('provision-course-environment', {
+              body: { courseId: newCourse.id, nombre: courseName, clave: "CURSO-2026" }
+            });
+          }
+        }
+      }
+      
       await onSubmit(courseName);
       onClose(); // Cerramos solo si todo sale bien
     } catch (error) {

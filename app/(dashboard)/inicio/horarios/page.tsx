@@ -4,17 +4,25 @@ import React, { useState, useEffect } from "react";
 import { 
   UploadCloud, FileText, Calendar, Plus, 
   Trash2, CheckCircle2, Sparkles, AlertCircle, 
-  Clock, MapPin, BookOpen, Save 
+  Clock, MapPin, BookOpen, Save, Loader2 
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Inicializamos el cliente de Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function ConfigurarHorarios() {
   const [isMounted, setIsMounted] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [scheduleData, setScheduleData] = useState<any[]>([]);
 
   useEffect(() => setIsMounted(true), []);
 
-  // Simulación de escaneo por IA
+  // Simulación de escaneo por IA (Aquí podrías conectar Gemini Vision después)
   const handleFileUpload = () => {
     setIsScanning(true);
     setTimeout(() => {
@@ -25,6 +33,30 @@ export default function ConfigurarHorarios() {
       ]);
       setIsScanning(false);
     }, 2000);
+  };
+
+  // FUNCIÓN PARA GUARDAR DATOS REALES
+  const handleConfirmarHorario = async () => {
+    try {
+      setIsSaving(true);
+      const { data, error } = await supabase.functions.invoke('sync-schedule', {
+        body: { 
+          action: 'guardarHorario', 
+          payload: { materias: scheduleData } 
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        alert("¡Horario confirmado y sincronizado con Google Calendar!");
+      }
+    } catch (err) {
+      console.error("Error al guardar horario:", err);
+      alert("Hubo un problema al guardar la carga académica.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isMounted) return null;
@@ -69,7 +101,7 @@ export default function ConfigurarHorarios() {
           {/* Estado del Escaneo */}
           {isScanning && (
             <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "#1B396A", fontWeight: "700", justifyContent: "center" }}>
-              <div className="spinner" /> {/* Añadir CSS para spinner */}
+              <Loader2 className="animate-spin" size={20} />
               Analizando documento con Gemini...
             </div>
           )}
@@ -115,13 +147,19 @@ export default function ConfigurarHorarios() {
                 </div>
               ))}
               
-              <button style={{ 
-                marginTop: "16px", backgroundColor: "#1B396A", color: "white", 
-                padding: "16px", borderRadius: "14px", fontWeight: "800", 
-                border: "none", cursor: "pointer", display: "flex", 
-                alignItems: "center", justifyContent: "center", gap: "10px" 
-              }}>
-                <Save size={20} /> Confirmar Carga Horaria
+              <button 
+                onClick={handleConfirmarHorario}
+                disabled={isSaving}
+                style={{ 
+                  marginTop: "16px", backgroundColor: "#1B396A", color: "white", 
+                  padding: "16px", borderRadius: "14px", fontWeight: "800", 
+                  border: "none", cursor: isSaving ? "not-allowed" : "pointer", display: "flex", 
+                  alignItems: "center", justifyContent: "center", gap: "10px",
+                  opacity: isSaving ? 0.7 : 1
+                }}
+              >
+                {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                {isSaving ? "Guardando Carga..." : "Confirmar Carga Horaria"}
               </button>
             </div>
           ) : (

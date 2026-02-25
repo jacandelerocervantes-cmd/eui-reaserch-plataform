@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { 
-  Save, X, Wand2, Plus, Trash2, Lock, ShieldCheck, AlertCircle 
+  Save, X, Wand2, Plus, Trash2, Lock, ShieldCheck, AlertCircle, Loader2,
+  User, Users, FileUp, Cloud, FileText, Table, Presentation
 } from "lucide-react";
 
 // --- COMPONENTE PREMIUM: BOTÓN EXPANDIBLE ---
@@ -40,6 +41,23 @@ const ExpandingButton = ({ icon: Icon, label, onClick, variant = "primary", type
   );
 };
 
+// --- COMPONENTE SELECTOR DE OPCIONES ---
+const OptionCard = ({ icon: Icon, label, selected, onClick }: any) => (
+  <div 
+    onClick={onClick}
+    style={{
+      flex: 1, padding: "16px", borderRadius: "12px", cursor: "pointer",
+      border: `2px solid ${selected ? "#1B396A" : "#e2e8f0"}`,
+      backgroundColor: selected ? "#f8fafc" : "white",
+      display: "flex", alignItems: "center", gap: "12px", transition: "all 0.2s",
+      color: selected ? "#1B396A" : "#64748b", fontWeight: selected ? "800" : "600"
+    }}
+  >
+    <Icon size={20} color={selected ? "#2563eb" : "#94a3b8"} />
+    <span>{label}</span>
+  </div>
+);
+
 export default function NuevaActividadPage() {
   const params = useParams();
   const router = useRouter();
@@ -48,6 +66,7 @@ export default function NuevaActividadPage() {
   const [units, setUnits] = useState<any[]>([]);
   const [criteria, setCriteria] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // --- ESTADOS PARA EL CANDADO DE ASISTENCIA ---
   const [requireAttendance, setRequireAttendance] = useState(false);
@@ -60,8 +79,8 @@ export default function NuevaActividadPage() {
     description: "",
     unit_id: "",
     criteria_id: "",
-    format: "individual", 
-    submission_type: "file", 
+    format: "individual", // "individual" | "equipo"
+    submission_type: "file", // "file" | "doc" | "sheet" | "slide"
     soft_deadline: "",
     hard_deadline: "",
     late_penalty_percent: 0,
@@ -78,63 +97,85 @@ export default function NuevaActividadPage() {
   }, [courseId]);
 
   const fetchData = async () => {
-    // 1. SIMULACRO DE CARGA INICIAL (Unidades y Criterios)
-    setUnits([{ id: "u1", unit_number: 1 }, { id: "u2", unit_number: 2 }]);
-    setCriteria([
-      { id: "c1", unit_id: "u1", name: "Criterio de Desempeño" },
-      { id: "c2", unit_id: "u1", name: "Asistencia (No debe salir)" }, 
-      { id: "c3", unit_id: "u1", name: "Evaluación Escrita" }, 
-      { id: "c4", unit_id: "u1", name: "Criterio de Producto" }
-    ]);
+    try {
+      const { data: unitsData } = await supabase.from("course_units").select("id, unit_number, name").eq("course_id", courseId).order("unit_number", { ascending: true });
+      if (unitsData) setUnits(unitsData);
 
-    // 2. FETCH REAL: Traer sesiones pasadas para el candado de asistencia
-    const { data: sesiones } = await supabase
-      .from('sesiones_insitu')
-      .select('id, fecha_creacion, tipo')
-      .eq('materia_id', courseId)
-      .order('fecha_creacion', { ascending: false });
+      if (unitsData && unitsData.length > 0) {
+        const unitIds = unitsData.map(u => u.id);
+        const { data: actsData } = await supabase.from("activities").select("id, unit_id, name").in("unit_id", unitIds);
+        if (actsData) setCriteria(actsData);
+      }
+
+      const { data: sesiones } = await supabase.from('sesiones_insitu').select('id, fecha_creacion, tipo').eq('materia_id', courseId).order('fecha_creacion', { ascending: false });
+      if (sesiones) setPastSessions(sesiones);
+      
+    } catch (error) {
+      console.error("Error cargando dependencias de la actividad:", error);
+    }
+  };
+
+  const handleAddRubricRow = () => setRubrics([...rubrics, { id: Date.now(), name: "", description: "", weight: 0 }]);
+  const handleRemoveRubricRow = (id: number) => { if (rubrics.length > 1) setRubrics(rubrics.filter(r => r.id !== id)); };
+  const handleUpdateRubric = (id: number, field: string, value: any) => setRubrics(rubrics.map(r => r.id === id ? { ...r, [field]: value } : r));
+
+  // MAGIA CON IA
+  const handleGenerateAI = async () => {
+    if (!formData.title || !formData.description) return alert("Escribe un título y una descripción detallada primero para que la IA tenga contexto.");
     
-    if (sesiones) setPastSessions(sesiones);
-  };
-
-  const handleAddRubricRow = () => {
-    setRubrics([...rubrics, { id: Date.now(), name: "", description: "", weight: 0 }]);
-  };
-
-  const handleRemoveRubricRow = (id: number) => {
-    if (rubrics.length > 1) setRubrics(rubrics.filter(r => r.id !== id));
-  };
-
-  const handleUpdateRubric = (id: number, field: string, value: any) => {
-    setRubrics(rubrics.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const handleGenerateAI = () => {
-    if (!formData.title) return;
     setIsGenerating(true);
-    setTimeout(() => {
-      setRubrics([
-        { id: Date.now(), name: "Profundidad Técnica", description: "Evaluación precisa de conceptos y teorías aplicadas.", weight: 40 },
-        { id: Date.now() + 1, name: "Claridad Estructural", description: "Desarrollo lógico del tema y coherencia.", weight: 40 },
-        { id: Date.now() + 2, name: "Formato y Ortografía", description: "Cumplimiento estricto del formato académico.", weight: 20 }
-      ]);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-rubric-ia', { body: { title: formData.title, description: formData.description } });
+      if (error || !data.success) throw new Error(data?.error || "Error al generar la rúbrica");
+
+      const aiRubrics = data.rubrics.map((r: any) => ({
+        id: r.id || Date.now() + Math.random(), name: r.name, description: r.description, weight: r.weight
+      }));
+      setRubrics(aiRubrics);
+    } catch (error: any) {
+      alert(`Error IA: ${error.message}`);
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
   };
 
+  // GUARDAR Y CONECTAR CON GOOGLE WORKSPACE
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isRubricValid) return alert("La rúbrica de IA debe sumar exactamente 100%.");
+    if (!isRubricValid) return alert("La rúbrica debe sumar exactamente 100%.");
     if (requireAttendance && !selectedSessionId) return alert("Debes seleccionar a qué clase se vincula el candado de asistencia.");
+    if (!formData.unit_id) return alert("Debes seleccionar una unidad.");
     
-    // Aquí iría el insert real a Supabase mapeando `requiere_sesion_id: requireAttendance ? selectedSessionId : null`
-    // const payload = { ...formData, materia_id: courseId, requiere_sesion_id: requireAttendance ? selectedSessionId : null };
-    
-    alert(`Actividad creada con éxito. ${requireAttendance ? 'Candado de asistencia ACTIVADO.' : 'Libre acceso.'}`);
-    router.push(`/panel/materias/${courseId}/actividades`);
+    setIsSaving(true);
+    try {
+      const payload = { 
+        course_id: courseId,
+        unit_id: formData.unit_id,
+        activity_id: formData.criteria_id || null, 
+        title: formData.title,
+        description: formData.description,
+        format: formData.format,
+        submission_type: formData.submission_type,
+        soft_deadline: formData.soft_deadline,
+        hard_deadline: formData.hard_deadline || null,
+        late_penalty_percent: formData.late_penalty_percent,
+        rubric_json: rubrics, 
+        requiere_sesion_id: requireAttendance ? selectedSessionId : null 
+      };
+
+      // Disparamos la Edge Function que orquesta Supabase + Google Drive
+      const { data, error } = await supabase.functions.invoke('create-assignment-hub', { body: payload });
+      if (error || !data.success) throw new Error(data?.error || "Error al guardar la actividad");
+      
+      alert(`Actividad creada con éxito. ${formData.submission_type !== 'file' ? '\nEntorno Workspace generado en Drive.' : ''}`);
+      router.push(`/panel/materias/${courseId}/actividades`);
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // --- FILTRO DE NEGOCIO ESTRICTO ---
   const filteredCriteria = criteria.filter(c => {
     if (c.unit_id !== formData.unit_id) return false;
     const nameLower = c.name.toLowerCase();
@@ -151,8 +192,14 @@ export default function NuevaActividadPage() {
           <p style={{ color: "#64748b", fontSize: "0.95rem", fontWeight: "600", marginTop: "4px", margin: 0 }}>Configura los parámetros y la rúbrica de Certeza AIA</p>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
-          <ExpandingButton icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" />
-          <ExpandingButton icon={Save} label="Crear Actividad" onClick={handleSave} variant="primary" disabled={!isRubricValid || !formData.title || !formData.soft_deadline} />
+          <ExpandingButton icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} />
+          <ExpandingButton 
+            icon={isSaving ? Loader2 : Save} 
+            label={isSaving ? "Creando Entorno..." : "Crear Actividad"} 
+            onClick={handleSave} 
+            variant="primary" 
+            disabled={!isRubricValid || !formData.title || !formData.soft_deadline || isSaving} 
+          />
         </div>
       </div>
 
@@ -173,7 +220,7 @@ export default function NuevaActividadPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <select required value={formData.unit_id} onChange={e => setFormData({...formData, unit_id: e.target.value, criteria_id: ""})} style={{ padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", outline: "none", fontSize: "1rem", color: "#334155", backgroundColor: "white", cursor: "pointer" }}>
                 <option value="">Selecciona Unidad</option>
-                {units.map(u => <option key={u.id} value={u.id}>Unidad {u.unit_number}</option>)}
+                {units.map(u => <option key={u.id} value={u.id}>Unidad {u.unit_number}: {u.name}</option>)}
               </select>
               <select required value={formData.criteria_id} onChange={e => setFormData({...formData, criteria_id: e.target.value})} style={{ padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", outline: "none", fontSize: "1rem", color: "#334155", backgroundColor: "white", cursor: "pointer" }}>
                 <option value="">Selecciona Criterio</option>
@@ -182,7 +229,37 @@ export default function NuevaActividadPage() {
             </div>
           </div>
 
-          {/* 🔒 NUEVO BLOQUE: EL CANDADO DE ASISTENCIA */}
+          {/* NUEVO BLOQUE: FORMATO Y MODALIDAD */}
+          <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
+            <h3 style={{ margin: "0 0 20px 0", color: "#1B396A", fontSize: "1.2rem", fontWeight: "800" }}>Modalidad y Entorno de Entrega</h3>
+            
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ fontSize: "0.85rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "10px" }}>Modalidad de Trabajo</p>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <OptionCard icon={User} label="Individual" selected={formData.format === 'individual'} onClick={() => setFormData({...formData, format: 'individual'})} />
+                <OptionCard icon={Users} label="Por Equipos" selected={formData.format === 'equipo'} onClick={() => setFormData({...formData, format: 'equipo'})} />
+              </div>
+            </div>
+
+            <div>
+              <p style={{ fontSize: "0.85rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "10px" }}>Tipo de Entrega</p>
+              <div style={{ display: "flex", gap: "12px", marginBottom: formData.submission_type !== 'file' ? "12px" : "0" }}>
+                <OptionCard icon={FileUp} label="Subida de Archivo" selected={formData.submission_type === 'file'} onClick={() => setFormData({...formData, submission_type: 'file'})} />
+                <OptionCard icon={Cloud} label="Google Workspace" selected={formData.submission_type !== 'file'} onClick={() => setFormData({...formData, submission_type: 'doc'})} />
+              </div>
+              
+              {/* Sub-selector de Workspace */}
+              {formData.submission_type !== 'file' && (
+                <div style={{ display: "flex", gap: "12px", animation: "fadeIn 0.3s ease-out", padding: "16px", backgroundColor: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
+                  <OptionCard icon={FileText} label="Doc" selected={formData.submission_type === 'doc'} onClick={() => setFormData({...formData, submission_type: 'doc'})} />
+                  <OptionCard icon={Table} label="Sheet" selected={formData.submission_type === 'sheet'} onClick={() => setFormData({...formData, submission_type: 'sheet'})} />
+                  <OptionCard icon={Presentation} label="Slide" selected={formData.submission_type === 'slide'} onClick={() => setFormData({...formData, submission_type: 'slide'})} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 🔒 BLOQUE DE CANDADO DE ASISTENCIA */}
           <div style={{ backgroundColor: requireAttendance ? "#f0fdf4" : "white", padding: "32px", borderRadius: "24px", border: `1px solid ${requireAttendance ? '#bbf7d0' : '#e2e8f0'}`, transition: "all 0.3s" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: requireAttendance ? "20px" : "0" }}>
               <div>
@@ -191,11 +268,9 @@ export default function NuevaActividadPage() {
                   Candado de Asistencia In-Situ
                 </h3>
                 <p style={{ margin: 0, fontSize: "0.9rem", color: requireAttendance ? "#15803d" : "#64748b", fontWeight: "500", maxWidth: "80%" }}>
-                  Si se activa, solo los alumnos que validaron su ubicación y escanearon el QR presencialmente podrán entregar esta tarea.
+                  Si se activa, solo los alumnos que validaron su ubicación presencialmente podrán entregar.
                 </p>
               </div>
-              
-              {/* Toggle Switch Personalizado */}
               <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                 <div style={{ position: "relative" }}>
                   <input type="checkbox" checked={requireAttendance} onChange={(e) => { setRequireAttendance(e.target.checked); if(!e.target.checked) setSelectedSessionId(""); }} style={{ opacity: 0, width: 0, height: 0 }} />
@@ -205,18 +280,12 @@ export default function NuevaActividadPage() {
               </label>
             </div>
 
-            {/* Desplegable de Sesiones Pasadas */}
             {requireAttendance && (
               <div style={{ animation: "fadeIn 0.3s ease-out" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#15803d", fontSize: "0.85rem", fontWeight: "700", marginBottom: "8px", textTransform: "uppercase" }}>
                   <AlertCircle size={14} /> Vincular a la clase de:
                 </div>
-                <select 
-                  required={requireAttendance} 
-                  value={selectedSessionId} 
-                  onChange={e => setSelectedSessionId(e.target.value)} 
-                  style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #bbf7d0", outline: "none", fontSize: "1rem", color: "#166534", backgroundColor: "white", cursor: "pointer", fontWeight: "600" }}
-                >
+                <select required={requireAttendance} value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #bbf7d0", outline: "none", fontSize: "1rem", color: "#166534", backgroundColor: "white", cursor: "pointer", fontWeight: "600" }}>
                   <option value="">Selecciona una clase anterior registrada...</option>
                   {pastSessions.map(s => (
                     <option key={s.id} value={s.id}>
@@ -232,7 +301,6 @@ export default function NuevaActividadPage() {
 
         {/* COLUMNA DERECHA: MOTOR DE IA Y CRONOGRAMA */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          
           <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
             <label style={{ display: "block", fontSize: "0.9rem", color: "#1B396A", fontWeight: "800", marginBottom: "12px", textTransform: "uppercase" }}>Fecha de Entrega (Deadline)</label>
             <input required type="datetime-local" value={formData.soft_deadline} onChange={e => setFormData({...formData, soft_deadline: e.target.value})} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", outline: "none", fontSize: "1.05rem", fontWeight: "600", color: "#334155", transition: "border 0.2s" }} onFocus={(e) => e.target.style.borderColor = "#1B396A"} onBlur={(e) => e.target.style.borderColor = "#e2e8f0"} />
@@ -250,7 +318,7 @@ export default function NuevaActividadPage() {
               onMouseEnter={(e) => { if (!isGenerating && formData.title) e.currentTarget.style.backgroundColor = "#7c3aed" }}
               onMouseLeave={(e) => { if (!isGenerating && formData.title) e.currentTarget.style.backgroundColor = "#8b5cf6" }}
             >
-              <Wand2 size={18} /> {isGenerating ? "Certeza AIA pensando..." : "Autogenerar con IA"}
+              {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Wand2 size={18} />} {isGenerating ? "Certeza AIA pensando..." : "Autogenerar con IA"}
             </button>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>

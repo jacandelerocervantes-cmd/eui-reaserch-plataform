@@ -54,9 +54,11 @@ export default function CourseModal({ isOpen, onClose, onSubmit, initialName = "
 
           if (newCourse) {
             // 2. Disparamos la Edge Function para crear el entorno en Google
-            await supabase.functions.invoke('provision-course-environment', {
+            const { error: fnError } = await supabase.functions.invoke('provision-course-environment', {
               body: { courseId: newCourse.id, nombre: courseName, clave: "CURSO-2026" }
             });
+
+            if (fnError) throw fnError;
           }
         }
       }

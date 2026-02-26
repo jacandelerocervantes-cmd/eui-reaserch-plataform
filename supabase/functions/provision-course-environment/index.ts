@@ -13,7 +13,11 @@ serve(async (req) => {
 
   try {
     // 1. Recibir datos del curso desde el Frontend
-    const { courseId, nombre, clave } = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body) throw new Error("El cuerpo de la petición no es un JSON válido")
+    
+    const { courseId, nombre, clave } = body
+    if (!courseId || !nombre) throw new Error("Faltan datos requeridos: courseId o nombre")
 
     // 2. Llamar a Google Apps Script (Servidor a Servidor)
     const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
@@ -25,16 +29,23 @@ serve(async (req) => {
       })
     })
 
-    const googleData = await googleResponse.json()
-    if (!googleData.success) throw new Error("Error en Google Apps Script: " + googleData.error)
+    if (!googleResponse.ok) {
+      const text = await googleResponse.text()
+      throw new Error(`Google Script falló con status ${googleResponse.status}: ${text.substring(0, 100)}...`)
+    }
+
+    const googleData = await googleResponse.json().catch(() => null)
+    if (!googleData) throw new Error("Google Script no devolvió un JSON válido")
+    if (!googleData.success) throw new Error("Error lógico en Google Apps Script: " + JSON.stringify(googleData.error))
 
     const { drive_folder_id, google_sheet_id } = googleData.data
 
     // 3. Inicializar Cliente Supabase con Service Role (para saltar RLS si es necesario)
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !supabaseKey) throw new Error("Faltan variables de entorno de Supabase")
+
+    const supabaseClient = createClient(supabaseUrl, supabaseKey)
 
     // 4. Actualizar la tabla 'materias' con los nuevos IDs
     const { error: dbError } = await supabaseClient
@@ -58,6 +69,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
+    console.error("Error en Edge Function:", error)
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

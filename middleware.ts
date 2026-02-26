@@ -1,9 +1,7 @@
-// middleware.ts
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // Inicializamos la respuesta para poder inyectarle cookies
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -11,9 +9,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
@@ -25,27 +21,29 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Verificamos si hay una sesión activa
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Si no hay usuario y quiere entrar al panel, lo mandamos al login
-  if (!user && request.nextUrl.pathname.startsWith('/panel')) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
+  // 1. AJUSTE DE RUTA: Cambiamos /panel por /inicio (que es la que usas)
+  const isDashboard = request.nextUrl.pathname.startsWith('/inicio');
+  const isLoginPage = request.nextUrl.pathname === '/login';
+
+  // 2. PROTECCIÓN: Si no hay usuario y quiere entrar a inicio, al login.
+  if (!user && isDashboard) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Si hay usuario y está en el login, lo mandamos directo al panel
-  if (user && request.nextUrl.pathname === '/login') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/panel';
-    return NextResponse.redirect(url);
+  // 3. ELIMINAMOS EL REBOTE AUTOMÁTICO AL LOGIN (Temporalmente)
+  // Comentamos esta parte para que el Middleware NO te mande a inicio 
+  // si ya estás en login. Esto te permite "limpiar" la sesión.
+  /*
+  if (user && isLoginPage) {
+    return NextResponse.redirect(new URL('/inicio', request.url));
   }
+  */
 
   return supabaseResponse;
 }
 
-// Le decimos al middleware en qué rutas NO debe ejecutarse (imágenes, CSS, etc.)
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

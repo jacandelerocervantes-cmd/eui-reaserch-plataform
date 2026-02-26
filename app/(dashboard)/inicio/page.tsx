@@ -64,7 +64,10 @@ export default function CentroDeMando() {
         body: { action: 'obtenerCorreos' }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.warn("No se pudieron sincronizar los correos:", error.message);
+        // No lanzamos error para permitir que el resto del dashboard cargue
+      }
       
       if (data && data.success) {
         setDashboardData(prev => ({

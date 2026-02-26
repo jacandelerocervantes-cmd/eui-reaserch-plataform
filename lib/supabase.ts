@@ -1,40 +1,42 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-// Cliente de Supabase para el navegador (Client Components)
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Evitamos que se creen múltiples clientes en el navegador
+let supabaseInstance: any = null;
 
-/**
- * Inicia sesión con Google usando OAuth.
- * Esta función redirige al usuario a la pantalla de selección de cuenta de Google.
- */
+export const supabase = (() => {
+  if (typeof window === 'undefined') {
+    return createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+
+  if (!supabaseInstance) {
+    supabaseInstance = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return supabaseInstance;
+})();
+
 export const signInWithGoogle = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      // Esta URL debe estar configurada en el Dashboard de Supabase (Auth > URL Configuration)
       redirectTo: `${window.location.origin}/auth/callback`,
+      scopes: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly',
       queryParams: {
         access_type: 'offline',
-        prompt: 'select_account',
+        prompt: 'consent select_account', // ESTO ES LO QUE TE SALVA DEL BUCLE
       },
     },
   })
-
-  if (error) {
-    console.error("Error al iniciar sesión con Google:", error.message)
-    throw error
-  }
+  if (error) throw error
 }
 
-/**
- * Cierra la sesión del usuario y limpia las cookies de autenticación.
- */
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-  if (error) {
-    console.error("Error al cerrar sesión:", error.message)
-  }
+  await supabase.auth.signOut()
+  localStorage.clear()
+  window.location.href = '/login'
 }

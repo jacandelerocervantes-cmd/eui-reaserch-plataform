@@ -45,10 +45,23 @@
   gap: 1rem;
   border: 1px solid var(--border-light);
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  transition: all 0.3s ease;
+}
+
+/* NUEVO: Cuando el compose box se expande para mostrar el formulario */
+.composeBoxExpanded {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.composeHeader {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .avatar, .avatarSmall {
-  background: var(--tecnm-blue);
+  background: var(--tecnm-blue, #1B396A);
   color: white;
   border-radius: 50%;
   display: flex;
@@ -56,20 +69,76 @@
   justify-content: center;
   font-weight: bold;
 }
-.avatar { width: 45px; height: 45px; font-size: 1.2rem; }
-.avatarSmall { width: 35px; height: 35px; font-size: 1rem; }
+.avatar { width: 45px; height: 45px; font-size: 1.2rem; flex-shrink: 0; }
+.avatarSmall { width: 35px; height: 35px; font-size: 1rem; flex-shrink: 0; }
 
 .composeBtn {
   flex: 1;
-  background: var(--bg-app);
+  background: var(--bg-app, #f8fafc);
   border: none;
   padding: 1rem 1.5rem;
   border-radius: 30px;
   text-align: left;
   color: var(--text-muted);
   transition: background 0.2s;
+  cursor: pointer;
+  outline: none;
 }
 .composeBtn:hover { background: #e2e8f0; }
+
+/* NUEVO: Estilos para el input y textarea del formulario */
+.composeInput {
+  cursor: text;
+  font-weight: 700;
+  border-radius: 12px;
+}
+.composeInput:focus, .composeTextarea:focus {
+  background: #ffffff;
+  border: 1px solid var(--tecnm-blue, #1B396A);
+}
+
+.composeTextarea {
+  cursor: text;
+  min-height: 100px;
+  border-radius: 12px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.composeActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.cancelBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.cancelBtn:hover { background: #f1f5f9; }
+
+.submitBtn {
+  background-color: var(--tecnm-blue, #1B396A);
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s, background 0.2s;
+}
+.submitBtn:hover:not(:disabled) { background-color: #152c54; }
+.submitBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .postCard {
   background: white;
@@ -86,13 +155,14 @@
 }
 
 .postMeta { display: flex; align-items: center; gap: 1rem; }
+.authorMeta { display: flex; flex-direction: column; }
 .author { display: block; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
 .date { display: block; font-size: 0.8rem; color: var(--text-muted); }
 
 .menuBtn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
 
 .postBody { padding: 1.5rem; }
-.postBody h4 { margin-bottom: 0.8rem; color: var(--text-main); font-size: 1.1rem; }
+.postTitle { color: var(--tecnm-blue, #1B396A); margin: 0 0 8px 0; font-size: 1.15rem; }
 .postBody p { color: #334155; line-height: 1.6; white-space: pre-wrap; }
 
 .postFooter { padding: 1rem 1.5rem; background: #f8fafc; border-top: 1px solid #f1f5f9; }
@@ -103,7 +173,26 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  transition: color 0.2s;
 }
-.actionBtn:hover { color: var(--tecnm-blue); }
+.actionBtn:hover { color: var(--tecnm-blue, #1B396A); }
+
+/* NUEVO: Estado vacío para cuando no hay anuncios */
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted, #94a3b8);
+  background: white;
+  border-radius: 12px;
+  border: 1px dashed var(--border-light, #cbd5e1);
+}
+
+/* NUEVO: Contenedor de carga global */
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}

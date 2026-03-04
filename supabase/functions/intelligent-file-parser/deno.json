@@ -1,6 +1,6 @@
 {
   "imports": {
-    "std/http/server.ts": "https://deno.land/std@0.168.0/http/server.ts",
+    "std/server": "https://deno.land/std@0.168.0/http/server.ts",
     "@google/generative-ai": "https://esm.sh/@google/generative-ai@0.1.1"
   }
 }

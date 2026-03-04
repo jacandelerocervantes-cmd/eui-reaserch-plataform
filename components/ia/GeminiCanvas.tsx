@@ -1,81 +1,80 @@
 "use client";
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, Video, AlertCircle, Save, CheckCircle, Loader2 } from 'lucide-react';
-import { generateHybridMaterial, publishHybridMaterial } from '@/lib/ai-actions';
-import { supabase } from '@/lib/supabase'; // Cambiado de supabaseClient a supabase
+import { 
+  FileText, Save, AlertCircle, Loader2, 
+  ShieldCheck, Zap, CheckCircle 
+} from 'lucide-react';
+import { publishHybridMaterial } from '@/lib/ai-actions';
+import { supabase } from '@/lib/supabase';
 import styles from './GeminiCanvas.module.css';
 
-export const GeminiCanvas = ({ content }: { content: any }) => {
+// Definimos qué estructura esperamos del contenido (viene de la IEO)
+interface CanvasContent {
+  titulo_profesional: string;
+  cuerpo_enriquecido: string;
+  triage_analisis?: string;
+  pilar_operativo?: string;
+}
+
+export const GeminiCanvas = ({ content }: { content: CanvasContent | null }) => {
   const { id: courseId } = useParams();
-  const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [generatedData, setGeneratedData] = useState<any>(null);
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState("");
   const [materialsFolderId, setMaterialsFolderId] = useState("");
+  const [published, setPublished] = useState(false);
 
-  // 1. Cargar metadatos necesarios (Unidades e ID de carpeta de Drive)
+  // 1. Carga de metadatos de la Materia (Unidades y Carpetas)
   useEffect(() => {
     async function loadMetaData() {
-      const { data: materia } = await supabase
+      if (!courseId) return;
+      
+      const { data: materia, error } = await supabase
         .from('materias')
         .select('drive_folder_id, course_units(id, name)')
         .eq('id', courseId)
         .single();
 
-      if (materia) {
+      if (!error && materia) {
         setUnits(materia.course_units || []);
-        // Aquí asumimos que guardamos el ID de la subcarpeta 'materiales' en un JSON o lo buscamos
-        // Por ahora, usamos el ID raíz o el que devuelva tu lógica de setup
         setMaterialsFolderId(materia.drive_folder_id); 
       }
     }
     loadMetaData();
   }, [courseId]);
 
+  // 2. Acción de Publicación Atómica (Bóveda + Drive)
   const handlePublish = async () => {
-    if (!selectedUnit) return alert("Por favor, selecciona una unidad antes de publicar.");
-    
+    if (!selectedUnit) return alert("Por favor, seleccione una unidad académica.");
+    if (!content) return;
+
     setPublishing(true);
     try {
       await publishHybridMaterial(
         courseId as string, 
         selectedUnit, 
-        generatedData, 
+        content, 
         materialsFolderId
       );
-      alert("¡Material publicado con éxito en la Bóveda y en Drive!");
-      setGeneratedData(null); // Limpiamos para el siguiente
+      setPublished(true);
+      setTimeout(() => setPublished(false), 3000); // Feedback visual
     } catch (err) {
-      console.error(err);
-      alert("Error al sincronizar con Google Drive.");
+      console.error("Error en publicación:", err);
+      alert("Error al sincronizar con el ecosistema de Google.");
     } finally {
       setPublishing(false);
     }
   };
 
-  const activeContent = generatedData ? {
-    title: generatedData.title,
-    body: generatedData.content,
-    type: 'document'
-  } : content;
-
-  if (loading) {
+  // 3. Estado: Sin contenido (Canvas vacío)
+  if (!content) {
     return (
       <div className={styles.empty}>
-        <Loader2 className={styles.spin} size={48} />
-        <h2>Gemini está redactando tu material técnico...</h2>
-      </div>
-    );
-  }
-
-  if (!activeContent) {
-    return (
-      <div className={styles.empty}>
-        <div className={styles.emptyIcon}><AlertCircle size={48} /></div>
-        <h2>Canvas en espera...</h2>
-        <p>Utiliza el Copiloto para generar nuevo material o selecciona un archivo de la bóveda.</p>
+        <div className={styles.emptyIcon}><AlertCircle size={48} color="#64748b" /></div>
+        <h2>Canvas en espera de directivas...</h2>
+        <p>Utilice el Control Maestro para proyectar un protocolo o material técnico aquí.</p>
       </div>
     );
   }
@@ -84,38 +83,47 @@ export const GeminiCanvas = ({ content }: { content: any }) => {
     <div className={styles.canvasCard}>
       <header className={styles.canvasHeader}>
         <div className={styles.headerInfo}>
-          {activeContent.type === 'document' && <FileText className={styles.typeIcon} />}
-          <h3>{activeContent.title}</h3>
+          <ShieldCheck className={styles.typeIcon} color="#10b981" />
+          <div className={styles.titleStack}>
+            <span className={styles.pilarBadge}>{content.pilar_operativo || 'DOCENCIA'}</span>
+            <h3>{content.titulo_profesional}</h3>
+          </div>
         </div>
         
-        {/* Lógica de Publicación */}
-        {generatedData && (
-          <div className={styles.actions}>
-            <select 
-              value={selectedUnit} 
-              onChange={(e) => setSelectedUnit(e.target.value)}
-              className={styles.unitSelect}
-            >
-              <option value="">Seleccionar Unidad...</option>
-              {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            
-            <button 
-              onClick={handlePublish} 
-              disabled={publishing || !selectedUnit}
-              className={styles.publishBtn}
-            >
-              {publishing ? <Loader2 size={16} className={styles.spin} /> : <Save size={16} />}
-              {publishing ? "Publicando..." : "Publicar en Bóveda"}
-            </button>
-          </div>
-        )}
+        <div className={styles.actions}>
+          <select 
+            value={selectedUnit} 
+            onChange={(e) => setSelectedUnit(e.target.value)}
+            className={styles.unitSelect}
+          >
+            <option value="">Seleccionar Unidad...</option>
+            {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          
+          <button 
+            onClick={handlePublish} 
+            disabled={publishing || !selectedUnit || published}
+            className={`${styles.publishBtn} ${published ? styles.successBtn : ""}`}
+          >
+            {publishing ? <Loader2 size={16} className={styles.spin} /> : 
+             published ? <CheckCircle size={16} /> : <Save size={16} />}
+            {publishing ? "Sincronizando..." : published ? "¡Publicado!" : "Publicar en Bóveda"}
+          </button>
+        </div>
       </header>
 
       <div className={styles.canvasBody}>
-        {/* Aquí podrías usar un renderizador de Markdown */}
+        {/* TRIAGE DE INTELIGENCIA: Justificación técnica del material */}
+        {content.triage_analisis && (
+          <div className={styles.triageAlert}>
+            <Zap size={14} color="#f59e0b" />
+            <span><strong>Análisis IEO:</strong> {content.triage_analisis}</span>
+          </div>
+        )}
+
         <div className={styles.markdownContent}>
-          {activeContent.body}
+          {/* Aquí se renderiza el cuerpo enriquecido redactado por Gemini */}
+          <pre className={styles.rawText}>{content.cuerpo_enriquecido}</pre>
         </div>
       </div>
     </div>

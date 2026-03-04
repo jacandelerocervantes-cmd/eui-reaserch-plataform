@@ -1,40 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Añadimos useEffect
-import { useRouter } from "next/navigation";
-import { supabase, signInWithGoogle, signOut } from "@/lib/supabase"; // Importamos signOut
+import { useState } from "react";
+import { useRouter } from "next/navigation"; 
+import { supabase, signInWithGoogle } from "@/lib/supabase"; 
 import styles from "./login.module.css";
 
 export default function LoginPage() {
+  const router = useRouter(); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // LOG PARA SABER SI ESTAMOS ATRAPADOS
-  console.log("LoginPage renderizada");
-
   const handleGoogleLogin = async () => {
     setError("");
     setLoading(true);
     try {
       await signInWithGoogle();
     } catch (err: any) {
-      setError("Fallo la conexión con Google.");
-      setLoading(false);
-    }
-  };
-
-  // ESTA ES LA FUNCIÓN QUE VAMOS A USAR PARA ROMPER EL BUCLE
-  const handleForceSignOut = async () => {
-    setLoading(true);
-    console.log("Iniciando limpieza de sesión...");
-    try {
-      await signOut(); // Esto ahora limpia cookies y localStorage
-      alert("Sesión borrada. Ahora intenta entrar con Google de nuevo.");
-    } catch (err) {
-      console.error("Error al limpiar:", err);
-    } finally {
+      setError("Falló la conexión con Google.");
       setLoading(false);
     }
   };
@@ -50,15 +34,18 @@ export default function LoginPage() {
       });
 
       if (authError) throw authError;
-      if (data?.user) window.location.assign("/inicio"); 
+      
+      if (data?.user) {
+        router.push("/inicio");
+        router.refresh(); 
+      }
 
     } catch (err: any) {
       setError(err.message === "Invalid login credentials" 
         ? "Correo o contraseña incorrectos." 
-        : `Fallo el login: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+        : `Falló el login: ${err.message}`);
+      setLoading(false); 
+    } 
   };
 
   return (
@@ -92,24 +79,13 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className={styles.form}>
-             {/* ... campos de email y password iguales ... */}
-             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={styles.input} placeholder="Correo" />
-             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={styles.input} placeholder="Contraseña" />
+             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={styles.input} placeholder="Correo" required />
+             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={styles.input} placeholder="Contraseña" required />
             
             <button type="submit" disabled={loading} className={styles.loginButton}>
               {loading ? "Verificando..." : "Entrar"}
             </button>
           </form>
-
-          {/* ESTE ES EL BOTÓN DE EMERGENCIA */}
-          <button 
-            type="button"
-            onClick={handleForceSignOut}
-            className={styles.debugButton}
-            style={{ marginTop: '20px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
-          >
-            ¿Atrapado en un bucle? Forzar cierre de sesión
-          </button>
         </div>
       </div>
     </div>

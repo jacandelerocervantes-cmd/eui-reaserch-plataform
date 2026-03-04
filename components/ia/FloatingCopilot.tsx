@@ -1,57 +1,67 @@
 "use client";
+
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Sparkles, X, Send, Bell, ClipboardList, FileText, Check, Edit3 } from 'lucide-react';
-import { applyAIAction } from '@/lib/ai-actions';
+import { useParams } from 'next/navigation';
+import { 
+  Sparkles, X, Send, Bell, ClipboardList, 
+  FileText, Loader2, Zap, ShieldCheck 
+} from 'lucide-react';
+import { getAiDraft, applyAIAction } from '@/lib/ai-actions';
 import styles from './FloatingCopilot.module.css';
 
-export const FloatingCopilot = ({ forceOpen, onClose }: { forceOpen?: boolean, onClose?: () => void }) => {
+interface Props {
+  forceOpen?: boolean;
+  onClose?: () => void;
+  scope?: string; // DOCENCIA, INVESTIGACION, LABORATORIO, CAMPO
+}
+
+export const FloatingCopilot = ({ onClose, scope = "DOCENCIA" }: Props) => {
   const [command, setCommand] = useState("");
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<any>(null); // JSON de la IEO
   const [loading, setLoading] = useState(false);
   
   const { id: courseId } = useParams();
-  const router = useRouter();
 
-  // Mapeo de rutas para que el Copiloto sepa exactamente a dónde ir después de publicar
-  const moduleRoutes: Record<string, string> = {
-    anuncio: '', // El tablón suele ser la raíz de la materia
-    actividad: '/actividades',
-    evaluacion: '/evaluaciones'
-  };
-
-  const handleProcess = () => {
+  // 🧠 PROCESO 1: Razonamiento de la IEO
+  const handleProcess = async () => {
     if (!command.trim()) return;
+    setLoading(true);
+    setPreview(null);
 
-    const prompt = command.toLowerCase();
-    
-    // Aquí es donde entrará la API de Gemini más adelante
-    if (prompt.includes("anuncio")) {
-      setPreview({ type: 'anuncio', title: 'Aviso Importante', content: 'Cuerpo del anuncio sugerido...' });
-    } else if (prompt.includes("tarea") || prompt.includes("actividad")) {
-      setPreview({ type: 'actividad', title: 'Nueva Tarea', content: 'Instrucciones sugeridas...' });
-    } else if (prompt.includes("examen") || prompt.includes("evaluacion")) {
-      setPreview({ type: 'evaluacion', title: 'Examen de Reforzamiento', content: 'Pregunta 1: ...' });
+    try {
+      const aiResponse = await getAiDraft(command, scope);
+      setPreview(aiResponse);
+    } catch (error) {
+      console.error("Error en IEO:", error);
+      alert("El motor de razonamiento técnico no pudo procesar la solicitud.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // ⚡ PROCESO 2: Ejecución vía Gateway
   const handleConfirm = async () => {
-    if (!courseId) return alert("Por favor, selecciona una materia primero.");
     setLoading(true);
-    
     try {
-      await applyAIAction(preview.type, courseId as string, preview);
+      // Usamos los datos editados en el Canvas local del Copilot
+      const finalPayload = {
+        titulo: preview.canvas_draft.titulo_profesional,
+        contenido: preview.canvas_draft.cuerpo_enriquecido,
+        courseId: courseId // Contexto de base de datos
+      };
+
+      await applyAIAction(
+        preview.ejecucion_sugerida.function_name, 
+        preview.pilar_operativo, 
+        finalPayload
+      );
+
+      alert(`Acción ejecutada: ${preview.ejecucion_sugerida.action_button_label}`);
       setPreview(null);
       setCommand("");
-      
-      // Redirección inteligente al módulo recién editado
-      const targetPath = moduleRoutes[preview.type] || '';
-      router.push(`/panel/materias/${courseId}${targetPath}`);
-      
       if (onClose) onClose();
     } catch (error) {
-      console.error("Error al aplicar acción maestra:", error);
-      alert("Hubo un error al procesar la instrucción.");
+      alert("Error crítico en la ejecución del Gateway.");
     } finally {
       setLoading(false);
     }
@@ -59,64 +69,83 @@ export const FloatingCopilot = ({ forceOpen, onClose }: { forceOpen?: boolean, o
 
   return (
     <div className={styles.chatWindow}>
-      <div className={styles.chatHeader}>
-        <div className={styles.headerTitle}><Sparkles size={16} /> Control Maestro IA</div>
-        {onClose && <X size={18} onClick={onClose} className={styles.close} style={{cursor: 'pointer'}} />}
+      {/* HEADER PROFESIONAL */}
+      <div className={styles.chatHeader} style={{ borderBottom: `2px solid ${preview ? '#10b981' : '#1B396A'}` }}>
+        <div className={styles.headerTitle}>
+          <Sparkles size={16} color="#7C3AED" /> 
+          <span>IEO: {scope}</span>
+        </div>
+        {onClose && <X size={18} onClick={onClose} className={styles.close} />}
       </div>
 
       <div className={styles.chatBody}>
-        {!preview ? (
+        {/* ESTADO: CARGANDO ANALISIS */}
+        {loading && (
+          <div className={styles.loadingArea}>
+            <Loader2 className="animate-spin" size={32} color="#1B396A" />
+            <p>Realizando Triage de Impacto...</p>
+          </div>
+        )}
+
+        {/* ESTADO: SIN PREVIEW (INPUT INICIAL) */}
+        {!preview && !loading && (
           <>
-            <p className={styles.welcome}>¿Qué cambio maestro desea realizar en esta materia?</p>
+            <p className={styles.welcome}>Establezca una directiva para el módulo <strong>{scope}</strong>.</p>
             <div className={styles.quickActions}>
-              <button onClick={() => setCommand("Publica un anuncio sobre...")}><Bell size={14}/> Anuncio</button>
-              <button onClick={() => setCommand("Crea una tarea de...")}><ClipboardList size={14}/> Actividad</button>
-              <button onClick={() => setCommand("Diseña una evaluación de...")}><FileText size={14}/> Examen</button>
+              <button onClick={() => setCommand("Generar aviso oficial sobre...")}><Bell size={14}/> Aviso</button>
+              <button onClick={() => setCommand("Diseñar protocolo técnico de...")}><ClipboardList size={14}/> Protocolo</button>
+              <button onClick={() => setCommand("Estructurar evaluación por competencias...")}><FileText size={14}/> Evaluación</button>
             </div>
           </>
-        ) : (
+        )}
+
+        {/* ESTADO: CANVAS DE EDICIÓN (TRIAGE IA) */}
+        {preview && !loading && (
           <div className={styles.previewCard}>
-            <div className={styles.previewTag}>BORRADOR DE {preview.type.toUpperCase()}</div>
+            <div className={styles.triageBox}>
+              <Zap size={14} color="#f59e0b" />
+              <span><strong>Análisis IEO:</strong> {preview.triage_analisis}</span>
+            </div>
+
+            <div className={styles.previewTag}>
+              <ShieldCheck size={12} /> BORRADOR NIVEL {preview.pilar_operativo}
+            </div>
+
             <input 
-              value={preview.title} 
-              onChange={e => setPreview({...preview, title: e.target.value})}
+              value={preview.canvas_draft.titulo_profesional} 
+              onChange={e => setPreview({...preview, canvas_draft: {...preview.canvas_draft, titulo_profesional: e.target.value}})}
               className={styles.editTitle}
-              placeholder="Título..."
+              placeholder="Título Técnico..."
             />
+            
             <textarea 
-              value={preview.content} 
-              onChange={e => setPreview({...preview, content: e.target.value})}
+              value={preview.canvas_draft.cuerpo_enriquecido} 
+              onChange={e => setPreview({...preview, canvas_draft: {...preview.canvas_draft, cuerpo_enriquecido: e.target.value}})}
               className={styles.editContent}
-              placeholder="Contenido..."
+              placeholder="Desarrollo del protocolo..."
+              rows={8}
             />
+
             <div className={styles.previewActions}>
               <button onClick={() => setPreview(null)} className={styles.backBtn}>Descartar</button>
-              <button onClick={handleConfirm} disabled={loading} className={styles.saveBtn}>
-                {loading ? 'Procesando...' : 'Aprobar y Publicar'}
+              <button onClick={handleConfirm} className={styles.saveBtn}>
+                {preview.ejecucion_sugerida.action_button_label}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {!preview && (
+      {/* ÁREA DE INPUT FIJA */}
+      {!preview && !loading && (
         <div className={styles.inputArea}>
           <textarea 
-            placeholder="Ej: Crea una tarea sobre la fotosíntesis para el viernes..." 
+            placeholder="Escriba su comando maestro..." 
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleProcess();
-              }
-            }}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleProcess())}
           />
-          <button 
-            className={styles.sendBtn} 
-            onClick={handleProcess}
-            disabled={!command.trim()}
-          >
+          <button className={styles.sendBtn} onClick={handleProcess} disabled={!command.trim()}>
             <Send size={18} />
           </button>
         </div>

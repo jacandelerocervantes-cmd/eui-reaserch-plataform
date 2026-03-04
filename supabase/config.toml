@@ -396,7 +396,7 @@ entrypoint = "./functions/setup-materia/index.ts"
 
 [functions.sync-correo]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/sync-correo/deno.json"
 entrypoint = "./functions/sync-correo/index.ts"
 
@@ -529,8 +529,8 @@ entrypoint = "./functions/process-hybrid-material/index.ts"
 [functions.inicio-bridge]
 enabled = true
 verify_jwt = false
+# Cambiamos esto para que apunte al deno.json de la carpeta de la función
 import_map = "./functions/inicio-bridge/deno.json"
-entrypoint = "./functions/inicio-bridge/index.ts"
 
 [functions.bridge-gateway]
 enabled = true

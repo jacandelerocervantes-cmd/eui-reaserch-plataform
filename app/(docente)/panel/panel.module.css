@@ -80,6 +80,7 @@
   /* Crea columnas de mínimo 320px, y si sobra espacio, las estira por igual */
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 2rem;
+  align-items: start; /* CRÍTICO: Evita que al expandir una tarjeta, se sacuda toda la página */
 }
 
 .emptyState {

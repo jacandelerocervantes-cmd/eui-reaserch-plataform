@@ -25,86 +25,118 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { courseId, mode, studentId, studentData } = await req.json() as StudentPayload;
+    const rawBody = await req.text();
+    if (!rawBody) throw new Error("Petición vacía");
     
+    const { courseId, mode, studentId, studentData } = JSON.parse(rawBody) as StudentPayload;
+    
+    if (!courseId || !mode) {
+      return new Response(JSON.stringify({ error: "Faltan courseId o mode" }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     let result;
-    let finalStudentData = { ...studentData };
+    const finalStudentData = { 
+      ...studentData, 
+      team_id: studentData?.team_id?.trim() === "" ? null : studentData?.team_id 
+    };
 
     // --- 1. OPERACIÓN EN BASE DE DATOS ---
-    if (mode === 'create') {
-      const { data, error } = await supabase
-        .from('students')
-        .insert([{ ...studentData, course_id: courseId }])
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } 
-    else if (mode === 'edit' && studentId) {
-      const { data, error } = await supabase
-        .from('students')
-        .update(studentData)
-        .eq('id', studentId)
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
-    } 
-    else if (mode === 'delete' && studentId) {
-      // Antes de borrar, obtenemos los datos para el Sheet
-      const { data: st } = await supabase.from('students').select('*').eq('id', studentId).single();
-      if (st) finalStudentData = st;
-
-      const { error } = await supabase.from('students').delete().eq('id', studentId);
-      if (error) throw error;
-      result = { message: "Eliminado" };
-    }
-
-    // --- 2. SINCRONIZACIÓN CON GOOGLE SHEETS ---
-    // Obtenemos el google_sheet_id de la tabla materias
-    const { data: materia } = await supabase
-      .from('materias')
-      .select('nombre, google_sheet_id')
-      .eq('id', courseId)
-      .single();
-
-    if (materia?.google_sheet_id) {
-      // Obtenemos el nombre del equipo si existe
-      let teamName = "Sin equipo";
-      if (finalStudentData.team_id) {
-        const { data: team } = await supabase.from('teams').select('name').eq('id', finalStudentData.team_id).single();
-        if (team) teamName = team.name;
+    try {
+      if (mode === 'create') {
+        const { data, error } = await supabase
+          .from('students')
+          .insert([{ ...finalStudentData, course_id: courseId }])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      } 
+      else if (mode === 'edit' && studentId) {
+        const { data, error } = await supabase
+          .from('students')
+          .update(finalStudentData)
+          .eq('id', studentId)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        result = data;
+      } 
+      else if (mode === 'delete' && studentId) {
+        const { error } = await supabase.from('students').delete().eq('id', studentId);
+        if (error) throw error;
+        result = { message: "Eliminado" };
       }
-
-      const APPS_SCRIPT_URL = Deno.env.get('APPS_SCRIPT_URL');
-      await fetch(APPS_SCRIPT_URL!, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'sincronizarAlumno', 
-          payload: {
-            googleSheetId: materia.google_sheet_id,
-            mode,
-            studentData: { ...finalStudentData, team_name: teamName }
-          }
-        })
+    } catch (dbError: unknown) {
+      // Manejo seguro sin usar 'any'
+      const err = dbError as { code?: string; message?: string };
+      
+      if (err?.code === '23505') {
+        return new Response(JSON.stringify({ success: false, error: "Ya existe un alumno con esta matrícula." }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 
+        });
+      }
+      console.error("Error BD:", err);
+      return new Response(JSON.stringify({ success: false, error: "Error en base de datos: " + (err?.message || "Desconocido") }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 
       });
     }
 
+    // --- 2. SINCRONIZACIÓN CON GOOGLE SHEETS (AISLADA) ---
+    try {
+      const { data: course } = await supabase
+        .from('courses')
+        .select('title, drive_folder_id')
+        .eq('id', courseId)
+        .single();
+
+      if (course?.drive_folder_id) {
+        let teamName = "Sin equipo";
+        if (finalStudentData.team_id) {
+          const { data: team } = await supabase.from('teams').select('name').eq('id', finalStudentData.team_id).single();
+          if (team) teamName = team.name;
+        }
+
+        const APPS_SCRIPT_URL = Deno.env.get('APPS_SCRIPT_URL');
+        if (APPS_SCRIPT_URL) {
+          fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              action: 'sincronizarAlumno', 
+              payload: {
+                googleSheetId: course.drive_folder_id,
+                mode,
+                studentData: { ...finalStudentData, team_name: teamName },
+                materiaNombre: course.title
+              }
+            })
+          }).catch(e => console.error("Fallo silencioso en Webhook de Google:", e));
+        }
+      }
+    } catch (webhookError: unknown) {
+      console.error("Error aislado al preparar Webhook:", webhookError);
+    }
+
+    // --- 3. RESPUESTA EXITOSA ---
     return new Response(JSON.stringify({ success: true, data: result }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200
     });
 
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "Error desconocido";
-    return new Response(JSON.stringify({ success: false, error: msg }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400 
+  } catch (globalError: unknown) {
+    // Manejo seguro sin usar 'any'
+    const err = globalError as { message?: string };
+    console.error("Fallo Global:", err);
+    return new Response(JSON.stringify({ success: false, error: err?.message || "Fallo crítico del servidor" }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 
     });
   }
-})
+});

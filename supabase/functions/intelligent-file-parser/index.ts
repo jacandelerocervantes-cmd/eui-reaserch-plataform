@@ -1,4 +1,4 @@
-import { serve } from "std/http/server.ts"
+import { serve } from "std/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
 const corsHeaders = {
@@ -6,41 +6,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+interface SyllabusData {
+  nombre: string;
+  clave: string;
+  unidades: {
+    id: number;
+    nombre: string;
+    criterios: { nombre: string; peso: number }[];
+  }[];
+  competencias: string[];
+}
+
+serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    // 1. Recibir el archivo (enviado como multipart/form-data)
+    // 1. Recepción del Archivo (PDF/Word)
     const formData = await req.formData()
     const file = formData.get('file') as File
     
-    if (!file) throw new Error("No se recibió ningún archivo.")
+    if (!file) throw new Error("ERR_NO_FILE: No se detectó ningún documento en la transmisión.")
 
-    // 2. Convertir el archivo a Base64 para Gemini
+    // 2. Transformación a Base64
     const arrayBuffer = await file.arrayBuffer()
     const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY')!)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+    if (!GEMINI_API_KEY) throw new Error("ERR_ENV_MISSING: GEMINI_API_KEY no configurada.")
 
-    // 3. Prompt de extracción con reglas del TecNM
+    // 3. Inicialización IEO con Gemini 2.5 Flash
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+
+    // 4. Ingeniería de Prompts (Extracción Académica)
     const prompt = `
-      Analiza este documento (lista de alumnos). 
-      Extrae la información y devuélvela UNICAMENTE en formato JSON plano (un array de objetos).
-      Si hay datos faltantes, deja el string vacío.
+      Actúa como el Oficial de Extracción IEO de un Investigador del TecNM.
+      Analiza el documento adjunto, que representa un Programa de Estudios (Syllabus).
+      Tu misión es extraer la arquitectura de la materia y estructurarla en un formato JSON plano, listo para desplegar infraestructura en Google Drive/Sheets.
 
-      Campos requeridos por objeto:
-      "matricula": (Solo números/letras según formato TecNM),
-      "nombres": (Solo nombres),
-      "apellido_paterno": (Primer apellido),
-      "apellido_materno": (Segundo apellido),
-      "correo": (Correo institucional o personal si existe)
+      FORMATO JSON ESTRICTO REQUERIDO:
+      {
+        "nombre": "Nombre de la materia",
+        "clave": "Clave (ej. SCD-1021)",
+        "unidades": [
+          {
+            "id": 1,
+            "nombre": "Nombre del tema o unidad",
+            "criterios": [
+              { "nombre": "Ej. Examen Teórico, Prácticas, Tareas", "peso": 50 }
+            ]
+          }
+        ],
+        "competencias": [
+          "Competencia específica a desarrollar 1",
+          "Competencia específica a desarrollar 2"
+        ]
+      }
 
-      Ejemplo de salida:
-      [{"matricula": "18120001", "nombres": "JUAN ANTONIO", "apellido_paterno": "CANDELERO", "apellido_materno": "CERVANTES", "correo": "l18120001@villahermosa.tecnm.mx"}]
+      REGLAS DE OPERACIÓN:
+      - Los 'pesos' dentro de los criterios de cada unidad deben sumar exactamente 100. Si el documento no especifica porcentajes, divídelos equitativamente de forma lógica.
+      - Responde ÚNICAMENTE con el objeto JSON puro. Nada de formato Markdown ni saludos.
     `;
 
-    // 4. Llamada a Gemini con soporte para archivos
     const result = await model.generateContent([
       prompt,
       {
@@ -53,17 +80,27 @@ serve(async (req) => {
 
     const text = result.response.text();
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const studentData = JSON.parse(cleanJson);
+    
+    let courseData: SyllabusData;
+    try {
+      courseData = JSON.parse(cleanJson);
+    } catch (_e) { // Control estricto Deno
+      console.error("AI_PARSE_ERROR", text);
+      throw new Error("ERR_AI_INVALID_FORMAT");
+    }
 
-    return new Response(JSON.stringify({ students: studentData }), {
+    return new Response(JSON.stringify({ success: true, data: courseData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
-  } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "ERR_UNKNOWN_PARSE";
+    console.error(`[intelligent-file-parser] ❌ ${msg}`);
+
+    return new Response(JSON.stringify({ success: false, error: msg }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 200, // Mantenemos 200 para que el frontend maneje la alerta
     })
   }
 })

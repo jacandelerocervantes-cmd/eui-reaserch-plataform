@@ -1,127 +1,138 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Sparkles, X, Loader2 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState, useEffect } from "react";
 import styles from "./CourseModal.module.css";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
+// Interfaz actualizada para soportar Creación (4 datos) y Edición (1 dato + Eliminar)
 interface CourseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string) => Promise<void>;
+  // Hacemos que los últimos 3 parámetros sean opcionales para que funcione en Edición
+  onSubmit: (name: string, units?: number, semester?: string, year?: number) => void | Promise<void>;
+  onDelete?: (id: string) => void | Promise<void>;
+  courseId?: string | null;
+  title?: string;
   initialName?: string;
-  title: string;
 }
 
-export default function CourseModal({ isOpen, onClose, onSubmit, initialName = "", title }: CourseModalProps) {
-  const [courseName, setCourseName] = useState(initialName);
-  const [loading, setLoading] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+export default function CourseModal({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  onDelete,
+  courseId,
+  title = "Apertura de Asignatura",
+  initialName = ""
+}: CourseModalProps) {
+  const [name, setName] = useState("");
+  const [units, setUnits] = useState(1);
+  const [semester, setSemester] = useState("Enero - Julio");
+  const [year, setYear] = useState(new Date().getFullYear());
 
-  // Controlar la apertura nativa del modal
+  // Cargar datos iniciales si estamos en modo edición
   useEffect(() => {
-    if (isOpen && dialogRef.current && !dialogRef.current.open) {
-      dialogRef.current.showModal();
-      setCourseName(initialName);
-    } else if (!isOpen && dialogRef.current?.open) {
-      dialogRef.current.close();
-    }
-  }, [isOpen, initialName]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!courseName.trim()) return;
-    
-    setLoading(true);
-    try {
-      // Si no hay nombre inicial, asumimos que es una creación de curso
-      if (!initialName) {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          // 1. Primero insertamos la materia básica en Supabase para obtener el ID
-          const { data: newCourse, error } = await supabase
-            .from('materias')
-            .insert([{ nombre: courseName, docente_id: user.id }])
-            .select()
-            .single();
-
-          if (error) throw error;
-
-          if (newCourse) {
-            // 2. Disparamos la Edge Function para crear el entorno en Google
-            const { error: fnError } = await supabase.functions.invoke('provision-course-environment', {
-              body: { courseId: newCourse.id, nombre: courseName, clave: "CURSO-2026" }
-            });
-
-            if (fnError) throw fnError;
-          }
-        }
+    if (isOpen) {
+      setName(initialName);
+      if (!courseId) {
+        setUnits(1);
+        setSemester("Enero - Julio");
+        setYear(new Date().getFullYear());
       }
-      
-      await onSubmit(courseName);
-      onClose(); // Cerramos solo si todo sale bien
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+    }
+  }, [isOpen, initialName, courseId]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSubmit(name, units, semester, year);
+    // Limpiar form
+    if (!courseId) {
+      setName("");
+      setUnits(1);
+      setSemester("Enero - Julio");
+      setYear(new Date().getFullYear());
     }
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={(e) => { if (loading) e.preventDefault(); else onClose(); }}
-      className={styles.dialog}
-    >
-      <div className={styles.modalContent}>
-        
-        {/* Cabecera */}
-        <header className={styles.header}>
-          <h3 className={styles.title}>
-            <Sparkles className={styles.iconTitle} size={36} strokeWidth={2.5} />
-            {title}
-          </h3>
-          <button 
-            type="button"
-            onClick={onClose}
-            className={styles.closeButton}
-            disabled={loading}
-            aria-label="Cerrar modal"
-          >
-            <X size={28} strokeWidth={2.5} />
-          </button>
-        </header>
-        
-        <form onSubmit={handleSubmit} className={styles.modalContent}>
-          
-          {/* Cuerpo (Input) */}
-          <div className={styles.body}>
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <h2 className={styles.title}>{title}</h2>
+
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.formGroup}>
+            <label>Nombre de la Asignatura</label>
             <input
               type="text"
-              placeholder="Nombre de la materia..."
-              value={courseName}
-              onChange={(e) => setCourseName(e.target.value)}
-              className={styles.input}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej. Taller de Investigación I"
+              autoFocus
               required
-              disabled={loading}
             />
           </div>
-          
-          {/* Pie (Botón Submit) */}
-          <footer className={styles.footer}>
-            <button type="submit" disabled={loading} className={styles.submitButton}>
-              {loading && <Loader2 size={32} className={styles.spinner} />}
-              <span>{loading ? "Procesando..." : "Guardar Entorno Virtual"}</span>
-            </button>
-          </footer>
 
+          {/* Estos campos SOLO se muestran al crear una materia nueva */}
+          {!courseId && (
+            <>
+              <div className={styles.row}>
+                <div className={styles.formGroup}>
+                  <label>Número de Unidades</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={units}
+                    onChange={(e) => setUnits(Number(e.target.value))}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Año</label>
+                  <input
+                    type="number"
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Semestre</label>
+                <select value={semester} onChange={(e) => setSemester(e.target.value)}>
+                  <option value="Enero - Julio">Enero - Julio</option>
+                  <option value="Agosto - Diciembre">Agosto - Diciembre</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <div className={styles.footer} style={{ justifyContent: courseId ? "space-between" : "flex-end" }}>
+            {/* Botón Eliminar: Solo aparece si hay un courseId (Edición) */}
+            {courseId && onDelete && (
+              <button 
+                type="button" 
+                onClick={() => onDelete(courseId)}
+                style={{ backgroundColor: "#fef2f2", color: "#ef4444", border: "1px solid #fee2e2", padding: "10px 16px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                Eliminar Materia
+              </button>
+            )}
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button type="button" onClick={onClose} className={styles.cancelBtn}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.submitBtn} disabled={!name.trim()}>
+                {courseId ? "Guardar Cambios" : "Aperturar"}
+              </button>
+            </div>
+          </div>
         </form>
       </div>
-    </dialog>
+    </div>
   );
 }

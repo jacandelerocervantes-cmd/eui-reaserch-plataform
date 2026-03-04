@@ -7,11 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Interfaz para definir la estructura de los avisos y evitar el tipo 'any'
 interface AvisoPayload {
-  materia_id: string;
-  titulo: string;
-  contenido: string;
+  course_id: string; // Alineado a tu base de datos
+  titulo?: string;
+  contenido?: string;
+  autor_id?: string;
 }
 
 serve(async (req: Request) => {
@@ -21,82 +21,128 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { action, payload } = await req.json() as { action: string, payload: AvisoPayload };
+    // 2. Validación de Cuerpo Vacío (Evita crasheos de JSON.parse)
+    const rawBody = await req.text();
+    if (!rawBody) {
+      console.error("Error 400: El cuerpo de la petición está vacío.");
+      return new Response(JSON.stringify({ error: "El cuerpo de la petición está vacío." }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 
+      });
+    }
+
+    const { action, payload } = JSON.parse(rawBody) as { action: string, payload: AvisoPayload };
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // --- ACCIÓN: PUBLICAR AVISO ---
-    if (action === 'publishPost') {
-      const { materia_id, titulo, contenido } = payload;
-
-      const { data: aviso, error: dbError } = await supabase
-        .from('materias_avisos')
-        .insert([{ materia_id, titulo, contenido }])
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      // Obtener datos de la materia para notificación
-      const { data: materia } = await supabase
-        .from('materias')
-        .select('nombre, google_sheet_id')
-        .eq('id', materia_id)
-        .single();
-
-      if (materia?.google_sheet_id) {
-        const APPS_SCRIPT_URL = Deno.env.get('APPS_SCRIPT_URL');
-        await fetch(APPS_SCRIPT_URL!, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'notificarAviso', 
-            payload: {
-              titulo,
-              contenido,
-              materiaNombre: materia.nombre,
-              googleSheetId: materia.google_sheet_id
-            }
-          })
+    // ==========================================
+    // ACCIÓN: OBTENER AVISOS
+    // ==========================================
+    if (action === 'fetchPosts') {
+      const { course_id } = payload;
+      
+      // Validación de datos 400
+      if (!course_id) {
+        console.error("Error 400: Falta course_id en fetchPosts");
+        return new Response(JSON.stringify({ error: "Falta course_id para obtener los avisos." }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 
         });
       }
 
-      return new Response(JSON.stringify({ success: true, data: aviso }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    // --- ACCIÓN: OBTENER AVISOS ---
-    if (action === 'fetchPosts') {
-      const { materia_id } = payload;
       const { data, error } = await supabase
-        .from('materias_avisos')
+        .from('course_announcements') // TU NUEVA TABLA (Asegúrate de haber corrido el SQL que te di)
         .select('*')
-        .eq('materia_id', materia_id)
-        .order('creado_en', { ascending: false });
+        .eq('course_id', course_id)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      // Manejo de Error de Base de Datos 500
+      if (error) {
+        console.error("Error 500 DB (fetchPosts):", error);
+        return new Response(JSON.stringify({ error: `Error interno DB: ${error.message}` }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 
+        });
+      }
       
       return new Response(JSON.stringify({ success: true, data }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 
       });
     }
 
-    // SOLUCIÓN AL ERROR 1: Si no coincide ninguna acción, devolvemos un 404
-    return new Response(JSON.stringify({ error: "Acción no encontrada" }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 404
+    // ==========================================
+    // ACCIÓN: PUBLICAR AVISO
+    // ==========================================
+    if (action === 'publishPost') {
+      const { course_id, titulo, contenido, autor_id } = payload;
+
+      // Validación estricta 400
+      if (!course_id || !titulo || !contenido || !autor_id) {
+        console.error("Error 400: Faltan datos obligatorios para publicar.", payload);
+        return new Response(JSON.stringify({ error: "Faltan datos obligatorios (course_id, titulo, contenido o autor_id)." }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 
+        });
+      }
+
+      // Inserción en la BD
+      const { data: aviso, error: dbError } = await supabase
+        .from('course_announcements') // TU NUEVA TABLA
+        .insert([{ course_id, title: titulo, content: contenido, author_id: autor_id }])
+        .select()
+        .single();
+
+      // Error crítico de BD 500 (Ej. Si el author_id no existe en profiles)
+      if (dbError) {
+        console.error("Error 500 DB (publishPost):", dbError);
+        return new Response(JSON.stringify({ error: `Error al guardar en BD: ${dbError.message}` }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 
+        });
+      }
+
+      // --- Notificación a Google Apps Script (Try/Catch Aislado) ---
+      // Si esto falla, el código sigue su curso y retorna éxito al usuario.
+      try {
+        const { data: course } = await supabase
+          .from('courses')
+          .select('title, drive_folder_id')
+          .eq('id', course_id)
+          .single();
+
+        if (course?.drive_folder_id) {
+          const APPS_SCRIPT_URL = Deno.env.get('APPS_SCRIPT_URL');
+          if (APPS_SCRIPT_URL) {
+            // Ejecutamos fetch en background, no esperamos respuesta
+            fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                action: 'notificarAviso', 
+                payload: { titulo, contenido, materiaNombre: course.title, googleSheetId: course.drive_folder_id }
+              })
+            }).catch(e => console.error("Advertencia: Webhook de Apps Script falló (ignorado):", e)); 
+          }
+        }
+      } catch (e) {
+        console.error("Advertencia: Fallo al consultar metadata para Apps Script (ignorado):", e);
+      }
+
+      // Éxito Total 200
+      return new Response(JSON.stringify({ success: true, data: aviso }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 
+      });
+    }
+
+    // 3. Acción no soportada (404 Not Found)
+    console.error(`Error 404: Acción desconocida: ${action}`);
+    return new Response(JSON.stringify({ error: `La acción '${action}' no existe.` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404
     });
 
-  } catch (error) {
-    // SOLUCIÓN AL ERROR 2: Manejo de errores sin usar 'any'
-    const mensaje = error instanceof Error ? error.message : "Error desconocido";
-    return new Response(JSON.stringify({ success: false, error: mensaje }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400 
+  } catch (error: any) {
+    // 4. Captura Global de Excepciones de Runtime (500)
+    console.error("Error 500 Global del Servidor:", error);
+    return new Response(JSON.stringify({ error: `Fallo crítico del servidor: ${error.message}` }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 
     });
   }
 });

@@ -17,10 +17,7 @@ interface Course {
 export default function PanelPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCourses();
@@ -44,73 +41,44 @@ export default function PanelPage() {
     }
   };
 
-  const handleOpenCreate = () => {
-    setModalMode("create");
-    setSelectedCourseId(null);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (id: string) => {
-    setModalMode("edit");
-    setSelectedCourseId(id);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar esta asignatura?")) {
-      try {
-        const { error } = await supabase
-          .from("courses")
-          .update({ is_active: false })
-          .eq("id", id);
-
-        if (error) throw error;
-        setCourses(courses.filter((course) => course.id !== id));
-      } catch (error) {
-        console.error("Error eliminando:", error);
-        alert("Hubo un error al eliminar la materia.");
-      }
-    }
-  };
-
-  const handleSubmitModal = async (name: string) => {
+  const handleSubmitModal = async (name: string, units: number, semester: string, year: number) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return alert("Debes iniciar sesión.");
 
-      if (modalMode === "create") {
-        // LLAMADA A EDGE FUNCTION PARA CREACIÓN HÍBRIDA (DB + GOOGLE)
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-course`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ title: name })
-        });
+      // 1. Crear Materia
+      const { data: newCourse, error: courseError } = await supabase
+        .from("courses")
+        .insert([{ title: name, teacher_id: session.user.id, is_active: true }])
+        .select()
+        .single();
 
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Error en la creación maestra");
+      if (courseError) throw courseError;
+
+      // 2. Crear Unidades y Drive
+      if (newCourse && units > 0) {
+        const unitsData = Array.from({ length: units }).map((_, i) => ({
+          course_id: newCourse.id,
+          name: `Unidad ${i + 1}`,
+          unit_number: i + 1
+        }));
         
-        setCourses([result.course, ...courses]);
-      } else if (modalMode === "edit" && selectedCourseId) {
-        const { data, error } = await supabase
-          .from("courses")
-          .update({ title: name })
-          .eq("id", selectedCourseId)
-          .select()
-          .single();
+        await supabase.from("course_units").insert(unitsData);
 
-        if (error) throw error;
-        setCourses(courses.map(c => c.id === selectedCourseId ? data : c));
+        const abreviatura = semester === "Enero - Julio" ? "EJ" : "AD";
+        const claveDrive = `${abreviatura}-${year}`; 
+
+        await supabase.functions.invoke('provision-course-environment', {
+          body: { courseId: newCourse.id, title: name, clave: claveDrive }
+        });
       }
+
+      await fetchCourses();
+      setIsModalOpen(false);
     } catch (error: any) {
-      console.error("Error en operación maestra:", error.message);
-      alert(error.message);
+      alert("Error: " + error.message);
     }
   };
-
-  const courseToEdit = courses.find(c => c.id === selectedCourseId);
 
   return (
     <div className={styles.pageContainer}>
@@ -132,8 +100,6 @@ export default function PanelPage() {
                 id={course.id}
                 title={course.title}
                 studentsCount={0}
-                onEdit={handleOpenEdit}
-                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -144,14 +110,12 @@ export default function PanelPage() {
         )}
       </main>
 
-      <FloatingActionButton onClick={handleOpenCreate} />
+      <FloatingActionButton onClick={() => setIsModalOpen(true)} />
 
       <CourseModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmitModal}
-        title={modalMode === "create" ? "Apertura de Asignatura" : "Editar Asignatura"}
-        initialName={modalMode === "edit" ? courseToEdit?.title : ""}
       />
     </div>
   );

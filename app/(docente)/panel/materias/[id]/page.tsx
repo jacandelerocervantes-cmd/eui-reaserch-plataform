@@ -1,41 +1,48 @@
 "use client";
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { Megaphone, MoreVertical, Clock, MessageSquare, Loader2, Send } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { Megaphone, Clock, Loader2, Send } from 'lucide-react';
 import styles from './tablon.module.css';
 import { supabase } from "@/lib/supabase";
 
-// Interfaz para tipar los avisos
 interface Aviso {
   id: string;
   titulo: string;
-  contenido: string;
-  creado_en: string;
-  autor_id: string;
+  content: string;
+  created_at: string;
+  author_id: string;
 }
 
 export default function TablonPage() {
   const { id } = useParams();
+  const router = useRouter();
+  
   const [loading, setLoading] = useState(true);
   const [materia, setMateria] = useState<any>(null);
   const [anuncios, setAnuncios] = useState<Aviso[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   
-  // Estado para el nuevo aviso
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [newPost, setNewPost] = useState({ titulo: '', contenido: '' });
   const [showCompose, setShowCompose] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      fetchMateriaData();
-      fetchAnuncios();
-    }
+    if (id) fetchInitialData();
   }, [id]);
 
-  // 1. Obtener información básica de la materia
+  const fetchInitialData = async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) setUserProfile(session.user);
+
+    await Promise.all([fetchMateriaData(), fetchAnuncios()]);
+    setLoading(false);
+  };
+
   const fetchMateriaData = async () => {
     const { data, error } = await supabase
-      .from("materias")
+      .from("courses") // TABLA REAL
       .select("*")
       .eq("id", id)
       .single();
@@ -43,64 +50,71 @@ export default function TablonPage() {
     if (!error) setMateria(data);
   };
 
-  // 2. Obtener anuncios mediante la Edge Function
   const fetchAnuncios = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('sync-tablon', {
-        body: { action: 'fetchPosts', payload: { materia_id: id } }
+        method: 'POST',
+        body: { action: 'fetchPosts', payload: { course_id: id } } // ENVIAMOS course_id
       });
-      if (data?.success) setAnuncios(data.data);
+      
+      if (!error && data?.success) {
+        setAnuncios(data.data);
+      }
     } catch (err) {
-      console.error("Error cargando anuncios:", err);
-    } finally {
-      setLoading(false);
+      console.error(err);
     }
   };
 
-  // 3. Publicar nuevo aviso
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.titulo || !newPost.contenido) return;
+    if (!newPost.titulo || !newPost.contenido || !userProfile) return;
 
     try {
       setIsPublishing(true);
+      
       const { data, error } = await supabase.functions.invoke('sync-tablon', {
+        method: 'POST',
         body: { 
           action: 'publishPost', 
           payload: { 
-            materia_id: id, 
+            course_id: id, 
             titulo: newPost.titulo, 
-            contenido: newPost.contenido 
+            contenido: newPost.contenido,
+            autor_id: userProfile.id 
           } 
         }
       });
 
-      if (data?.success) {
-        setAnuncios([data.data, ...anuncios]);
-        setNewPost({ titulo: '', contenido: '' });
-        setShowCompose(false);
-        alert("Aviso publicado y notificado por correo.");
+      if (error || !data?.success) {
+        alert("Error al publicar: " + (error?.message || data?.error));
+        return;
       }
+
+      setAnuncios([data.data, ...anuncios]);
+      setNewPost({ titulo: '', contenido: '' });
+      setShowCompose(false);
     } catch (err) {
-      alert("Error al publicar aviso.");
+      alert("Error crítico al publicar.");
     } finally {
       setIsPublishing(false);
     }
   };
 
+  const userNameDisplay = userProfile?.user_metadata?.full_name || userProfile?.email?.split('@')[0] || 'Docente';
+  const userInitial = userNameDisplay.charAt(0).toUpperCase();
+
   if (loading) return (
-    <div style={{ display: "flex", justifyContent: "center", padding: "100px" }}>
-      <Loader2 className="animate-spin" size={48} color="#1B396A" />
+    <div className={styles.loadingContainer}>
+      <Loader2 className="animate-spin" size={64} color="#1B396A" />
     </div>
   );
 
   return (
     <div className={styles.container}>
-      {/* Banner Dinámico */}
-      <div className={styles.heroBanner} style={{ backgroundColor: materia?.color_hex || '#1B396A' }}>
+      <div className={styles.heroBanner} style={{ backgroundColor: '#1B396A', position: 'relative' }}>
         <div className={styles.bannerContent}>
-          <h1>{materia?.nombre || "Cargando materia..."}</h1>
-          <p>Semestre: {materia?.semestre || "N/A"} | ID: {id?.toString().substring(0, 8)}</p>
+          <h1>{materia?.title || "Cargando..."}</h1>
+          <p>ID: {id?.toString().substring(0, 8)}</p>
         </div>
       </div>
 
@@ -109,79 +123,69 @@ export default function TablonPage() {
           <div className={styles.widget}>
             <h3>Estado de la Materia</h3>
             <ul className={styles.taskList}>
-              <li><Clock size={14} /> <span>{anuncios.length} Avisos publicados</span></li>
-              {materia?.google_sheet_id && <li><div style={{width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981'}}/> <span>Sincronizado con Drive</span></li>}
+              <li><Clock size={16} color="#64748b" /> <span>{anuncios.length} Avisos publicados</span></li>
             </ul>
           </div>
         </aside>
 
         <main className={styles.feed}>
-          {/* Caja de Composición */}
-          <div className={styles.composeBox} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <div className={`${styles.composeBox} ${showCompose ? styles.composeBoxExpanded : ''}`}>
             {!showCompose ? (
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <div className={styles.avatar}>J</div>
+              <div className={styles.composeHeader}>
+                <div className={styles.avatar}>{userInitial}</div>
                 <button className={styles.composeBtn} onClick={() => setShowCompose(true)}>
                   Anunciar algo a la clase...
                 </button>
               </div>
             ) : (
-              <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input 
-                  className={styles.composeBtn} 
-                  style={{ cursor: 'text', fontWeight: 'bold' }}
-                  placeholder="Título del aviso..."
-                  value={newPost.titulo}
-                  onChange={(e) => setNewPost({...newPost, titulo: e.target.value})}
-                  required
-                />
-                <textarea 
-                  className={styles.composeBtn} 
-                  style={{ cursor: 'text', minHeight: '100px', borderRadius: '12px' }}
-                  placeholder="Escribe el contenido del mensaje aquí..."
-                  value={newPost.contenido}
-                  onChange={(e) => setNewPost({...newPost, contenido: e.target.value})}
-                  required
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button type="button" onClick={() => setShowCompose(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: '600' }}>Cancelar</button>
-                  <button 
-                    type="submit" 
-                    disabled={isPublishing}
-                    style={{ backgroundColor: '#1B396A', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    {isPublishing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    Publicar Aviso
+              <form onSubmit={handlePublish}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input 
+                    className={`${styles.composeBtn} ${styles.composeInput}`} 
+                    placeholder="Título del aviso..."
+                    value={newPost.titulo}
+                    onChange={(e) => setNewPost({...newPost, titulo: e.target.value})}
+                    required
+                  />
+                  <textarea 
+                    className={`${styles.composeBtn} ${styles.composeTextarea}`} 
+                    placeholder="Contenido..."
+                    value={newPost.contenido}
+                    onChange={(e) => setNewPost({...newPost, contenido: e.target.value})}
+                    required
+                  />
+                </div>
+                
+                <div className={styles.composeActions}>
+                  <button type="button" onClick={() => setShowCompose(false)} className={styles.cancelBtn}>Cancelar</button>
+                  <button type="submit" disabled={isPublishing} className={styles.submitBtn}>
+                    {isPublishing ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />} Publicar
                   </button>
                 </div>
               </form>
             )}
           </div>
 
-          {/* Listado de Anuncios Reales */}
           {anuncios.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Aún no hay anuncios en esta materia.</div>
+            <div className={styles.emptyState}>
+              <Megaphone size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto' }} />
+              <p style={{ fontWeight: 600 }}>Aún no hay anuncios.</p>
+            </div>
           ) : (
             anuncios.map((anuncio) => (
               <article key={anuncio.id} className={styles.postCard}>
                 <div className={styles.postHeader}>
                   <div className={styles.postMeta}>
-                    <div className={styles.avatarSmall}>J</div>
-                    <div>
-                      <span className={styles.author}>Prof. Juan Antonio</span>
-                      <span className={styles.date}>{new Date(anuncio.creado_en).toLocaleDateString()}</span>
+                    <div className={styles.avatarSmall}>{userInitial}</div>
+                    <div className={styles.authorMeta}>
+                      <span className={styles.author}>{userNameDisplay}</span>
+                      <span className={styles.date}>{new Date(anuncio.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  <button className={styles.menuBtn}><MoreVertical size={18} /></button>
                 </div>
                 <div className={styles.postBody}>
-                  <h4>{anuncio.titulo}</h4>
-                  <p>{anuncio.contenido}</p>
-                </div>
-                <div className={styles.postFooter}>
-                  <button className={styles.actionBtn}>
-                    <MessageSquare size={16} /> Comentarios de clase
-                  </button>
+                  <h4 className={styles.postTitle}>{anuncio.titulo}</h4>
+                  <p>{anuncio.content}</p>
                 </div>
               </article>
             ))

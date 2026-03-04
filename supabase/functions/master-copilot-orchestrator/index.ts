@@ -1,52 +1,90 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.1.1"
+import { serve } from "std/server"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
-  // Manejo de CORS
+// --- TIPADO ESTRICTO DE LA RESPUESTA ---
+interface AIResponse {
+  triage_analisis: string;
+  pilar_operativo: "DOCENCIA" | "INVESTIGACION" | "LABORATORIO" | "CAMPO";
+  canvas_draft: {
+    titulo_profesional: string;
+    cuerpo_enriquecido: string;
+    metadata_academica: string;
+  };
+  ejecucion_sugerida: {
+    function_name: string;
+    action_button_label: string;
+  };
+  urgencia_tecnica: number;
+}
+
+serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { prompt } = await req.json()
-    const genAI = new GoogleGenerativeAI(Deno.env.get('GEMINI_API_KEY')!)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+    const { prompt, scope } = await req.json()
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
+    
+    if (!apiKey) throw new Error("CONFIG_ERROR: API Key de Gemini no configurada.")
 
-    // El "System Instruction" para que Gemini no alucine y devuelva JSON puro
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+
+    // --- PROMPT DE SOBERANÍA ACADÉMICA (IEO) ---
     const systemPrompt = `
-      Eres el motor de acciones de "Certeza AIA". Tu trabajo es convertir comandos de un profesor en objetos JSON.
-      Solo puedes devolver 3 tipos de acciones: 'anuncio', 'actividad' o 'evaluacion'.
-      
-      Formato de salida esperado (JSON puro):
-      {
-        "type": "anuncio" | "actividad" | "evaluacion",
-        "title": "Un título profesional",
-        "content": "El contenido detallado siguiendo estándares académicos del TecNM"
-      }
+      Eres la Inteligencia Estratégica Operativa (IEO) de Certeza AIA. 
+      Actúas como Chief of Staff de un Investigador de Posgrado y Catedrático del TecNM.
 
-      Si el usuario pide una 'actividad' o 'evaluacion', incluye instrucciones claras o reactivos sugeridos en el 'content'.
+      I. EL FILTRO DE EXCELENCIA:
+      - Rechaza lo somero. Si el comando es breve, expande con rigor científico (IEEE, ACM, ISO).
+      - Toda propuesta debe incluir Objetivos, Protocolo Técnico y KPIs Académicos.
+
+      II. MATRIZ DE CAPACIDADES:
+      Propón el uso de estas herramientas según el caso:
+      - [enroll-manual, import-ia-students, setup-materia, create-assignment-hub]
+      - [generate-exam-ia, generate-rubric-ia, process-hybrid-material]
+      - [evaluate-submissions-ia, evaluate-simulation, bulk-evaluate-exams]
+      - [sync-calendar, sync-tasks, sync-tablon, sync-attendance]
+      - [analyze-exam-group-results, intelligent-file-parser]
+
+      III. GOBERNANZA DE CONTEXTO:
+      - DOCENCIA: Foco en competencias TecNM.
+      - INVESTIGACIÓN: Foco en metodología científica e IoT.
+      - LABORATORIO: Foco en protocolos técnicos.
+      - CAMPO: Foco en logística y recolección in-situ.
+
+      RESPUESTA EXCLUSIVA EN JSON PURO (Sin markdown).
     `;
 
-    const result = await model.generateContent([systemPrompt, `Comando del profesor: ${prompt}`]);
-    const response = await result.response;
-    const text = response.text();
+    const result = await model.generateContent([
+      systemPrompt, 
+      `Contexto (Scope): ${scope}. Comando del Investigador: ${prompt}`
+    ]);
     
-    // Limpieza de posibles marcas de markdown que ponga Gemini
-    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const actionData = JSON.parse(cleanJson);
+    const responseText = result.response.text();
+    const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    // Validación de integridad
+    const validatedData: AIResponse = JSON.parse(cleanJson);
 
-    return new Response(JSON.stringify(actionData), {
+    return new Response(JSON.stringify(validatedData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "FALLO_SISTEMA_ORQUESTADOR";
+    return new Response(JSON.stringify({ 
+      error: msg, 
+      success: false,
+      triage_analisis: "Error crítico en el motor de razonamiento técnico." 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 200, 
     })
   }
 })

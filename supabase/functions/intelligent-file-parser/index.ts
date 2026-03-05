@@ -1,106 +1,53 @@
-import { serve } from "std/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+// deno-lint-ignore-file no-import-prefix no-explicit-any
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface SyllabusData {
-  nombre: string;
-  clave: string;
-  unidades: {
-    id: number;
-    nombre: string;
-    criterios: { nombre: string; peso: number }[];
-  }[];
-  competencias: string[];
-}
+};
 
 serve(async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // 1. Recepción del Archivo (PDF/Word)
-    const formData = await req.formData()
-    const file = formData.get('file') as File
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = encode(arrayBuffer).replace(/\s+/g, "");
+
+    const googleAccessToken = await getGoogleAccessToken();
+    const projectId = Deno.env.get("GOOGLE_PROJECT_ID");
+    const url = `https://us-central1-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-3.0-pro:generateContent`;
+
+    const aiRes = await fetch(url, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${googleAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: "Analiza el Syllabus y extrae estructura JSON." }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+        generationConfig: { temperature: 0.1 }
+      })
+    });
+
+    const aiData = await aiRes.json();
+    const cleanJson = aiData.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim();
     
-    if (!file) throw new Error("ERR_NO_FILE: No se detectó ningún documento en la transmisión.")
+    return new Response(JSON.stringify({ success: true, data: JSON.parse(cleanJson) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 
-    // 2. Transformación a Base64
-    const arrayBuffer = await file.arrayBuffer()
-    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
-    if (!GEMINI_API_KEY) throw new Error("ERR_ENV_MISSING: GEMINI_API_KEY no configurada.")
-
-    // 3. Inicialización IEO con Gemini 2.5 Flash
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
-
-    // 4. Ingeniería de Prompts (Extracción Académica)
-    const prompt = `
-      Actúa como el Oficial de Extracción IEO de un Investigador del TecNM.
-      Analiza el documento adjunto, que representa un Programa de Estudios (Syllabus).
-      Tu misión es extraer la arquitectura de la materia y estructurarla en un formato JSON plano, listo para desplegar infraestructura en Google Drive/Sheets.
-
-      FORMATO JSON ESTRICTO REQUERIDO:
-      {
-        "nombre": "Nombre de la materia",
-        "clave": "Clave (ej. SCD-1021)",
-        "unidades": [
-          {
-            "id": 1,
-            "nombre": "Nombre del tema o unidad",
-            "criterios": [
-              { "nombre": "Ej. Examen Teórico, Prácticas, Tareas", "peso": 50 }
-            ]
-          }
-        ],
-        "competencias": [
-          "Competencia específica a desarrollar 1",
-          "Competencia específica a desarrollar 2"
-        ]
-      }
-
-      REGLAS DE OPERACIÓN:
-      - Los 'pesos' dentro de los criterios de cada unidad deben sumar exactamente 100. Si el documento no especifica porcentajes, divídelos equitativamente de forma lógica.
-      - Responde ÚNICAMENTE con el objeto JSON puro. Nada de formato Markdown ni saludos.
-    `;
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: file.type
-        }
-      }
-    ]);
-
-    const text = result.response.text();
-    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    let courseData: SyllabusData;
-    try {
-      courseData = JSON.parse(cleanJson);
-    } catch (_e) { // Control estricto Deno
-      console.error("AI_PARSE_ERROR", text);
-      throw new Error("ERR_AI_INVALID_FORMAT");
-    }
-
-    return new Response(JSON.stringify({ success: true, data: courseData }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
-
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "ERR_UNKNOWN_PARSE";
-    console.error(`[intelligent-file-parser] ❌ ${msg}`);
-
-    return new Response(JSON.stringify({ success: false, error: msg }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200, // Mantenemos 200 para que el frontend maneje la alerta
-    })
+  } catch (error: any) {
+    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
   }
-})
+});
+
+async function getGoogleAccessToken() {
+  const privateKeyPem = Deno.env.get("GOOGLE_PRIVATE_KEY")?.replace(/\\n/g, "\n");
+  const clientEmail = Deno.env.get("GOOGLE_CLIENT_EMAIL");
+  const pemContents = privateKeyPem!.substring(27, privateKeyPem!.length - 25).replace(/\s/g, '');
+  const binaryDer = new Uint8Array(atob(pemContents).split("").map(c => c.charCodeAt(0)));
+  const key = await crypto.subtle.importKey("pkcs8", binaryDer.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
+  const now = getNumericDate(new Date());
+  const jwt = await create({ alg: "RS256", typ: "JWT" }, { iss: clientEmail, sub: clientEmail, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600, scope: "https://www.googleapis.com/auth/cloud-platform" }, key);
+  const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) });
+  return (await res.json()).access_token;
+}

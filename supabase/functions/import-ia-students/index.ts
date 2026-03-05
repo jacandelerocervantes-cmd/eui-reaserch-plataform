@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-import-prefix
+// deno-lint-ignore-file no-import-prefix no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
@@ -9,8 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Validador estricto de UUID para evitar el error de "prueba"
-const isValidUUID = (u: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(u);
+const isValidUUID = (u: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -19,22 +18,41 @@ serve(async (req) => {
     const formData = await req.formData();
     const file = formData.get("archivo") as File;
     const rawCourseId = formData.get("courseId") as string;
-
-    console.log(` Iniciando: Archivo ${file?.name}, CourseID: ${rawCourseId}`);
+    const courseId = isValidUUID(rawCourseId) ? rawCourseId : null;
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Validamos el UUID. Si es "prueba", lo enviamos como null para no romper la DB
-    const courseId = isValidUUID(rawCourseId) ? rawCourseId : null;
-
-    // 1. Preparar archivo para Gemini 3.0 Pro
+    // 1. BASE64 ROBUSTO (Fix Error 2345)
     const arrayBuffer = await file.arrayBuffer();
-    const base64File = encode(new Uint8Array(arrayBuffer)).replace(/\s+/g, ""); 
+    const base64File = encode(arrayBuffer).replace(/\s+/g, ""); 
     const googleAccessToken = await getGoogleAccessToken();
 
-    // 2. Prompt optimizado para tu tabla SQL (nombres, apellido_paterno, apellido_materno)
-    const prompt = `Extrae de esta lista: matricula, apellido_paterno, apellido_materno, nombres. 
-    Formato JSON: {"estudiantes": [{"matricula": "str", "apellido_paterno": "str", "apellido_materno": "str"|null, "nombres": "str"}]}`;
+    // 2. FUNCTION CALLING (Schema para students)
+    const tools = [{
+      function_declarations: [{
+        name: "registrar_estudiantes",
+        parameters: {
+          type: "object",
+          properties: {
+            alumnos: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  matricula: { type: "string" },
+                  apellido_paterno: { type: "string" },
+                  apellido_materno: { type: "string", nullable: true },
+                  nombres: { type: "string" },
+                  correo: { type: "string", nullable: true }
+                },
+                required: ["matricula", "apellido_paterno", "nombres"]
+              }
+            }
+          },
+          required: ["alumnos"]
+        }
+      }]
+    }];
 
     const projectId = Deno.env.get("GOOGLE_PROJECT_ID");
     const url = `https://us-central1-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/us-central1/publishers/google/models/gemini-3.0-pro:generateContent`;
@@ -43,46 +61,61 @@ serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${googleAccessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64File } }] }]
+        contents: [{ role: "user", parts: [{ text: "Extrae los alumnos de este PDF." }, { inlineData: { mimeType: file.type, data: base64File } }] }],
+        tools,
+        tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: ["registrar_estudiantes"] } }
       })
     });
 
     const aiData = await aiRes.json();
-    if (!aiRes.ok) throw new Error(`Google Error: ${JSON.stringify(aiData)}`);
+    const extraction = aiData.candidates[0].content.parts[0].functionCall.args.alumnos;
 
-    let texto = aiData.candidates[0].content.parts[0].text;
-    const resultadoIA = JSON.parse(texto.replace(/```json/g, "").replace(/```/g, "").trim());
-
-    // 3. Mapeo exacto a las columnas de tu tabla public.students
-    const registros = resultadoIA.estudiantes.map((est: any) => ({
-      matricula: est.matricula || "S/M",
-      apellido_paterno: est.apellido_paterno || "S/P",
+    // 3. INSERCIÓN SQL
+    const registros = extraction.map((est: any) => ({
+      matricula: est.matricula,
+      apellido_paterno: est.apellido_paterno,
       apellido_materno: est.apellido_materno || null,
-      nombres: est.nombres || "Sin Nombre",
-      course_id: courseId, // Usamos el UUID validado o null
-      correo: est.correo || null
+      nombres: est.nombres,
+      correo: est.correo || null,
+      course_id: courseId
     }));
 
-    console.log(`💾 Insertando ${registros.length} alumnos en la tabla students...`);
+    const { data: dbData, error: dbError } = await supabase.from("students").insert(registros).select();
+    if (dbError) throw dbError;
 
-    const { data: insertData, error: dbError } = await supabase
-      .from("students") 
-      .insert(registros)
-      .select();
+    // 4. SYNC CON SHEET (Proactivo)
+    if (courseId && Deno.env.get("APPS_SCRIPT_URL")) {
+      const { data: curso } = await supabase.from("courses").select("google_sheet_id, title, drive_folder_id").eq("id", courseId).single();
+      
+      let sheetId = curso?.google_sheet_id;
 
-    if (dbError) throw new Error(`Error BD: ${dbError.message}`);
+      if (!sheetId) {
+        console.log("🛠️ Creando Sheet faltante...");
+        const res = await fetch(Deno.env.get("APPS_SCRIPT_URL")!, {
+          method: "POST",
+          body: JSON.stringify({ action: "crearSoloSheet", payload: { folderId: curso?.drive_folder_id, nombreMateria: curso?.title } })
+        });
+        const data = await res.json();
+        if (data.success) {
+          sheetId = data.data.sheetId;
+          await supabase.from("courses").update({ google_sheet_id: sheetId }).eq("id", courseId);
+        }
+      }
 
-    return new Response(JSON.stringify({ success: true, count: insertData.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      if (sheetId) {
+        for (const alumno of registros) {
+          await fetch(Deno.env.get("APPS_SCRIPT_URL")!, {
+            method: "POST",
+            body: JSON.stringify({ action: "sincronizarAlumno", payload: { googleSheetId: sheetId, studentData: alumno, mode: "create" } })
+          });
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, count: dbData.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
 
   } catch (error: any) {
-    console.error(`🚨 FALLO CRÍTICO: ${error.message}`);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
+    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
   }
 });
 
@@ -93,15 +126,7 @@ async function getGoogleAccessToken() {
   const binaryDer = new Uint8Array(atob(pemContents).split("").map(c => c.charCodeAt(0)));
   const key = await crypto.subtle.importKey("pkcs8", binaryDer.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, true, ["sign"]);
   const now = getNumericDate(new Date());
-  const jwt = await create({ alg: "RS256", typ: "JWT" }, {
-    iss: clientEmail, sub: clientEmail, aud: "https://oauth2.googleapis.com/token",
-    iat: now, exp: now + 3600, scope: "https://www.googleapis.com/auth/cloud-platform",
-  }, key);
-  const res = await fetch("https://oauth2.googleapis.com/token", { 
-    method: "POST", 
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) 
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(`Google Auth Error: ${data.error_description}`);
-  return data.access_token;
+  const jwt = await create({ alg: "RS256", typ: "JWT" }, { iss: clientEmail, sub: clientEmail, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600, scope: "https://www.googleapis.com/auth/cloud-platform" }, key);
+  const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) });
+  return (await res.json()).access_token;
 }

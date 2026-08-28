@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { X, Loader2, Gamepad2, Save } from "lucide-react";
+import { X, Loader2, Gamepad2, Save, RotateCcw } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import ActivityFormLeftColumn from "./_components/ActivityFormLeftColumn";
 import ActivityFormRightColumn from "./_components/ActivityFormRightColumn";
@@ -59,9 +59,7 @@ export default function NuevaActividad() {
       <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ backgroundColor: "#fee2e2", border: "1px solid #fecaca", color: "#991b1b", padding: "16px 20px", borderRadius: "14px", fontWeight: "600", fontSize: "0.95rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{error}</span>
-          <button type="button" onClick={onRetry} style={{ padding: "8px 16px", backgroundColor: "#991b1b", color: "white", borderRadius: "8px", border: "none", fontWeight: "700", cursor: "pointer" }}>
-            Reintentar
-          </button>
+          <ExpandingButton icon={RotateCcw} label="Reintentar" onClick={onRetry} variant="danger" size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} durationMs={300} />
         </div>
       </div>
     );
@@ -77,7 +75,7 @@ export default function NuevaActividad() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <ExpandingButton expanded icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+          <ExpandingButton icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
         </div>
       </div>
 
@@ -143,18 +141,17 @@ export default function NuevaActividad() {
 
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
               <ExpandingButton
-                expanded
                 icon={Save}
                 label="Guardar y Publicar"
                 onClick={handleSave}
                 variant="primary"
                 loading={isSaving}
+                loadingLabel="Guardando..."
                 size={44}
                 radius={12}
                 gap={10}
                 padding="0 20px"
                 fontWeight={700}
-                fontSize="0.95rem"
                 durationMs={300}
               />
             </div>

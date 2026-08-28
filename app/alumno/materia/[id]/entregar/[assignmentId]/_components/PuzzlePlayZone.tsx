@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import {
   Clock, CheckCircle2, HelpCircle,
-  Send, Loader2, Award, Zap
+  Send, Award, Zap
 } from "lucide-react";
+import ExpandingButton from "@/components/ui/ExpandingButton";
 import { supabase } from "@/lib/supabase";
 import type { PuzzleData } from "@/app/(docente)/panel/materias/[id]/actividades/nueva/_components/PuzzlePreviewModal";
 
@@ -296,35 +297,22 @@ export default function PuzzlePlayZone({
             <CheckCircle2 size={18} /> {completedCount} de {totalWords}
           </div>
 
-          <button
+          <ExpandingButton
             type="button"
-            disabled={!is100Percent || isSubmitting}
+            icon={Send}
+            label="Entregar Actividad"
             onClick={handleSubmit}
-            style={{
-              backgroundColor: is100Percent ? "#10b981" : "#cbd5e1",
-              color: "white",
-              border: "none",
-              padding: "10px 22px",
-              borderRadius: "12px",
-              fontWeight: "800",
-              fontSize: "0.9rem",
-              cursor: is100Percent ? "pointer" : "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={18} className="animate-spin" /> Entregando...
-              </>
-            ) : (
-              <>
-                <Send size={18} /> Entregar Actividad
-              </>
-            )}
-          </button>
+            disabled={!is100Percent || isSubmitting}
+            loading={isSubmitting}
+            loadingLabel="Entregando..."
+            variant="success"
+            size={44}
+            radius={12}
+            gap={8}
+            padding="0 20px"
+            fontWeight={800}
+            durationMs={300}
+          />
         </div>
       </div>
 

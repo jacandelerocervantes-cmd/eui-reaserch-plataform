@@ -89,7 +89,7 @@ Deno.serve(async (req: Request) => {
   )
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 28_000)
+  const timeout = setTimeout(() => controller.abort(), 55_000)
 
   try {
     const contentType = req.headers.get("content-type") ?? ""
@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
     // ── 2. MODO PUZZLE: CRUCIGRAMA O SOPA DE LETRAS ─────────────────────────
     if (puzzleType === "crossword" || puzzleType === "puzzle_crossword") {
       const crosswordPrompt = `Eres un diseñador pedagógico universitario para educación superior en ingeniería.
-Para el tema: "${title}" (Contexto: "${description}"), genera un Crucigrama Técnico con 6 a 8 conceptos cruzados en una cuadrícula de máximo 12x12 casillas (índices 0 a 11).
+Para el tema: "${title}" (Contexto: "${description}"), genera un Crucigrama Técnico conciso con 4 a 6 conceptos clave cruzados en una cuadrícula de máximo 12x12 casillas (índices 0 a 11).
 
 Reglas estrictas:
 - Las palabras deben estar en mayúsculas, sin espacios, sin acentos ni caracteres especiales.
@@ -181,7 +181,7 @@ Devuelve ÚNICAMENTE un JSON con esta estructura exacta:
 
     if (puzzleType === "wordsearch" || puzzleType === "puzzle_wordsearch") {
       const wordSearchPrompt = `Eres un diseñador pedagógico universitario para educación superior en ingeniería.
-Para el tema: "${title}" (Contexto: "${description}"), genera entre 6 y 10 palabras técnicas clave relevantes con sus pistas conceptuales para una Sopa de Letras académica.
+Para el tema: "${title}" (Contexto: "${description}"), genera entre 5 y 7 palabras técnicas clave relevantes con sus pistas conceptuales para una Sopa de Letras académica.
 
 Reglas:
 - Cada palabra debe tener entre 4 y 10 letras, en español, sin acentos ni espacios.

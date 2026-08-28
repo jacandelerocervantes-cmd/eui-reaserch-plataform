@@ -78,7 +78,7 @@ export default function ActivityFormLeftColumn({
                     ? "Ningún equipo seleccionado"
                     : `${selectedTeamIds.length} equipo(s) seleccionado(s)`}
                 </span>
-                <ExpandingButton expanded type="button" icon={UsersRound} label="Seleccionar Equipos" onClick={() => setShowTeamPicker(true)} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+                <ExpandingButton type="button" icon={UsersRound} label="Seleccionar Equipos" onClick={() => setShowTeamPicker(true)} variant="default" size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} durationMs={300} />
               </div>
               {selectedTeamIds.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
@@ -159,7 +159,6 @@ export default function ActivityFormLeftColumn({
                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                   {puzzleData && setShowPuzzlePreview && (
                     <ExpandingButton
-                      expanded
                       type="button"
                       icon={Play}
                       label="Probar Puzzle"
@@ -170,26 +169,24 @@ export default function ActivityFormLeftColumn({
                       gap={8}
                       padding="0 14px"
                       fontWeight={700}
-                      fontSize="0.85rem"
                       durationMs={300}
                     />
                   )}
 
                   {handleGeneratePuzzle && (
                     <ExpandingButton
-                      expanded
                       type="button"
                       icon={Sparkles}
                       label="Generar con IA"
                       onClick={() => handleGeneratePuzzle(formData.submission_type)}
                       variant="ai"
                       loading={isGeneratingPuzzle}
+                      loadingLabel="Generando..."
                       size={40}
                       radius={10}
                       gap={8}
                       padding="0 16px"
                       fontWeight={800}
-                      fontSize="0.85rem"
                       durationMs={300}
                     />
                   )}

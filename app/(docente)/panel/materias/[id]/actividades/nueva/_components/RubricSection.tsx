@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, X, Wand2, Plus, Loader2, Paperclip } from "lucide-react";
+import { Save, X, Wand2, Plus, Paperclip } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 
 export default function RubricSection({
@@ -33,13 +33,13 @@ export default function RubricSection({
       <div style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center" }}>
         <ExpandingButton
           type="button"
-          expanded
-          icon={isGenerating ? Loader2 : Wand2}
-          label={isGenerating ? "Certeza AIA pensando..." : "Autogenerar con IA"}
+          icon={Wand2}
+          label="Autogenerar con IA"
           onClick={handleGenerateAI}
           variant="magic"
-          disabled={isGenerating}
-          size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} shadow="hover"
+          loading={isGenerating}
+          loadingLabel="Certeza AIA pensando..."
+          size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} shadow="hover"
         />
 
         <input
@@ -88,16 +88,16 @@ export default function RubricSection({
       </div>
 
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <ExpandingButton type="button" expanded icon={Plus} label="Añadir Criterio" onClick={handleAddRubricRow} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+        <ExpandingButton type="button" icon={Plus} label="Añadir Criterio" onClick={handleAddRubricRow} variant="default" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
         <ExpandingButton
           type="submit"
-          expanded
-          icon={isSaving ? Loader2 : Save}
-          label={isSaving ? "Creando Entorno..." : "Crear Actividad"}
+          icon={Save}
+          label="Crear Actividad"
           onClick={handleSave}
           variant="primary"
-          disabled={isSaving}
-          size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} shadow="hover"
+          loading={isSaving}
+          loadingLabel="Creando Entorno..."
+          size={44} radius={12} gap={10} padding="0 20px" fontWeight={700} durationMs={300} shadow="hover"
         />
       </div>
     </div>

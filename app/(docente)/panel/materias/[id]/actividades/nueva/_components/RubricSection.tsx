@@ -92,11 +92,11 @@ export default function RubricSection({
         <ExpandingButton
           type="submit"
           icon={Save}
-          label="Crear Actividad"
+          label="Guardar"
           onClick={handleSave}
           variant="primary"
           loading={isSaving}
-          loadingLabel="Creando Entorno..."
+          loadingLabel="Guardando..."
           size={44} radius={12} gap={10} padding="0 20px" fontWeight={700} durationMs={300} shadow="hover"
         />
       </div>

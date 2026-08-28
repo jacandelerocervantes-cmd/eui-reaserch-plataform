@@ -74,28 +74,59 @@ Deno.serve(async (req: Request) => {
     // ── 3. GUARDAR YA — sin esperar a Drive. La actividad queda "guardada"
     // de inmediato; las carpetas/archivos/correos se resuelven después en
     // segundo plano y, si algo falla por cuota, lo recoge el cron de retry.
+    let finalCriteriaId = criteria_id || null
+    if (!finalCriteriaId && unit_id) {
+      try {
+        const { data: act } = await serviceClient
+          .from("activities")
+          .select("id")
+          .eq("unit_id", unit_id)
+          .limit(1)
+          .maybeSingle()
+        if (act?.id) {
+          finalCriteriaId = act.id
+        } else {
+          const { data: newAct } = await serviceClient
+            .from("activities")
+            .insert([{ unit_id, name: title || "Actividad", weight_percentage: 100 }])
+            .select("id")
+            .maybeSingle()
+          if (newAct?.id) finalCriteriaId = newAct.id
+        }
+      } catch (critErr) {
+        console.warn("[CREATE_ASSIGNMENT_HUB] Error resolviendo criteria_id:", critErr)
+      }
+    }
+
+    const insertPayload: Record<string, unknown> = {
+      course_id,
+      unit_id,
+      title,
+      description:          description ?? "",
+      format:               format ?? "individual",
+      submission_type:      submission_type ?? "file",
+      soft_deadline,
+      hard_deadline:        hard_deadline ?? null,
+      late_penalty_percent: late_penalty_percent ?? 0,
+      rubric_data:          rubric_json ?? [],
+      workspace_url:        null,
+      drive_folder_id:      null,
+      requiere_sesion_id:   requiere_sesion_id ?? null,
+    }
+    if (finalCriteriaId) {
+      insertPayload.criteria_id = finalCriteriaId
+    }
+
     const { data: assignment, error: dbError } = await serviceClient
       .from("assignments")
-      .insert([{
-        course_id,
-        unit_id,
-        criteria_id:          criteria_id || null,
-        title,
-        description,
-        format:               format ?? "individual",
-        submission_type:      submission_type ?? "file",
-        soft_deadline,
-        hard_deadline:        hard_deadline ?? null,
-        late_penalty_percent: late_penalty_percent ?? 0,
-        rubric_data:          rubric_json ?? [],
-        workspace_url:        null,
-        drive_folder_id:      null,
-        requiere_sesion_id:   requiere_sesion_id ?? null,
-      }])
+      .insert([insertPayload])
       .select()
       .single()
 
-    if (dbError) throw dbError
+    if (dbError) {
+      console.error("[CREATE_ASSIGNMENT_HUB] Error al insertar en assignments:", JSON.stringify(dbError))
+      throw new Error(`Error en base de datos: ${dbError.message || dbError.details || JSON.stringify(dbError)}`)
+    }
 
     // ── 3b. Watermark invisible de integridad académica (CORRE 9) ─────────
     // Se genera DESPUÉS del insert porque el identificador corto se deriva
@@ -434,10 +465,11 @@ Deno.serve(async (req: Request) => {
 
   } catch (err: unknown) {
     const isTimeout = err instanceof Error && err.name === "AbortError"
+    const anyErr = err as { message?: string; details?: string; hint?: string; code?: string }
     const msg = isTimeout
       ? "Timeout al crear la actividad."
-      : err instanceof Error ? err.message : "Error interno."
-    console.error("[CREATE_ASSIGNMENT_HUB]", msg)
+      : anyErr?.message || anyErr?.details || (err instanceof Error ? err.message : JSON.stringify(err))
+    console.error("[CREATE_ASSIGNMENT_HUB] Error al procesar:", msg, JSON.stringify(err))
     return new Response(
       JSON.stringify({ success: false, error: msg }),
       { status: isTimeout ? 504 : 500, headers: { ...cors, "Content-Type": "application/json" } }

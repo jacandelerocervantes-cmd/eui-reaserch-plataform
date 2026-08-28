@@ -106,55 +106,22 @@ export default function NuevaActividad() {
         </div>
 
         {formData.submission_type.startsWith("puzzle_") ? (
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "24px",
-              padding: "32px",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div
-                style={{
-                  backgroundColor: "#eff6ff",
-                  color: "#1B396A",
-                  padding: "12px",
-                  borderRadius: "16px",
-                }}
-              >
-                <Gamepad2 size={32} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.15rem", fontWeight: "900" }}>
-                  Evaluación Gamificada Automatizada
-                </h3>
-                <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "0.9rem", fontWeight: "600" }}>
-                  Esta actividad se califica automáticamente al 100% al resolver todos los conceptos del juego y registra el tiempo de resolución.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <ExpandingButton
-                icon={Save}
-                label="Guardar y Publicar"
-                onClick={handleSave}
-                variant="primary"
-                loading={isSaving}
-                loadingLabel="Guardando..."
-                size={44}
-                radius={12}
-                gap={10}
-                padding="0 20px"
-                fontWeight={700}
-                durationMs={300}
-              />
-            </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", paddingTop: "8px" }}>
+            <ExpandingButton
+              type="submit"
+              icon={Save}
+              label="Guardar"
+              onClick={handleSave}
+              variant="primary"
+              loading={isSaving}
+              loadingLabel="Guardando..."
+              size={44}
+              radius={12}
+              gap={10}
+              padding="0 20px"
+              fontWeight={700}
+              durationMs={300}
+            />
           </div>
         ) : (
           <RubricSection

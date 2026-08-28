@@ -66,7 +66,7 @@ export default function ActivityFormLeftColumn({
                     ? "Ningún equipo seleccionado"
                     : `${selectedTeamIds.length} equipo(s) seleccionado(s)`}
                 </span>
-                <ExpandingButton icon={UsersRound} label="Seleccionar Equipos" onClick={() => setShowTeamPicker(true)} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+                <ExpandingButton expanded type="button" icon={UsersRound} label="Seleccionar Equipos" onClick={() => setShowTeamPicker(true)} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
               </div>
               {selectedTeamIds.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>

@@ -9,6 +9,10 @@
  */
 function obtenerTareasResumen() {
   try {
+    if (typeof Tasks === 'undefined' || !Tasks.Tasklists) {
+      console.warn("Google Tasks Service no está habilitado en Apps Script.");
+      return [];
+    }
     const taskLists = Tasks.Tasklists.list();
     if (!taskLists.items || taskLists.items.length === 0) return [];
     

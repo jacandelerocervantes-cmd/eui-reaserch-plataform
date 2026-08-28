@@ -4,7 +4,6 @@
  * Puerta de entrada del Dashboard: lee datos de Google (con caché de 5 min),
  * los clasifica con Gemini, y expone acciones de escritura rápida.
  */
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyUser } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
 import { guardOutputOrBlock } from "../_shared/guardrail.ts"
@@ -39,7 +38,7 @@ async function callAppsScript(
   return res.json()
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 
@@ -163,7 +162,24 @@ serve(async (req: Request) => {
         ? "Timeout: Google o Gemini no respondieron en 28s."
         : err instanceof Error ? err.message : "Error interno."
       console.error("[inicio-bridge:getDashboardData]", msg)
-      return json({ success: false, error: msg }, 502)
+
+      // Fallback: Si Google o Gemini fallan temporalmente, devolver lo que haya en caché
+      // o estructura vacía en vez de romper la pantalla completa del docente.
+      const { data: staleCache } = await svc
+        .from("dashboard_cache")
+        .select("data")
+        .eq("user_id", userId)
+        .single()
+
+      if (staleCache?.data) {
+        return json({ success: true, data: staleCache.data, stale: true })
+      }
+
+      return json({
+        success: true,
+        data: { emails: [], agenda: [], tasks: [] },
+        fallback: true
+      })
     } finally {
       clearTimeout(timeout)
     }

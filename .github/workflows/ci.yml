@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install
 
       - name: Auditoría de dependencias (falla en alta/crítica)
         run: npm audit --audit-level=high

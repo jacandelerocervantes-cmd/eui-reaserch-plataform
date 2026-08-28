@@ -54,14 +54,6 @@ function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetr
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 16px", backgroundColor: "#f0f7ff", borderRadius: "14px", border: "1px solid #bfdbfe" }}>
-            <span style={{ fontWeight: "800", color: "#1B396A", fontSize: "0.75rem", textTransform: "uppercase", whiteSpace: "nowrap" }}>Unidad</span>
-            <select required value={formData.unit_id} onChange={e => setFormData({...formData, unit_id: e.target.value, criteria_id: ""})} style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #bfdbfe", outline: "none", fontSize: "0.9rem", fontWeight: "700", color: "#1B396A", backgroundColor: "white", cursor: "pointer", minWidth: "180px" }}>
-              <option value="">Selecciona...</option>
-              {units.map(u => <option key={u.id} value={u.id}>Unidad {u.unit_number}: {u.title}</option>)}
-            </select>
-          </div>
-
           <ExpandingButton icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
         </div>
       </div>

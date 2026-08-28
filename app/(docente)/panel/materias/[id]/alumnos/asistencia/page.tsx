@@ -69,7 +69,7 @@ export default function PaseDeLista() {
         <div style={{ height: a.isActive ? "220px" : "60px", display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderRadius: '20px', border: a.isActive ? '2px dashed #cbd5e1' : '1px solid #e2e8f0' }}>
           {!a.isActive ? <ExpandingButton icon={QrCode} label="Generar QR" onClick={a.startRadar} disabled={a.isSaving || a.loading || a.sessionAlreadySaved} size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} fontSize="1rem" durationMs={300} /> : (
             <div style={{ background: 'white', padding: '10px', borderRadius: '10px' }}>
-               <QRCode value={`${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/asistencia/validar/${a.qrHash}?sig=${a.qrSig ?? ''}`} size={180} fgColor="#1B396A" />
+               <QRCode value={`${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '')}/asistencia/validar/${a.qrHash}?sig=${a.qrSig ?? ''}`} size={180} fgColor="#1B396A" />
             </div>
           )}
         </div>

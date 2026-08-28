@@ -199,7 +199,7 @@ export default function ValidarAsistenciaAlumno() {
   }, [paso]);
 
   const procesarRegistro = async () => {
-    if (!matricula || matricula.length < 5 || !coords || !sessionData) return;
+    if (!matricula.trim() || !coords || !sessionData) return;
     setFormError(null);
     setLoading(true);
 
@@ -282,11 +282,17 @@ export default function ValidarAsistenciaAlumno() {
                 value={matricula}
                 autoFocus
                 onChange={(e) => setMatricula(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !loading && matricula.trim()) {
+                    procesarRegistro();
+                  }
+                }}
               />
 
               <button
+                type="button"
                 onClick={procesarRegistro}
-                disabled={loading || matricula.length < 5}
+                disabled={loading || !matricula.trim()}
                 className={styles.loginButton}
               >
                 {loading ? "PROCESANDO..." : "CONFIRMAR"}

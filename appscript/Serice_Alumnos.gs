@@ -13,8 +13,8 @@ function sincronizarAlumnoSheet(payload) {
     // Si la hoja no existe (por si acaso), se crea con cabeceras
     if (!sheet) {
       sheet = ss.insertSheet("LISTA_ASISTENCIA");
-      sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo", "Equipo"]);
-      sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+      sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo"]);
+      sheet.getRange("A1:E1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
     }
 
     const data = sheet.getDataRange().getValues();
@@ -26,8 +26,7 @@ function sincronizarAlumnoSheet(payload) {
       studentData.apellido_paterno,
       studentData.apellido_materno || "",
       studentData.nombres,
-      studentData.correo || "",
-      studentData.team_name || "Sin equipo"
+      studentData.correo || ""
     ];
 
     if (mode === 'delete') {

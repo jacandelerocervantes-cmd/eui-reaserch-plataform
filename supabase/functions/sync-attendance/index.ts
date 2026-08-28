@@ -100,7 +100,7 @@ serve(async (req: Request) => {
     if (insertError) throw insertError;
 
     // ── 5. Sincronizar con Google Sheets en background ────────────────────
-    syncWithSheet(serviceClient, courseId, sessionDate, records).catch(
+    syncWithSheet(serviceClient, courseId, sessionDate, sessionNumber, records).catch(
       (e) => console.error("[SYNC_SHEET_SILENCIOSO]", e)
     );
 
@@ -124,6 +124,7 @@ async function syncWithSheet(
   serviceClient: SupabaseClient,
   courseId: string,
   sessionDate: string,
+  sessionNumber: number,
   records: AttendanceRecord[],
 ) {
   // Obtenemos el Sheet ID desde `courses` (nombre correcto de tabla)
@@ -165,6 +166,7 @@ async function syncWithSheet(
         googleSheetId: course.google_sheet_id,
         asistenciaMap: matriculaMap,
         fecha: sessionDate,
+        sessionNumber: sessionNumber,
       },
     }),
   });

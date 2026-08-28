@@ -6,26 +6,36 @@
  * ACCIÓN 1: Registrar la asistencia diaria (Radar In-Situ)
  */
 function registrarAsistenciaSheet(payload) {
-  const { googleSheetId, asistenciaMap } = payload; 
+  const { googleSheetId, asistenciaMap, fecha, sessionNumber } = payload; 
   
   try {
     const ss = SpreadsheetApp.openById(googleSheetId);
     let sheet = ss.getSheetByName("LISTA_ASISTENCIA");
     if (!sheet) {
       sheet = ss.insertSheet("LISTA_ASISTENCIA");
-      sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo", "Equipo"]);
-      sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+      sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo"]);
+      sheet.getRange("A1:E1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
     }
 
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
-    const hoy = Utilities.formatDate(new Date(), "GMT-6", "dd/MM/yyyy");
+    
+    // Formatear la fecha y número de sesión: ej. "28/08/2026 (S1)" o "28/08/2026 (S2)"
+    var fechaFormatted = Utilities.formatDate(new Date(), "GMT-6", "dd/MM/yyyy");
+    if (fecha) {
+      var parts = fecha.split('-');
+      if (parts.length === 3) {
+        fechaFormatted = parts[2] + "/" + parts[1] + "/" + parts[0];
+      }
+    }
+    var numSesion = sessionNumber ? " (S" + sessionNumber + ")" : " (S1)";
+    var colHeader = fechaFormatted + numSesion;
 
-    // Buscar o crear la columna de la fecha de hoy
-    let colIndex = headers.indexOf(hoy);
+    // Buscar o crear la columna específica de esta fecha y sesión
+    let colIndex = headers.indexOf(colHeader);
     if (colIndex === -1) {
       colIndex = headers.length;
-      sheet.getRange(1, colIndex + 1).setValue(hoy)
+      sheet.getRange(1, colIndex + 1).setValue(colHeader)
            .setFontWeight("bold").setBackground("#1B396A").setFontColor("white").setHorizontalAlignment("center");
     }
 
@@ -34,7 +44,7 @@ function registrarAsistenciaSheet(payload) {
     const columnValues = [];
     for (let i = 1; i < matriculasEnSheet.length; i++) {
       const matricula = matriculasEnSheet[i];
-      const valor = asistenciaMap[matricula];
+      const valor = asistenciaMap ? asistenciaMap[matricula] : undefined;
       
       let mark = "";
       if (valor === 1) mark = "1";
@@ -48,7 +58,7 @@ function registrarAsistenciaSheet(payload) {
       sheet.getRange(2, colIndex + 1, columnValues.length, 1).setValues(columnValues);
     }
 
-    return { success: true, message: "Asistencia diaria registrada" };
+    return { success: true, message: "Asistencia registrada en columna: " + colHeader };
   } catch (error) {
     return { success: false, error: error.toString() };
   }

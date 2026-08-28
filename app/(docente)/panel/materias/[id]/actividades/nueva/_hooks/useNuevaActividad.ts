@@ -12,28 +12,11 @@ export type FetchResult = { ok: true; units: UnitOption[]; teams: TeamOption[]; 
 // y esta pantalla ya tenía su propia UI de error con botón de reintento.
 async function fetchDependencias(courseId: string, _reloadKey: number): Promise<FetchResult> {
   try {
-    let { data: unitsData } = await supabase
+    const { data: unitsData } = await supabase
       .from("course_units")
       .select("id, unit_number, title")
       .eq("course_id", courseId)
       .order("unit_number", { ascending: true });
-
-    // Si la materia aún no tiene unidades, auto-crear Unidad 1
-    if (!unitsData || unitsData.length === 0) {
-      const { data: newUnit, error: uErr } = await supabase
-        .from("course_units")
-        .insert({
-          course_id: courseId,
-          unit_number: 1,
-          title: "Unidad 1"
-        })
-        .select("id, unit_number, title")
-        .single();
-      
-      if (!uErr && newUnit) {
-        unitsData = [newUnit];
-      }
-    }
 
     const { data: teamsData } = await supabase
       .from("teams")

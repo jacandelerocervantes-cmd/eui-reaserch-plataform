@@ -87,7 +87,10 @@ export function useNuevaActividad(courseId: string) {
   // con puntajes, etc.) se manda como FormData para que la IA lo lea y lo use
   // de contexto extra, en vez de inventar la rúbrica solo desde el texto.
   const handleGenerateAI = async () => {
-    if (!formData.title) return alert("Escribe al menos el título de la actividad primero para que la IA tenga contexto.");
+    if (!formData.title?.trim()) {
+      alert("Por favor, escribe primero el Título de la actividad arriba para que la IA sepa qué criterios y competencias generar.");
+      return;
+    }
 
     setIsGenerating(true);
     try {
@@ -103,7 +106,7 @@ export function useNuevaActividad(courseId: string) {
       }
 
       const { data, error } = await supabase.functions.invoke('generate-rubric-ia', { body });
-      if (error || !data.success) throw new Error(data?.error || "Error al generar la rúbrica");
+      if (error || !data?.success) throw new Error(data?.error || "Error al generar la rúbrica con IA.");
 
       const aiRubrics = data.rubrics.map((r: { id?: number; name: string; description: string; weight: number }) => ({
         id: r.id || Date.now() + Math.random(), name: r.name, description: r.description, weight: r.weight
@@ -117,11 +120,13 @@ export function useNuevaActividad(courseId: string) {
   };
 
   // GUARDAR Y CONECTAR CON GOOGLE WORKSPACE
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isRubricValid) return alert("La rúbrica debe sumar exactamente 100%.");
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
+    if (!formData.title?.trim()) return alert("Debes escribir el título de la actividad.");
+    if (!formData.unit_id) return alert("Debes seleccionar una unidad temática.");
+    if (!formData.soft_deadline) return alert("Debes definir la fecha de entrega (Deadline).");
+    if (!isRubricValid) return alert(`La rúbrica debe sumar exactamente 100%. Actualmente suma ${totalRubricWeight}%.`);
     if (requireAttendance && !selectedSessionId) return alert("Debes seleccionar a qué clase se vincula el candado de asistencia.");
-    if (!formData.unit_id) return alert("Debes seleccionar una unidad.");
     if (formData.format === 'equipo' && selectedTeamIds.length === 0) return alert("Selecciona al menos un equipo para esta actividad.");
 
     setIsSaving(true);

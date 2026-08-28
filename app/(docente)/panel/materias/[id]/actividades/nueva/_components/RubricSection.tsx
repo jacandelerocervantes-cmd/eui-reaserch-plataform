@@ -33,11 +33,12 @@ export default function RubricSection({
 
       <div style={{ marginBottom: "20px", display: "flex", gap: "10px", alignItems: "center" }}>
         <ExpandingButton
+          type="button"
           icon={isGenerating ? Loader2 : Wand2}
           label={isGenerating ? "Certeza AIA pensando..." : "Autogenerar con IA"}
           onClick={handleGenerateAI}
           variant="magic"
-          disabled={isGenerating || !formData.title}
+          disabled={isGenerating}
           size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} shadow="hover"
         />
 
@@ -87,13 +88,14 @@ export default function RubricSection({
       </div>
 
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <ExpandingButton icon={Plus} label="Añadir Criterio" onClick={handleAddRubricRow} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+        <ExpandingButton type="button" icon={Plus} label="Añadir Criterio" onClick={handleAddRubricRow} variant="default" size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
         <ExpandingButton
+          type="submit"
           icon={isSaving ? Loader2 : Save}
           label={isSaving ? "Creando Entorno..." : "Crear Actividad"}
           onClick={handleSave}
           variant="primary"
-          disabled={!isRubricValid || !formData.title || !formData.soft_deadline || isSaving}
+          disabled={isSaving}
           size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} shadow="hover"
         />
       </div>

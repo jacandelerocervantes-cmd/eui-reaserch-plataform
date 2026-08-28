@@ -9,15 +9,17 @@ type ActivityFormData = {
   format: string; submission_type: string; soft_deadline: string; hard_deadline: string;
   late_penalty_percent: number;
 };
+type UnitOption = { id: string; unit_number: number; title: string };
 type TeamOption = { id: string; name: string; memberCount: number };
 
 export default function ActivityFormLeftColumn({
-  formData, setFormData, selectedTeamIds, teams, setShowTeamPicker,
+  formData, setFormData, selectedTeamIds, teams, units, setShowTeamPicker,
 }: {
   formData: ActivityFormData;
   setFormData: (v: ActivityFormData) => void;
   selectedTeamIds: string[];
   teams: TeamOption[];
+  units: UnitOption[];
   setShowTeamPicker: (v: boolean) => void;
 }) {
   return (
@@ -25,6 +27,22 @@ export default function ActivityFormLeftColumn({
       <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
         <h3 style={{ margin: "0 0 20px 0", color: "#1B396A", fontSize: "1.2rem", fontWeight: "800" }}>Información General</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>
+              Unidad Temática
+            </label>
+            <select
+              required
+              value={formData.unit_id}
+              onChange={e => setFormData({ ...formData, unit_id: e.target.value, criteria_id: "" })}
+              style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "2px solid #e2e8f0", fontSize: "1rem", fontWeight: "700", color: "#1B396A", backgroundColor: "#f8fafc", cursor: "pointer", outline: "none" }}
+            >
+              <option value="">Selecciona una unidad...</option>
+              {units.map(u => (
+                <option key={u.id} value={u.id}>Unidad {u.unit_number}: {u.title}</option>
+              ))}
+            </select>
+          </div>
           <input required type="text" placeholder="Título de la actividad" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", fontSize: "1.05rem", fontWeight: "600", color: "#334155", outline: "none", transition: "border 0.2s" }} onFocus={(e) => e.target.style.borderColor = "#1B396A"} onBlur={(e) => e.target.style.borderColor = "#e2e8f0"} />
           <textarea rows={5} placeholder="Instrucciones detalladas" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "2px solid #e2e8f0", fontSize: "1rem", color: "#334155", outline: "none", resize: "none", transition: "border 0.2s" }} onFocus={(e) => e.target.style.borderColor = "#1B396A"} onBlur={(e) => e.target.style.borderColor = "#e2e8f0"} />
         </div>

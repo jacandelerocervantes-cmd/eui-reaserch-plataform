@@ -12,7 +12,28 @@ export type FetchResult = { ok: true; units: UnitOption[]; teams: TeamOption[]; 
 // y esta pantalla ya tenía su propia UI de error con botón de reintento.
 async function fetchDependencias(courseId: string, _reloadKey: number): Promise<FetchResult> {
   try {
-    const { data: unitsData } = await supabase.from("course_units").select("id, unit_number, title").eq("course_id", courseId).order("unit_number", { ascending: true });
+    let { data: unitsData } = await supabase
+      .from("course_units")
+      .select("id, unit_number, title")
+      .eq("course_id", courseId)
+      .order("unit_number", { ascending: true });
+
+    // Si la materia aún no tiene unidades, auto-crear Unidad 1
+    if (!unitsData || unitsData.length === 0) {
+      const { data: newUnit, error: uErr } = await supabase
+        .from("course_units")
+        .insert({
+          course_id: courseId,
+          unit_number: 1,
+          title: "Unidad 1"
+        })
+        .select("id, unit_number, title")
+        .single();
+      
+      if (!uErr && newUnit) {
+        unitsData = [newUnit];
+      }
+    }
 
     const { data: teamsData } = await supabase
       .from("teams")
@@ -55,11 +76,13 @@ export function useNuevaActividad(courseId: string) {
   const [requireAttendance, setRequireAttendance] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState("");
 
+  const initialUnitId = result.ok && result.units.length > 0 ? result.units[0].id : "";
+
   // ESTADO LIMPIO PARA NUEVA ACTIVIDAD
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    unit_id: "",
+    unit_id: initialUnitId,
     criteria_id: "",
     format: "individual", // "individual" | "equipo"
     submission_type: "file", // "file" | "doc" | "sheet" | "slide"

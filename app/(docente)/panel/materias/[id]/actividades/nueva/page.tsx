@@ -74,6 +74,7 @@ function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetr
             setFormData={setFormData}
             selectedTeamIds={selectedTeamIds}
             teams={teams}
+            units={units}
             setShowTeamPicker={setShowTeamPicker}
           />
           <ActivityFormRightColumn

@@ -49,7 +49,7 @@ export function useNuevaActividad(courseId: string) {
   const [rubrics, setRubrics] = useState(() => [{ id: Date.now(), name: "Contenido", description: "", weight: 100 }]);
 
   const totalRubricWeight = rubrics.reduce((sum, r) => sum + Number(r.weight), 0);
-  const isRubricValid = totalRubricWeight === 100;
+  const isRubricValid = formData.submission_type.startsWith("puzzle_") || totalRubricWeight === 100;
 
   const loadDependencias = useCallback(async () => {
     if (!courseId) return;
@@ -232,11 +232,13 @@ export function useNuevaActividad(courseId: string) {
     if (!formData.title?.trim()) return alert("Debes escribir el título de la actividad.");
     if (!formData.unit_id) return alert("Debes seleccionar una unidad temática.");
     if (!formData.soft_deadline) return alert("Debes definir la fecha de entrega (Deadline).");
-    if (!isRubricValid) return alert(`La rúbrica debe sumar exactamente 100%. Actualmente suma ${totalRubricWeight}%.`);
+    if (!formData.submission_type.startsWith("puzzle_") && !isRubricValid) {
+      return alert(`La rúbrica debe sumar exactamente 100%. Actualmente suma ${totalRubricWeight}%.`);
+    }
     if (requireAttendance && !selectedSessionId) return alert("Debes seleccionar a qué clase se vincula el candado de asistencia.");
     if (formData.format === 'equipo' && selectedTeamIds.length === 0) return alert("Selecciona al menos un equipo para esta actividad.");
     if (formData.submission_type.startsWith("puzzle_") && !puzzleData) {
-      return alert("Debes hacer clic en 'Generar Puzzle con IA' antes de guardar la actividad.");
+      return alert("Debes hacer clic en 'Generar con IA' antes de guardar la actividad.");
     }
 
     setIsSaving(true);

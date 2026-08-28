@@ -8,7 +8,7 @@ import {
   Settings, LogOut, LayoutDashboard, School, Telescope, TestTubeDiagonal,
   Map, Sparkles, MessageSquareShare, Users, NotebookPen, LineChart,
   Cloud, ArrowLeft, UserCheck, History, Contact,
-  ClipboardCheck, MonitorPlay, BookOpen, UsersRound
+  ClipboardCheck, BookOpen, UsersRound
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import { FloatingCopilot } from "@/components/ia/FloatingCopilot";
@@ -124,7 +124,6 @@ export default function MasterSidebar() {
         backButton = { name: "Volver a la Clase", path: `/panel/materias/${materiaId}`, icon: <ArrowLeft size={20} /> };
         localTools = [
           { name: "Exámenes", icon: <ClipboardCheck size={20} />, path: `/panel/materias/${materiaId}/evaluaciones` },
-          { name: "Simulador", icon: <MonitorPlay size={20} />, path: `/panel/materias/${materiaId}/evaluaciones/simulacion` }
         ];
       }
       // NIVEL: Sección Material Drive (Bóveda)

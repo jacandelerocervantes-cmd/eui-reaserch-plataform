@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, CheckCircle2, Clock, AlertCircle,
+  CheckCircle2, Clock, AlertCircle,
   Search, Eye, Save, Sparkles, BarChart3, Send, Loader2, X, RotateCcw
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
@@ -40,14 +40,11 @@ function RevisionContent({ resource, courseId, examId, onReload }: { resource: R
 
       {/* HEADER: INFO EXAMEN */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <button onClick={() => router.back()} style={{ background: "white", border: "1px solid #e2e8f0", padding: "10px", borderRadius: "12px", cursor: "pointer", color: "#64748b", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}><ArrowLeft size={20}/></button>
-          <div>
-            <h1 style={{ color: "#1B396A", fontSize: "2.2rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>{examInfo?.title}</h1>
-            <div style={{ display: "flex", gap: "20px", marginTop: "8px", fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><BarChart3 size={16} /> {examInfo?.course_units?.title}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><CheckCircle2 size={16} color="#10b981" /> {alumnos.filter(a => a.entregado).length} / {alumnos.length} Entregas</span>
-            </div>
+        <div>
+          <h1 style={{ color: "#1B396A", fontSize: "2.2rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>{examInfo?.title}</h1>
+          <div style={{ display: "flex", gap: "20px", marginTop: "8px", fontSize: "0.9rem", color: "#64748b", fontWeight: "600" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><BarChart3 size={16} /> {examInfo?.course_units?.title}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><CheckCircle2 size={16} color="#10b981" /> {alumnos.filter(a => a.entregado).length} / {alumnos.length} Entregas</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>

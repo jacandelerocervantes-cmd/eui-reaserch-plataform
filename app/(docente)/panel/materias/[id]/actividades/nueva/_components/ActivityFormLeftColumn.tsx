@@ -2,7 +2,7 @@
 
 import {
   User, Users, UsersRound, FileUp, Cloud, FileText, Table,
-  Presentation, Gamepad2, Grid3X3, Search, Play, Sparkles, Loader2, CheckCircle2
+  Presentation, Gamepad2, Grid3X3, Search, Play, Sparkles, CheckCircle2
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import OptionCard from "./OptionCard";
@@ -143,7 +143,7 @@ export default function ActivityFormLeftColumn({
                 />
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   {puzzleData ? (
                     <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -151,63 +151,47 @@ export default function ActivityFormLeftColumn({
                     </span>
                   ) : (
                     <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: "600" }}>
-                      * Haz clic en generar para crear el tablero con IA
+                      * Genera el tablero con IA antes de guardar
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: "flex", gap: "10px" }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                   {puzzleData && setShowPuzzlePreview && (
-                    <button
+                    <ExpandingButton
+                      expanded
                       type="button"
+                      icon={Play}
+                      label="Probar Puzzle"
                       onClick={() => setShowPuzzlePreview(true)}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: "10px",
-                        border: "1px solid #cbd5e1",
-                        backgroundColor: "white",
-                        color: "#1B396A",
-                        fontWeight: "700",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <Play size={15} /> Probar Puzzle
-                    </button>
+                      variant="default"
+                      size={40}
+                      radius={10}
+                      gap={8}
+                      padding="0 14px"
+                      fontWeight={700}
+                      fontSize="0.85rem"
+                      durationMs={300}
+                    />
                   )}
 
                   {handleGeneratePuzzle && (
-                    <button
+                    <ExpandingButton
+                      expanded
                       type="button"
-                      disabled={isGeneratingPuzzle}
+                      icon={Sparkles}
+                      label="Generar con IA"
                       onClick={() => handleGeneratePuzzle(formData.submission_type)}
-                      style={{
-                        padding: "8px 16px",
-                        borderRadius: "10px",
-                        border: "none",
-                        backgroundColor: "#1B396A",
-                        color: "white",
-                        fontWeight: "800",
-                        fontSize: "0.85rem",
-                        cursor: isGeneratingPuzzle ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      {isGeneratingPuzzle ? (
-                        <>
-                          <Loader2 size={15} className="animate-spin" /> Generando...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles size={15} /> Generar con IA
-                        </>
-                      )}
-                    </button>
+                      variant="ai"
+                      loading={isGeneratingPuzzle}
+                      size={40}
+                      radius={10}
+                      gap={8}
+                      padding="0 16px"
+                      fontWeight={800}
+                      fontSize="0.85rem"
+                      durationMs={300}
+                    />
                   )}
                 </div>
               </div>

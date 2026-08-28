@@ -105,7 +105,6 @@ export default function NuevaActividadPage() {
           handleAddRubricRow={handleAddRubricRow}
           isGenerating={isGenerating}
           handleGenerateAI={handleGenerateAI}
-          formData={formData}
           rubricSourceFile={rubricSourceFile}
           setRubricSourceFile={setRubricSourceFile}
           isSaving={isSaving}

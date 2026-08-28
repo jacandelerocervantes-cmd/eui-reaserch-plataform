@@ -5,7 +5,7 @@ import ExpandingButton from "@/components/ui/ExpandingButton";
 
 export default function RubricSection({
   rubrics, totalRubricWeight, isRubricValid, handleUpdateRubric, handleRemoveRubricRow, handleAddRubricRow,
-  isGenerating, handleGenerateAI, _formData, rubricSourceFile, setRubricSourceFile,
+  isGenerating, handleGenerateAI, rubricSourceFile, setRubricSourceFile,
   isSaving, handleSave,
 }: {
   rubrics: { id: number; name: string; description: string; weight: number }[];
@@ -16,11 +16,10 @@ export default function RubricSection({
   handleAddRubricRow: () => void;
   isGenerating: boolean;
   handleGenerateAI: () => void;
-  _formData?: { title: string; soft_deadline: string };
   rubricSourceFile: File | null;
   setRubricSourceFile: (f: File | null) => void;
   isSaving: boolean;
-  handleSave: (e: React.FormEvent) => void;
+  handleSave: (e?: React.FormEvent) => void | Promise<void>;
 }) {
   return (
     <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>

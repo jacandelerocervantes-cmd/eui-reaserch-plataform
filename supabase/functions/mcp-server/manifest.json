@@ -1,0 +1,41 @@
+{
+  "mcpVersion": "2025-06-18",
+  "name": "eui-tecnm-tizimin",
+  "displayName": "EUI — Plataforma Docente TecNM Tizimín",
+  "description": "Acceso de solo lectura, con alcance por docente, a estructura de cursos y métricas AGREGADAS de grupo (nunca datos individuales de estudiantes). Pensado para que un asistente externo (IDE, agente de investigación institucional) consulte contexto sin poder escribir ni identificar alumnos.",
+  "auth": {
+    "type": "bearer",
+    "note": "El token es el JWT de Supabase Auth del docente. El servidor reutiliza verifyDocente() — no hay una llave maestra de servicio expuesta por este endpoint."
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": false,
+    "prompts": false
+  },
+  "tools": [
+    {
+      "name": "list_courses",
+      "description": "Lista los cursos del docente autenticado (id, nombre, periodo). Solo cursos donde es teacher_id o es admin.",
+      "readOnly": true
+    },
+    {
+      "name": "get_course_units",
+      "description": "Devuelve las unidades/temario de un curso propio.",
+      "readOnly": true
+    },
+    {
+      "name": "get_group_aggregate",
+      "description": "Métricas agregadas de un grupo/unidad (media pre/post, subtemas débiles). Se niega si el grupo tiene menos de 5 participantes, igual que el contrato agregado@1.0 de traspaso/CONTRATOS-COMPARTIDOS.md — evita reidentificación en grupos pequeños.",
+      "readOnly": true
+    },
+    {
+      "name": "get_students_at_risk",
+      "description": "Alumnos en riesgo académico (tendencias Kalman de asistencia/calificaciones/exámenes) de un curso propio del docente autenticado. Por-alumno, no agregado — no aplica el umbral de anonimato porque el docente consulta a sus propios alumnos, no a los de un tercero.",
+      "readOnly": true
+    }
+  ],
+  "excludedByDesign": [
+    "Cualquier tool que devuelva submissions.ai_feedback, respuestas de examen individuales, o contenido de conversaciones del copiloto — esos datos no salen de la plataforma ni siquiera hacia un cliente MCP autenticado como el mismo docente, para no crear una segunda vía de exfiltración que evada las políticas RLS pensadas para la UI.",
+    "Cualquier tool de escritura. Este servidor MCP es deliberadamente read-only; las escrituras siguen pasando por copilot-execute-tool con su check de ownership/IDOR."
+  ]
+}

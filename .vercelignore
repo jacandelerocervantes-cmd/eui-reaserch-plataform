@@ -1,0 +1,3 @@
+# Ignorar carpetas que no son de Next.js
+appscript/
+supabase/

@@ -1,0 +1,54 @@
+.container {
+  position: fixed;
+  top: 120px; /* Se ancla en la parte superior */
+  right: 40px;
+  z-index: 100;
+}
+
+.wrapper {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  position: relative;
+}
+
+/* Estado de reposo: Fondo blanco, icono azul (Igual al Sidebar) */
+.iconCircle {
+  width: 56px; /* Un poco más grande que los del sidebar (48px) para jerarquía, pero no gigante */
+  height: 56px;
+  background-color: white; 
+  color: #1B396A; 
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Sombra más suave, idéntica al sidebar */
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.label {
+  background-color: #1B396A;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-right: 15px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.wrapper:hover .label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Estado al pasar el mouse: Fondo Azul, icono Oro (Igual al Sidebar) */
+.wrapper:hover .iconCircle {
+  transform: scale(1.1) rotate(90deg); /* Conservamos el giro de la cruz porque se ve genial */
+  background-color: #1B396A; 
+  color: #D4AF37; 
+}

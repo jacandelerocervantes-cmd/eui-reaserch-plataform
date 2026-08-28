@@ -1,0 +1,3 @@
+export const ETAPAS = ['protocolo', 'marco_teorico', 'metodologia', 'recoleccion_datos', 'analisis', 'redaccion', 'revision', 'defensa', 'graduado'];
+export const ETAPA_LABELS: Record<string, string> = { protocolo: 'Protocolo', marco_teorico: 'Marco Teórico', metodologia: 'Metodología', recoleccion_datos: 'Recolección', analisis: 'Análisis', redaccion: 'Redacción', revision: 'Revisión', defensa: 'Defensa', graduado: 'Graduado' };
+export const ETAPA_COLOR: Record<string, string> = { protocolo: '#94a3b8', marco_teorico: '#3b82f6', metodologia: '#8b5cf6', recoleccion_datos: '#f59e0b', analisis: '#f97316', redaccion: '#10b981', revision: '#06b6d4', defensa: '#1B396A', graduado: '#10b981' };

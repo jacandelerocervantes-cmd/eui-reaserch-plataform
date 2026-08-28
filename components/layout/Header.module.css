@@ -1,0 +1,83 @@
+/* components/layout/Header.module.css */
+.header {
+  width: 100%;
+  height: 90px;
+  /* N U E V O : Degradado lineal de izquierda a derecha */
+  /* Empieza blanco (0%), transición suave, termina en azul institucional (100%) */
+  background: linear-gradient(to right, #ffffff 0%, #f0f9ff 40%, var(--tecnm-blue) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5%;
+  /* Borde inferior sutil para definir donde termina el blanco */
+  border-bottom: 1px solid rgba(27, 57, 106, 0.1);
+  box-shadow: 0 4px 12px -2px rgba(27, 57, 106, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.logoBox {
+  height: 65px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Filtro suave para darle dimensión sobre el fondo claro */
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.05));
+}
+
+.logo {
+  max-height: 100%;
+  width: auto;
+  object-fit: contain;
+}
+
+.logoLeft {
+  margin-right: 1rem;
+}
+
+.logoRight {
+  margin-left: 1rem;
+}
+
+.titleContainer {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.title {
+  /* C A M B I O : El texto ahora es AZUL FUERTE para contrastar con el fondo claro */
+  color: var(--tecnm-blue);
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  /* Eliminamos la sombra de texto anterior porque ensucia sobre fondo claro */
+}
+
+/* Ajustes para celulares */
+@media (max-width: 768px) {
+  .header { 
+    height: auto; 
+    min-height: 80px;
+    padding: 0.5rem 1rem; 
+    flex-wrap: nowrap;
+  }
+  
+  .logoBox { 
+    height: 50px; 
+  }
+  
+  .title { 
+    font-size: 1.1rem; 
+    font-weight: 800;
+  }
+  
+  .logoLeft { margin-right: 0.5rem; }
+  .logoRight { margin-left: 0.5rem; }
+}

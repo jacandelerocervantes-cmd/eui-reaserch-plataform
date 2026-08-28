@@ -1,0 +1,150 @@
+.sidebar {
+  width: 80px;
+  background: #ffffff;
+  position: fixed;
+  top: 80px;
+  left: 0;
+  height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: visible; 
+  border-right: 1px solid rgba(27, 57, 106, 0.05);
+}
+
+.scrollContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 200px; 
+  margin-right: -200px;
+  scrollbar-width: none;
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.5rem 0;
+  width: 80px; 
+}
+
+.footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 1.5rem;
+  z-index: 10;
+  background: white;
+}
+
+.separator {
+  width: 30px;
+  height: 2px;
+  background: rgba(27, 57, 106, 0.08);
+  margin: 0.5rem 0;
+  border-radius: 2px;
+}
+
+.itemWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-decoration: none;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.icon {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #1B396A;
+  background: #f8fafc;
+  border-radius: 14px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  z-index: 5;
+}
+
+.label {
+  position: absolute;
+  left: 70px;
+  background: #1B396A;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-15px);
+  transition: all 0.25s ease;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 9999; 
+}
+
+.itemWrapper:hover .label {
+  opacity: 1;
+  transform: translateX(10px);
+}
+
+.itemWrapper:hover .icon {
+  background: #1B396A !important;
+  color: white !important;
+  transform: scale(1.1);
+  box-shadow: 0 8px 15px rgba(27, 57, 106, 0.2);
+}
+
+/* --- SECCIÓN IA ESTILO GEMINI --- */
+.aiSection {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.8rem;
+}
+
+.aiIcon {
+  background: linear-gradient(135deg, #4285F4, #9B72F3, #D96570) !important;
+  background-size: 200% 200% !important;
+  animation: geminiBreath 4s ease infinite !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(155, 114, 243, 0.4) !important;
+  border: none !important;
+}
+
+@keyframes geminiBreath {
+  0% { background-position: 0% 50%; transform: scale(1); }
+  50% { background-position: 100% 50%; transform: scale(1.05); }
+  100% { background-position: 0% 50%; transform: scale(1); }
+}
+
+.aiWrapper:hover .aiIcon {
+  transform: scale(1.15) rotate(3deg) !important;
+  box-shadow: 0 0 25px rgba(155, 114, 243, 0.6) !important;
+}
+
+.floatingContainer {
+  position: absolute;
+  left: 90px;
+  bottom: 0;
+  z-index: 10000;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}

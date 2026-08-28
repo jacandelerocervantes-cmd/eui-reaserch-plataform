@@ -15,17 +15,14 @@ concurrency:
 jobs:
   quality-gate:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: eui-reaserch-plataform-main
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: eui-reaserch-plataform-main/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Instalar dependencias
         run: npm ci

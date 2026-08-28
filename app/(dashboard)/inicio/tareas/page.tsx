@@ -42,7 +42,7 @@ export default function ListaPendientes() {
   const [selectedList, setSelectedList] = useState<TaskList | null>(null);
   const [tasks, setTasks] = useState<EnrichedTask[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   useEffect(() => {

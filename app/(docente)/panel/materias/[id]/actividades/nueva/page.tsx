@@ -7,11 +7,14 @@ import ActivityFormLeftColumn from "./_components/ActivityFormLeftColumn";
 import ActivityFormRightColumn from "./_components/ActivityFormRightColumn";
 import RubricSection from "./_components/RubricSection";
 import TeamPickerModal from "./_components/TeamPickerModal";
+import PuzzlePreviewModal from "./_components/PuzzlePreviewModal";
 import { useNuevaActividad } from "./_hooks/useNuevaActividad";
 
-export default function NuevaActividadPage() {
-  const { id: courseId } = useParams() as { id: string };
+export default function NuevaActividad() {
   const router = useRouter();
+  const params = useParams();
+  const courseId = params.id as string;
+
   const {
     loading,
     error,
@@ -30,6 +33,10 @@ export default function NuevaActividadPage() {
     rubrics,
     totalRubricWeight,
     isRubricValid,
+    puzzleData,
+    isGeneratingPuzzle,
+    showPuzzlePreview, setShowPuzzlePreview,
+    handleGeneratePuzzle,
     handleAddRubricRow,
     handleRemoveRubricRow,
     handleUpdateRubric,
@@ -84,6 +91,10 @@ export default function NuevaActividadPage() {
             teams={teams}
             units={units}
             setShowTeamPicker={setShowTeamPicker}
+            puzzleData={puzzleData}
+            isGeneratingPuzzle={isGeneratingPuzzle}
+            handleGeneratePuzzle={handleGeneratePuzzle}
+            setShowPuzzlePreview={setShowPuzzlePreview}
           />
           <ActivityFormRightColumn
             formData={formData}
@@ -120,6 +131,14 @@ export default function NuevaActividadPage() {
           teamSearchTerm={teamSearchTerm}
           setTeamSearchTerm={setTeamSearchTerm}
           setShowTeamPicker={setShowTeamPicker}
+        />
+      )}
+
+      {showPuzzlePreview && puzzleData && (
+        <PuzzlePreviewModal
+          puzzleType={formData.submission_type as "puzzle_crossword" | "puzzle_wordsearch"}
+          puzzleData={puzzleData}
+          onClose={() => setShowPuzzlePreview(false)}
         />
       )}
     </div>

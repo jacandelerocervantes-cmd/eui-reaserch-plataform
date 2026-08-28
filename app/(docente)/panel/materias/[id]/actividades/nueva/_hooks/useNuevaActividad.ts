@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import type { PuzzleData } from "../_components/PuzzlePreviewModal";
 
 export type UnitOption = { id: string; unit_number: number; title: string };
 export type TeamOption = { id: string; name: string; memberCount: number };
@@ -17,6 +18,11 @@ export function useNuevaActividad(courseId: string) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [rubricSourceFile, setRubricSourceFile] = useState<File | null>(null);
+
+  // --- ESTADOS PARA PUZZLES Y GAMIFICACIÓN CON IA ---
+  const [puzzleData, setPuzzleData] = useState<PuzzleData | null>(null);
+  const [isGeneratingPuzzle, setIsGeneratingPuzzle] = useState(false);
+  const [showPuzzlePreview, setShowPuzzlePreview] = useState(false);
 
   // --- ESTADOS PARA SELECCIÓN DE EQUIPOS YA CREADOS (Alumnos > Equipos) ---
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
@@ -193,7 +199,34 @@ export function useNuevaActividad(courseId: string) {
     }
   };
 
-  // GUARDAR Y CONECTAR CON GOOGLE WORKSPACE
+  // GENERAR PUZZLE CON IA (Crucigrama o Sopa de Letras)
+  const handleGeneratePuzzle = async (specificType?: string) => {
+    if (!formData.title?.trim()) {
+      alert("Por favor, escribe primero el Título de la actividad arriba para que la IA genere conceptos pedagógicos relevantes.");
+      return;
+    }
+    const type = specificType || formData.submission_type;
+    const puzzleType = type === "puzzle_wordsearch" ? "wordsearch" : "crossword";
+    setIsGeneratingPuzzle(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-rubric-ia", {
+        body: {
+          title: formData.title,
+          description: formData.description,
+          puzzleType,
+        },
+      });
+      if (error || !data?.success) throw new Error(data?.error || "Error al generar el puzzle con IA.");
+      setPuzzleData(data.puzzleData);
+      alert(`¡${puzzleType === "crossword" ? "Crucigrama" : "Sopa de Letras"} generado con éxito! Puedes hacer clic en "Vista Previa del Puzzle" para probarlo.`);
+    } catch (err: unknown) {
+      alert(`Error al generar puzzle: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsGeneratingPuzzle(false);
+    }
+  };
+
+  // GUARDAR Y CONECTAR CON GOOGLE WORKSPACE O PUZZLE
   const handleSave = async (e?: React.FormEvent) => {
     if (e && typeof e.preventDefault === "function") e.preventDefault();
     if (!formData.title?.trim()) return alert("Debes escribir el título de la actividad.");
@@ -202,9 +235,16 @@ export function useNuevaActividad(courseId: string) {
     if (!isRubricValid) return alert(`La rúbrica debe sumar exactamente 100%. Actualmente suma ${totalRubricWeight}%.`);
     if (requireAttendance && !selectedSessionId) return alert("Debes seleccionar a qué clase se vincula el candado de asistencia.");
     if (formData.format === 'equipo' && selectedTeamIds.length === 0) return alert("Selecciona al menos un equipo para esta actividad.");
+    if (formData.submission_type.startsWith("puzzle_") && !puzzleData) {
+      return alert("Debes hacer clic en 'Generar Puzzle con IA' antes de guardar la actividad.");
+    }
 
     setIsSaving(true);
     try {
+      const rubricJsonPayload = formData.submission_type.startsWith("puzzle_")
+        ? { rubrics, puzzle_data: puzzleData }
+        : rubrics;
+
       const payload = {
         course_id: courseId,
         unit_id: formData.unit_id,
@@ -216,7 +256,7 @@ export function useNuevaActividad(courseId: string) {
         soft_deadline: formData.soft_deadline,
         hard_deadline: formData.hard_deadline || null,
         late_penalty_percent: formData.late_penalty_percent,
-        rubric_json: rubrics,
+        rubric_json: rubricJsonPayload,
         requiere_sesion_id: requireAttendance ? selectedSessionId : null,
         team_ids: formData.format === 'equipo' ? selectedTeamIds : null,
       };
@@ -225,7 +265,7 @@ export function useNuevaActividad(courseId: string) {
       const { data, error } = await supabase.functions.invoke('create-assignment-hub', { body: payload });
       if (error || !data.success) throw new Error(data?.error || "Error al guardar la actividad");
 
-      alert(`Actividad creada con éxito. ${formData.submission_type !== 'file' ? '\nEntorno Workspace generado en Drive.' : ''}`);
+      alert(`Actividad creada con éxito. ${['doc', 'sheet', 'slide'].includes(formData.submission_type) ? '\nEntorno Workspace generado en Drive.' : ''}`);
       router.push(`/panel/materias/${courseId}/actividades`);
     } catch (error) {
       alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -252,6 +292,10 @@ export function useNuevaActividad(courseId: string) {
     rubrics,
     totalRubricWeight,
     isRubricValid,
+    puzzleData, setPuzzleData,
+    isGeneratingPuzzle,
+    showPuzzlePreview, setShowPuzzlePreview,
+    handleGeneratePuzzle,
     handleAddRubricRow,
     handleRemoveRubricRow,
     handleUpdateRubric,

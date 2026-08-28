@@ -1,8 +1,12 @@
 "use client";
 
-import { User, Users, UsersRound, FileUp, Cloud, FileText, Table, Presentation } from "lucide-react";
+import {
+  User, Users, UsersRound, FileUp, Cloud, FileText, Table,
+  Presentation, Gamepad2, Grid3X3, Search, Play, Sparkles, Loader2, CheckCircle2
+} from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import OptionCard from "./OptionCard";
+import type { PuzzleData } from "./PuzzlePreviewModal";
 
 type ActivityFormData = {
   title: string; description: string; unit_id: string; criteria_id: string;
@@ -14,6 +18,7 @@ type TeamOption = { id: string; name: string; memberCount: number };
 
 export default function ActivityFormLeftColumn({
   formData, setFormData, selectedTeamIds, teams, units, setShowTeamPicker,
+  puzzleData, isGeneratingPuzzle, handleGeneratePuzzle, setShowPuzzlePreview,
 }: {
   formData: ActivityFormData;
   setFormData: (v: ActivityFormData) => void;
@@ -21,7 +26,14 @@ export default function ActivityFormLeftColumn({
   teams: TeamOption[];
   units: UnitOption[];
   setShowTeamPicker: (v: boolean) => void;
+  puzzleData?: PuzzleData | null;
+  isGeneratingPuzzle?: boolean;
+  handleGeneratePuzzle?: (type?: string) => void;
+  setShowPuzzlePreview?: (v: boolean) => void;
 }) {
+  const isWorkspace = ['doc', 'sheet', 'slide'].includes(formData.submission_type);
+  const isPuzzle = formData.submission_type.startsWith('puzzle_');
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       <div style={{ backgroundColor: "white", padding: "32px", borderRadius: "24px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)" }}>
@@ -83,16 +95,122 @@ export default function ActivityFormLeftColumn({
 
         <div>
           <p style={{ fontSize: "0.85rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "10px" }}>Tipo de Entrega</p>
-          <div style={{ display: "flex", gap: "12px", marginBottom: formData.submission_type !== 'file' ? "12px" : "0" }}>
-            <OptionCard icon={FileUp} label="Subida de Archivo" selected={formData.submission_type === 'file'} onClick={() => setFormData({...formData, submission_type: 'file'})} />
-            <OptionCard icon={Cloud} label="Google Workspace" selected={formData.submission_type !== 'file'} onClick={() => setFormData({...formData, submission_type: 'doc'})} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: isWorkspace || isPuzzle ? "16px" : "0" }}>
+            <OptionCard
+              icon={FileUp}
+              label="Archivo"
+              selected={formData.submission_type === 'file'}
+              onClick={() => setFormData({...formData, submission_type: 'file'})}
+            />
+            <OptionCard
+              icon={Cloud}
+              label="Workspace"
+              selected={isWorkspace}
+              onClick={() => setFormData({...formData, submission_type: 'doc'})}
+            />
+            <OptionCard
+              icon={Gamepad2}
+              label="Puzzle IA"
+              selected={isPuzzle}
+              onClick={() => setFormData({...formData, submission_type: 'puzzle_crossword'})}
+            />
           </div>
 
-          {formData.submission_type !== 'file' && (
+          {/* SUB-OPCIONES WORKSPACE */}
+          {isWorkspace && (
             <div style={{ display: "flex", gap: "12px", animation: "fadeIn 0.3s ease-out", padding: "16px", backgroundColor: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
               <OptionCard icon={FileText} label="Doc" selected={formData.submission_type === 'doc'} onClick={() => setFormData({...formData, submission_type: 'doc'})} />
               <OptionCard icon={Table} label="Sheet" selected={formData.submission_type === 'sheet'} onClick={() => setFormData({...formData, submission_type: 'sheet'})} />
               <OptionCard icon={Presentation} label="Slide" selected={formData.submission_type === 'slide'} onClick={() => setFormData({...formData, submission_type: 'slide'})} />
+            </div>
+          )}
+
+          {/* SUB-OPCIONES PUZZLE / GAMIFICACIÓN */}
+          {isPuzzle && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px", animation: "fadeIn 0.3s ease-out", padding: "18px", backgroundColor: "#f8fafc", borderRadius: "14px", border: "1px dashed #cbd5e1" }}>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <OptionCard
+                  icon={Grid3X3}
+                  label="Crucigrama"
+                  selected={formData.submission_type === 'puzzle_crossword'}
+                  onClick={() => setFormData({...formData, submission_type: 'puzzle_crossword'})}
+                />
+                <OptionCard
+                  icon={Search}
+                  label="Sopa de Letras"
+                  selected={formData.submission_type === 'puzzle_wordsearch'}
+                  onClick={() => setFormData({...formData, submission_type: 'puzzle_wordsearch'})}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", paddingTop: "8px", borderTop: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {puzzleData ? (
+                    <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <CheckCircle2 size={16} /> Puzzle listo ({formData.submission_type === 'puzzle_crossword' ? `${puzzleData.words?.length || 0} conceptos` : '12x12'})
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: "600" }}>
+                      * Haz clic en generar para crear el tablero con IA
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  {puzzleData && setShowPuzzlePreview && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPuzzlePreview(true)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "10px",
+                        border: "1px solid #cbd5e1",
+                        backgroundColor: "white",
+                        color: "#1B396A",
+                        fontWeight: "700",
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <Play size={15} /> Probar Puzzle
+                    </button>
+                  )}
+
+                  {handleGeneratePuzzle && (
+                    <button
+                      type="button"
+                      disabled={isGeneratingPuzzle}
+                      onClick={() => handleGeneratePuzzle(formData.submission_type)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "10px",
+                        border: "none",
+                        backgroundColor: "#1B396A",
+                        color: "white",
+                        fontWeight: "800",
+                        fontSize: "0.85rem",
+                        cursor: isGeneratingPuzzle ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      {isGeneratingPuzzle ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" /> Generando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={15} /> Generar con IA
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -13,6 +13,8 @@ import { AssignmentHeader } from './_components/AssignmentHeader';
 import { WorkspaceZone } from './_components/WorkspaceZone';
 import { FileZone } from './_components/FileZone';
 import { ForumZone } from './_components/ForumZone';
+import PuzzlePlayZone from './_components/PuzzlePlayZone';
+import type { PuzzleData } from '@/app/(docente)/panel/materias/[id]/actividades/nueva/_components/PuzzlePreviewModal';
 import type { FetchResult } from './_services/fetchAssignment';
 
 // ── Contenido (post-carga) ──────────────────────────────────────────────────
@@ -223,39 +225,57 @@ function EntregarContent({
       {/* Cabecera */}
       <AssignmentHeader assignment={assignment} isOverdue={isOverdue} />
 
-      {/* Sección de entrega según tipo */}
-      {(subType === 'workspace') && (
-        <WorkspaceZone assignment={assignment} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
-      )}
-
-      {(subType === 'file') && (
-        <FileZone file={file} onFile={setFile} required />
-      )}
-
-      {(subType === 'hybrid') && (
+      {/* Sección de entrega: PUZZLE GAMIFICADO INTERACTIVO */}
+      {assignment?.submission_type?.startsWith('puzzle_') ? (
+        <PuzzlePlayZone
+          assignmentId={assignmentId}
+          studentId={studentId}
+          courseId={courseId}
+          puzzleType={assignment.submission_type as "puzzle_crossword" | "puzzle_wordsearch"}
+          puzzleData={
+            (((assignment.rubric_data as Record<string, unknown>)?.puzzle_data ||
+              assignment.rubric_data) as PuzzleData)
+          }
+          existingSubmission={existing}
+          onSuccess={() => onRetry()}
+        />
+      ) : (
         <>
-          {/* Paso 1: Workspace */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-wider px-1">
-              <span className="w-5 h-5 bg-[#1B396A] text-white rounded-full flex items-center justify-center text-[10px]">1</span>
-              Trabajo en Google Workspace
-            </div>
+          {/* Sección de entrega según tipo estándar */}
+          {(subType === 'workspace') && (
             <WorkspaceZone assignment={assignment} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
-          </div>
+          )}
 
-          {/* Paso 2: Archivo adicional */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-wider px-1">
-              <span className="w-5 h-5 bg-[#1B396A] text-white rounded-full flex items-center justify-center text-[10px]">2</span>
-              Evidencia adicional (opcional)
-            </div>
-            <FileZone file={file} onFile={setFile} />
-          </div>
+          {(subType === 'file') && (
+            <FileZone file={file} onFile={setFile} required />
+          )}
+
+          {(subType === 'hybrid') && (
+            <>
+              {/* Paso 1: Workspace */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-wider px-1">
+                  <span className="w-5 h-5 bg-[#1B396A] text-white rounded-full flex items-center justify-center text-[10px]">1</span>
+                  Trabajo en Google Workspace
+                </div>
+                <WorkspaceZone assignment={assignment} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
+              </div>
+
+              {/* Paso 2: Archivo adicional */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-wider px-1">
+                  <span className="w-5 h-5 bg-[#1B396A] text-white rounded-full flex items-center justify-center text-[10px]">2</span>
+                  Evidencia adicional (opcional)
+                </div>
+                <FileZone file={file} onFile={setFile} />
+              </div>
+            </>
+          )}
+
+          {(subType === 'forum') && (
+            <ForumZone text={forumText} onText={setForumText} />
+          )}
         </>
-      )}
-
-      {(subType === 'forum') && (
-        <ForumZone text={forumText} onText={setForumText} />
       )}
 
       {/* Error */}
@@ -265,29 +285,33 @@ function EntregarContent({
         </div>
       )}
 
-      {/* Botón de entrega */}
-      <button
-        onClick={handleSubmit}
-        disabled={!canSubmit || uploading}
-        className="w-full bg-[#1B396A] disabled:bg-slate-200 disabled:text-slate-400 text-white py-4 rounded-[14px] font-black text-lg hover:bg-blue-800 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-      >
-        {uploading ? (
-          <><Loader2 className="animate-spin" size={22} /> Enviando...</>
-        ) : (
-          <>{subType === 'forum' ? <MessageSquare size={22} /> : <Upload size={22} />}
-          {subType === 'workspace' ? 'Marcar como Entregado' :
-           subType === 'forum' ? 'Publicar Respuesta' : 'Entregar Actividad'}
-          <ChevronRight size={20} /></>
-        )}
-      </button>
+      {!assignment?.submission_type?.startsWith('puzzle_') && (
+        <>
+          {/* Botón de entrega */}
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || uploading}
+            className="w-full bg-[#1B396A] disabled:bg-slate-200 disabled:text-slate-400 text-white py-4 rounded-[14px] font-black text-lg hover:bg-blue-800 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+          >
+            {uploading ? (
+              <><Loader2 className="animate-spin" size={22} /> Enviando...</>
+            ) : (
+              <>{subType === 'forum' ? <MessageSquare size={22} /> : <Upload size={22} />}
+              {subType === 'workspace' ? 'Marcar como Entregado' :
+               subType === 'forum' ? 'Publicar Respuesta' : 'Entregar Actividad'}
+              <ChevronRight size={20} /></>
+            )}
+          </button>
 
-      {!canSubmit && !uploading && (
-        <p className="text-center text-slate-400 text-sm font-medium">
-          {subType === 'file' && 'Selecciona un archivo para continuar.'}
-          {subType === 'workspace' && 'Confirma que completaste el trabajo en el documento.'}
-          {subType === 'hybrid' && 'Confirma el trabajo en el Doc o sube un archivo de evidencia.'}
-          {subType === 'forum' && `Escribe al menos 20 caracteres (${forumText.length}/20).`}
-        </p>
+          {!canSubmit && !uploading && (
+            <p className="text-center text-slate-400 text-sm font-medium">
+              {subType === 'file' && 'Selecciona un archivo para continuar.'}
+              {subType === 'workspace' && 'Confirma que completaste el trabajo en el documento.'}
+              {subType === 'hybrid' && 'Confirma el trabajo en el Doc o sube un archivo de evidencia.'}
+              {subType === 'forum' && `Escribe al menos 20 caracteres (${forumText.length}/20).`}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

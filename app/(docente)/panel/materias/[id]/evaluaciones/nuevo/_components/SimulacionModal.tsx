@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Trophy, X, ChevronLeft, ChevronRight, LayoutList,
-  Layers, CheckCircle2, BookOpen, Clock, AlertCircle, HelpCircle
+  Layers, CheckCircle2, Clock
 } from "lucide-react";
 import { TYPE_LABELS } from "../../_components/constants";
 import type { EditQuestion } from "../../_components/questionMapping";

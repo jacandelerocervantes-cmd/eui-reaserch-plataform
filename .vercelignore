@@ -1,3 +1,2 @@
-# Ignorar carpetas que no son de Next.js
+# Ignorar carpetas que no son necesarias para el bundle de Next.js
 appscript/
-supabase/

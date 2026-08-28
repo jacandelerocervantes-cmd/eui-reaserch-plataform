@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -45,7 +45,8 @@ export function useNuevaActividad(courseId: string) {
   const totalRubricWeight = rubrics.reduce((sum, r) => sum + Number(r.weight), 0);
   const isRubricValid = totalRubricWeight === 100;
 
-  const loadDependencias = async () => {
+  const loadDependencias = useCallback(async () => {
+    if (!courseId) return;
     setLoading(true);
     setError(null);
     try {
@@ -93,12 +94,65 @@ export function useNuevaActividad(courseId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
 
   useEffect(() => {
-    if (courseId) {
-      loadDependencias();
-    }
+    let isMounted = true;
+    if (!courseId) return;
+
+    (async () => {
+      try {
+        const { data: unitsData, error: uErr } = await supabase
+          .from("course_units")
+          .select("id, unit_number, title")
+          .eq("course_id", courseId)
+          .order("unit_number", { ascending: true });
+        if (!isMounted) return;
+        if (uErr) throw uErr;
+
+        const { data: teamsData, error: tErr } = await supabase
+          .from("teams")
+          .select("id, name, team_members(student_id)")
+          .eq("course_id", courseId)
+          .order("name");
+        if (!isMounted) return;
+        if (tErr) throw tErr;
+
+        const mappedTeams = (teamsData ?? []).map((t: { id: string; name: string; team_members: unknown[] | null }) => ({
+          id: t.id,
+          name: t.name,
+          memberCount: t.team_members?.length ?? 0
+        }));
+
+        const { data: sesiones, error: sErr } = await supabase
+          .from('insitu_sessions')
+          .select('id, created_at, session_number')
+          .eq('course_id', courseId)
+          .order('created_at', { ascending: false });
+        if (!isMounted) return;
+        if (sErr) throw sErr;
+
+        const loadedUnits = unitsData ?? [];
+        setUnits(loadedUnits);
+        setTeams(mappedTeams);
+        setPastSessions(sesiones ?? []);
+
+        if (loadedUnits.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            unit_id: prev.unit_id || loadedUnits[0].id
+          }));
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Error cargando dependencias de la actividad:", err);
+        setError("No se pudieron cargar las unidades/equipos de la materia. Intenta recargar la página.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    })();
+
+    return () => { isMounted = false; };
   }, [courseId]);
 
   const handleAddRubricRow = () => setRubrics([...rubrics, { id: Date.now(), name: "", description: "", weight: 0 }]);

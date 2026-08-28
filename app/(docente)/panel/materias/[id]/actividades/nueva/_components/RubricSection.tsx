@@ -5,7 +5,7 @@ import ExpandingButton from "@/components/ui/ExpandingButton";
 
 export default function RubricSection({
   rubrics, totalRubricWeight, isRubricValid, handleUpdateRubric, handleRemoveRubricRow, handleAddRubricRow,
-  isGenerating, handleGenerateAI, formData, rubricSourceFile, setRubricSourceFile,
+  isGenerating, handleGenerateAI, _formData, rubricSourceFile, setRubricSourceFile,
   isSaving, handleSave,
 }: {
   rubrics: { id: number; name: string; description: string; weight: number }[];
@@ -16,7 +16,7 @@ export default function RubricSection({
   handleAddRubricRow: () => void;
   isGenerating: boolean;
   handleGenerateAI: () => void;
-  formData: { title: string; soft_deadline: string };
+  _formData?: { title: string; soft_deadline: string };
   rubricSourceFile: File | null;
   setRubricSourceFile: (f: File | null) => void;
   isSaving: boolean;

@@ -45,7 +45,7 @@ const SUPABASE_ORIGIN = (() => {
 })()
 const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, 'ws')
 
-function buildCsp(nonce: string): string {
+function buildCsp(_nonce: string): string {
   return [
     `default-src 'self'`,
     `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://*.googleapis.com https://*.gstatic.com https://accounts.google.com https://apis.google.com https://*.supabase.co`,

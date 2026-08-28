@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useState, useMemo, Suspense } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus, Calendar, Trash2,
   Filter, Loader2, Zap, ShieldCheck
 } from "lucide-react";
-import { supabase } from "@/lib/supabase"; // Unificado con tu arquitectura
+import { supabase } from "@/lib/supabase";
 
 interface EnrichedTask {
   id: string;
@@ -19,9 +19,6 @@ interface EnrichedTask {
 }
 
 type TaskList = { id: string; name: string; color?: string };
-
-type ListaInicial = { list: TaskList; tasks: EnrichedTask[]; aiSummary: string | null } | null;
-type FetchResult = { lists: TaskList[]; initial: ListaInicial };
 
 async function fetchTareasParaLista(list: TaskList): Promise<{ tasks: EnrichedTask[]; aiSummary: string | null }> {
   try {
@@ -40,43 +37,48 @@ async function fetchTareasParaLista(list: TaskList): Promise<{ tasks: EnrichedTa
   }
 }
 
-// No usamos throw/reject: use() reserva el "throw" para Suspense/ErrorBoundary;
-// esta pantalla ya toleraba listas vacías sin mostrar un error explícito.
-async function fetchListas(_reloadKey: number): Promise<FetchResult> {
-  try {
-    const { data, error } = await supabase.functions.invoke('sync-tasks', {
-      body: { action: 'obtenerListasTareas' }
-    });
-    if (error) throw error;
-    const lists = data?.success ? data.data : [];
-
-    // La lista original auto-seleccionaba la primera lista al cargar.
-    let initial: ListaInicial = null;
-    if (lists.length > 0) {
-      const { tasks, aiSummary } = await fetchTareasParaLista(lists[0]);
-      initial = { list: lists[0], tasks, aiSummary };
-    }
-
-    return { lists, initial };
-  } catch (err) {
-    console.error("Error al cargar listas:", err);
-    return { lists: [], initial: null };
-  }
-}
-
-function ListaPendientesContent({ resource }: { resource: Promise<FetchResult> }) {
-  const result = use(resource);
-
-  const [selectedList, setSelectedList] = useState<TaskList | null>(result.initial?.list ?? null);
-  const [tasks, setTasks] = useState<EnrichedTask[]>(result.initial?.tasks ?? []);
-  const [aiSummary, setAiSummary] = useState<string | null>(result.initial?.aiSummary ?? null);
+export default function ListaPendientes() {
+  const [lists, setLists] = useState<TaskList[]>([]);
+  const [selectedList, setSelectedList] = useState<TaskList | null>(null);
+  const [tasks, setTasks] = useState<EnrichedTask[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const { lists } = result;
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('sync-tasks', {
+          body: { action: 'obtenerListasTareas' }
+        });
+        if (!isMounted) return;
+        if (error) throw error;
+        const loadedLists = data?.success ? data.data : [];
+        setLists(loadedLists);
+
+        if (loadedLists.length > 0) {
+          setSelectedList(loadedLists[0]);
+          const { tasks: firstTasks, aiSummary: firstSummary } = await fetchTareasParaLista(loadedLists[0]);
+          if (!isMounted) return;
+          setTasks(firstTasks);
+          setAiSummary(firstSummary);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Error al cargar listas:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { isMounted = false; };
+  }, []);
 
   const handleSelectList = async (list: TaskList) => {
     setSelectedList(list);
-    setAiSummary(null); // Reset del briefing
+    setAiSummary(null);
     setLoadingTasks(true);
     const { tasks: newTasks, aiSummary: newSummary } = await fetchTareasParaLista(list);
     setTasks(newTasks);
@@ -192,20 +194,5 @@ function ListaPendientesContent({ resource }: { resource: Promise<FetchResult> }
         </div>
       </section>
     </div>
-  );
-}
-
-export default function ListaPendientesIEO() {
-  const [reloadKey] = useState(0);
-  const resource = useMemo(() => fetchListas(reloadKey), [reloadKey]);
-
-  return (
-    <Suspense fallback={
-      <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "center" }}>
-        <Loader2 className="animate-spin" size={32} color="#1B396A" />
-      </div>
-    }>
-      <ListaPendientesContent resource={resource} />
-    </Suspense>
   );
 }

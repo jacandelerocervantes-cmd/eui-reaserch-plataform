@@ -272,7 +272,13 @@ export function useAsistencia(courseId: string) {
         studentId, status: status as 0 | 0.5 | 1
       }));
       await supabase.functions.invoke('sync-attendance', {
-        body: { courseId, records: syncRecords, sessionDate, sessionNumber }
+        body: {
+          courseId,
+          records: syncRecords,
+          sessionDate,
+          sessionNumber,
+          unitNumber: currentUnit?.unit_number ?? 1
+        }
       });
       if (sesionId) await supabase.from("insitu_sessions").update({ is_active: false }).eq("id", sesionId);
       alert("Asistencia Guardada");

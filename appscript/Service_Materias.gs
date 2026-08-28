@@ -26,10 +26,17 @@ function crearEntornoMateria(payload) {
   // ── Sheet de Asistencia ────────────────────────────────────────────────────
   const sheetAsistencia = SpreadsheetApp.create("Asistencia: " + folderName);
   DriveApp.getFileById(sheetAsistencia.getId()).moveTo(folderAsistencias);
-  let listaSheet = sheetAsistencia.getSheets()[0];
-  listaSheet.setName("LISTA_ASISTENCIA");
-  listaSheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo"]);
-  listaSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+  
+  // Pestaña 1: Directorio Maestro de Alumnos y Equipos (Sin asistencias)
+  let masterSheet = sheetAsistencia.getSheets()[0];
+  masterSheet.setName("LISTA_ALUMNOS");
+  masterSheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo", "Equipos"]);
+  masterSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+
+  // Pestaña 2: Sábana de Asistencia de UNIDAD 1
+  let unidad1Sheet = sheetAsistencia.insertSheet("UNIDAD 1");
+  unidad1Sheet.appendRow(["Matrícula", "Nombre Completo"]);
+  unidad1Sheet.getRange("A1:B1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
 
   // ── Sheet de Calificaciones ───────────────────────────────────────────────
   const sheetCalificaciones = SpreadsheetApp.create("Calificaciones: " + folderName);

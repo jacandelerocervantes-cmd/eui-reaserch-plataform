@@ -4,23 +4,48 @@
 
 /**
  * ACCIÓN 1: Registrar la asistencia diaria (Radar In-Situ)
+ * Sincroniza la sesión en la pestaña de la Unidad correspondiente (ej. "UNIDAD 1").
+ * Mantiene intacta la pestaña "LISTA_ALUMNOS" como directorio maestro.
  */
 function registrarAsistenciaSheet(payload) {
-  const { googleSheetId, asistenciaMap, fecha, sessionNumber } = payload; 
+  const { googleSheetId, asistenciaMap, fecha, sessionNumber, unitNumber } = payload; 
   
   try {
     const ss = SpreadsheetApp.openById(googleSheetId);
-    let sheet = ss.getSheetByName("LISTA_ASISTENCIA");
-    if (!sheet) {
-      sheet = ss.insertSheet("LISTA_ASISTENCIA");
-      sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo"]);
-      sheet.getRange("A1:E1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+    
+    // 1. Localizar o crear la Pestaña Maestra de Alumnos (LISTA_ALUMNOS)
+    let masterSheet = ss.getSheetByName("LISTA_ALUMNOS");
+    if (!masterSheet) {
+      masterSheet = ss.getSheetByName("LISTA_ASISTENCIA");
+      if (masterSheet) {
+        masterSheet.setName("LISTA_ALUMNOS");
+      } else {
+        masterSheet = ss.insertSheet("LISTA_ALUMNOS", 0);
+        masterSheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo", "Equipos"]);
+        masterSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+      }
     }
 
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    
-    // Formatear la fecha y número de sesión: ej. "28/08/2026 (S1)" o "28/08/2026 (S2)"
+    // 2. Determinar la pestaña de la Unidad correspondiente (ej. "UNIDAD 1")
+    const uNum = unitNumber || 1;
+    const tabName = "UNIDAD " + uNum;
+    let sheet = ss.getSheetByName(tabName);
+
+    // Si la pestaña de la unidad aún no existe, se crea con los alumnos de LISTA_ALUMNOS
+    if (!sheet) {
+      sheet = ss.insertSheet(tabName);
+      sheet.appendRow(["Matrícula", "Nombre Completo"]);
+      sheet.getRange("A1:B1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+
+      const mData = masterSheet.getDataRange().getValues();
+      for (let i = 1; i < mData.length; i++) {
+        const mat = mData[i][0];
+        const nom = (mData[i][1] + " " + (mData[i][2] || "") + " " + mData[i][3]).trim();
+        if (mat) sheet.appendRow([mat, nom]);
+      }
+    }
+
+    // 3. Formatear la fecha y número de sesión: ej. "28/08/2026 (S1)" o "28/08/2026 (S2)"
     var fechaFormatted = Utilities.formatDate(new Date(), "GMT-6", "dd/MM/yyyy");
     if (fecha) {
       var parts = fecha.split('-');
@@ -31,19 +56,32 @@ function registrarAsistenciaSheet(payload) {
     var numSesion = sessionNumber ? " (S" + sessionNumber + ")" : " (S1)";
     var colHeader = fechaFormatted + numSesion;
 
-    // Buscar o crear la columna específica de esta fecha y sesión
+    // 4. Buscar o crear la columna específica de esta fecha y sesión en la Unidad
+    let data = sheet.getDataRange().getValues();
+    let headers = data[0];
     let colIndex = headers.indexOf(colHeader);
     if (colIndex === -1) {
       colIndex = headers.length;
       sheet.getRange(1, colIndex + 1).setValue(colHeader)
            .setFontWeight("bold").setBackground("#1B396A").setFontColor("white").setHorizontalAlignment("center");
+      data = sheet.getDataRange().getValues();
     }
 
-    // Mapear alumnos por matrícula y marcar asistencia
+    // 5. Verificar si hay nuevos alumnos en el mapa que falten en esta pestaña
     const matriculasEnSheet = data.map(row => row[0].toString());
+    if (asistenciaMap) {
+      for (const mat in asistenciaMap) {
+        if (matriculasEnSheet.indexOf(mat.toString()) === -1) {
+          sheet.appendRow([mat, mat]);
+        }
+      }
+      data = sheet.getDataRange().getValues();
+    }
+
+    // 6. Marcar asistencias (1 = Presente, / = Retardo, X = Falta)
     const columnValues = [];
-    for (let i = 1; i < matriculasEnSheet.length; i++) {
-      const matricula = matriculasEnSheet[i];
+    for (let i = 1; i < data.length; i++) {
+      const matricula = data[i][0].toString();
       const valor = asistenciaMap ? asistenciaMap[matricula] : undefined;
       
       let mark = "";
@@ -58,15 +96,15 @@ function registrarAsistenciaSheet(payload) {
       sheet.getRange(2, colIndex + 1, columnValues.length, 1).setValues(columnValues);
     }
 
-    return { success: true, message: "Asistencia registrada en columna: " + colHeader };
+    return { success: true, message: "Asistencia registrada en " + tabName + " (" + colHeader + ")" };
   } catch (error) {
     return { success: false, error: error.toString() };
   }
 }
 
 /**
- * ACCIÓN 2: Sellar la asistencia de una unidad en su propia pestaña.
- * Crea el sheet si no existe. Crea o sobreescribe la pestaña "UNIDAD X".
+ * ACCIÓN 2: Sellar la asistencia de una unidad completa en su propia pestaña.
+ * Vuelca todo el historial y calcula derecho a examen sin tocar LISTA_ALUMNOS.
  */
 function actualizarHistorialCompleto(payload) {
   const { googleSheetId, alumnos, unitNumber, unitTitle } = payload;
@@ -77,11 +115,10 @@ function actualizarHistorialCompleto(payload) {
     }
 
     const ss = SpreadsheetApp.openById(googleSheetId);
-    const tabName = unitNumber
-      ? ("UNIDAD " + unitNumber + (unitTitle ? " - " + unitTitle : ""))
-      : "LISTA_ASISTENCIA";
+    const uNum = unitNumber || 1;
+    const tabName = "UNIDAD " + uNum + (unitTitle ? " - " + unitTitle : "");
 
-    // Buscar la pestaña o crearla
+    // Buscar la pestaña de la unidad o crearla
     let sheet = ss.getSheetByName(tabName);
     if (!sheet) {
       sheet = ss.insertSheet(tabName);
@@ -91,7 +128,7 @@ function actualizarHistorialCompleto(payload) {
 
     // 1. Cabeceras
     const dates = alumnos[0].asistencias.map(function(a) {
-      return a.fecha + "\nS" + a.sesion;
+      return a.fecha + " (S" + a.sesion + ")";
     });
     const headers = ["Matrícula", "Nombre Completo"].concat(dates).concat(["% Total", "Examen"]);
     sheet.appendRow(headers);
@@ -122,7 +159,7 @@ function actualizarHistorialCompleto(payload) {
     const pctCol = headers.indexOf("% Total") + 1;
     const pctRange = sheet.getRange(2, pctCol, rows.length, 1);
     const rule = SpreadsheetApp.newConditionalFormatRule()
-      .whenTextContains("X")  // fallback visual
+      .whenTextContains("X")
       .setBackground("#fee2e2")
       .setFontColor("#ef4444")
       .setRanges([pctRange])
@@ -131,16 +168,7 @@ function actualizarHistorialCompleto(payload) {
     sheet.setFrozenColumns(2);
     sheet.autoResizeColumns(1, headers.length);
 
-    // 4. Mover la pestaña al final (orden cronológico)
-    ss.moveActiveSheet(ss.getNumSheets());
-
-    // 5. Eliminar la pestaña de trabajo LISTA_ASISTENCIA — ya no es necesaria
-    var listaTab = ss.getSheetByName("LISTA_ASISTENCIA");
-    if (listaTab && ss.getNumSheets() > 1) {
-      ss.deleteSheet(listaTab);
-    }
-
-    return { success: true, message: "Unidad " + (unitNumber || "") + " sellada en pestaña: " + tabName };
+    return { success: true, message: "Unidad " + uNum + " sellada exitosamente en pestaña: " + tabName };
   } catch (error) {
     return { success: false, error: error.toString() };
   }

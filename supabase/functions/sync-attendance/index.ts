@@ -7,7 +7,6 @@
  * Corrige: tabla 'perfiles'→'profiles'→'students', columna 'matricula_rfc'→'matricula',
  *          tabla 'materias'→'courses', ausencia de autenticación.
  */
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   buildCorsHeaders,
   errorResponse,
@@ -31,11 +30,12 @@ interface RequestPayload {
   records: AttendanceRecord[];    // [{studentId, status}]
   sessionDate: string;            // "YYYY-MM-DD"
   sessionNumber: 1 | 2 | 3;      // Restricción del esquema SQL
+  unitNumber?: number;
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders();
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -46,7 +46,7 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json() as RequestPayload;
-    const { courseId, records, sessionDate, sessionNumber } = body;
+    const { courseId, records, sessionDate, sessionNumber, unitNumber } = body;
 
     // ── 2. Validación de payload ──────────────────────────────────────────
     if (!courseId || !records || !sessionDate || !sessionNumber) {
@@ -100,7 +100,7 @@ serve(async (req: Request) => {
     if (insertError) throw insertError;
 
     // ── 5. Sincronizar con Google Sheets en background ────────────────────
-    syncWithSheet(serviceClient, courseId, sessionDate, sessionNumber, records).catch(
+    syncWithSheet(serviceClient, courseId, sessionDate, sessionNumber, unitNumber, records).catch(
       (e) => console.error("[SYNC_SHEET_SILENCIOSO]", e)
     );
 
@@ -125,6 +125,7 @@ async function syncWithSheet(
   courseId: string,
   sessionDate: string,
   sessionNumber: number,
+  unitNumber: number | undefined,
   records: AttendanceRecord[],
 ) {
   // Obtenemos el Sheet ID desde `courses` (nombre correcto de tabla)
@@ -167,6 +168,7 @@ async function syncWithSheet(
         asistenciaMap: matriculaMap,
         fecha: sessionDate,
         sessionNumber: sessionNumber,
+        unitNumber: unitNumber || 1,
       },
     }),
   });

@@ -75,3 +75,44 @@ function sincronizarAlumnoSheet(payload) {
     return { success: false, error: error.toString() };
   }
 }
+
+/**
+ * Sincroniza la lista completa de alumnos con sus múltiples equipos en LISTA_ALUMNOS.
+ */
+function sincronizarEquiposSheet(payload) {
+  const { googleSheetId, alumnos } = payload;
+  if (!googleSheetId || !alumnos) return { success: false, error: "Datos incompletos" };
+  
+  try {
+    const ss = SpreadsheetApp.openById(googleSheetId);
+    let sheet = ss.getSheetByName("LISTA_ALUMNOS");
+    if (!sheet) {
+      sheet = ss.insertSheet("LISTA_ALUMNOS", 0);
+    } else {
+      sheet.clear();
+    }
+    
+    sheet.appendRow(["Matrícula", "Apellido Paterno", "Apellido Materno", "Nombres", "Correo", "Equipos"]);
+    sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
+    
+    const rows = alumnos.map(function(a) {
+      return [
+        a.matricula,
+        a.apellido_paterno,
+        a.apellido_materno || "",
+        a.nombres,
+        a.correo || "",
+        a.equipos || "Sin equipo"
+      ];
+    });
+    
+    if (rows.length > 0) {
+      sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+    }
+    sheet.autoResizeColumns(1, 6);
+    
+    return { success: true, message: "Equipos de alumnos sincronizados en LISTA_ALUMNOS" };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}

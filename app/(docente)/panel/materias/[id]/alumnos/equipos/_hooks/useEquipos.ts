@@ -82,6 +82,14 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
     );
   };
 
+  const syncTeamsToSheet = async () => {
+    try {
+      await supabase.functions.invoke('sync-teams', { body: { courseId } });
+    } catch (err) {
+      console.warn("[SYNC_TEAMS_SILENT_ERROR]", err);
+    }
+  };
+
   // --- VÍA 1: crear equipo a partir de alumnos seleccionados ---
   const handleCreateTeamFromSelection = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +107,7 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
       setShowNameModal(false);
       setNewTeamName("");
       setSelectedStudentIds([]);
+      syncTeamsToSheet();
       onReload();
     } catch (e) {
       alert("Error al crear el equipo: " + (e instanceof Error ? e.message : String(e)));
@@ -137,6 +146,7 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
       }
 
       setShowEditModal(false);
+      syncTeamsToSheet();
       onReload();
     } catch (e) {
       alert("Error al guardar cambios: " + (e instanceof Error ? e.message : String(e)));
@@ -150,6 +160,7 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
     try {
       const { error } = await supabase.from("teams").delete().eq("id", teamId);
       if (error) throw error;
+      syncTeamsToSheet();
       onReload();
     } catch (e) {
       alert("Error al eliminar: " + (e instanceof Error ? e.message : String(e)));
@@ -160,6 +171,7 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
     try {
       const { error } = await supabase.from("team_members").delete().match({ team_id: teamId, student_id: studentId });
       if (error) throw error;
+      syncTeamsToSheet();
       onReload();
     } catch (e) {
       alert("Error al quitar integrante: " + (e instanceof Error ? e.message : String(e)));
@@ -187,6 +199,7 @@ export function useEquiposContent(resource: Promise<FetchResult>, onReload: () =
         setShowImportModal(false);
         setImportStatus('idle');
         setSelectedFile(null);
+        syncTeamsToSheet();
         onReload();
       }, 2000);
 

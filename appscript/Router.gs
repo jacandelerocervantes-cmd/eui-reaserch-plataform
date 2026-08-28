@@ -84,6 +84,10 @@ function doPost(e) {
         resultData = sincronizarAlumnoSheet(payload);
         break;
 
+      case 'sincronizarEquipos':
+        resultData = sincronizarEquiposSheet(payload);
+        break;
+
       case 'registrarAsistencia':
         resultData = registrarAsistenciaSheet(payload);
         break;

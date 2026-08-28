@@ -21,13 +21,12 @@
  * el mismo patrón (crearCarpetaActividad) y persiste el resultado en
  * `submissions` para que quede disponible después.
  */
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyUser } from "../_shared/auth.ts"
 import { validateFileBytesByExtension } from "../_shared/fileValidation.ts"
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 

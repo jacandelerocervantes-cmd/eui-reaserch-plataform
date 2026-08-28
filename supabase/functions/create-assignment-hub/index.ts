@@ -1,5 +1,4 @@
 // deno-lint-ignore-file no-import-prefix
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import {
   buildCorsHeaders, errorResponse,
   verifyCourseOwnership, verifyDocente,
@@ -36,7 +35,7 @@ async function runThrottled<T>(items: T[], fn: (item: T) => Promise<void>) {
   }
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 

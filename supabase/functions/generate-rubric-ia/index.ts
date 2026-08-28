@@ -1,10 +1,9 @@
 // deno-lint-ignore-file no-import-prefix
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
 import { guardOutputOrBlock } from "../_shared/guardrail.ts"
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 

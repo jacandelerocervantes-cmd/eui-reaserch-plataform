@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { X, RotateCcw, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import ActivityFormLeftColumn from "./_components/ActivityFormLeftColumn";
 import ActivityFormRightColumn from "./_components/ActivityFormRightColumn";
@@ -10,10 +9,15 @@ import RubricSection from "./_components/RubricSection";
 import TeamPickerModal from "./_components/TeamPickerModal";
 import { useNuevaActividad } from "./_hooks/useNuevaActividad";
 
-function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetry: () => void }) {
+export default function NuevaActividadPage() {
+  const { id: courseId } = useParams() as { id: string };
   const router = useRouter();
   const {
-    result,
+    loading,
+    error,
+    units,
+    teams,
+    pastSessions,
     isGenerating,
     isSaving,
     rubricSourceFile, setRubricSourceFile,
@@ -31,18 +35,30 @@ function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetr
     handleUpdateRubric,
     handleGenerateAI,
     handleSave,
+    onRetry,
   } = useNuevaActividad(courseId);
 
-  if (!result.ok) return (
-    <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ backgroundColor: "#fee2e2", border: "1px solid #fecaca", color: "#991b1b", padding: "12px 16px", borderRadius: "12px", fontWeight: "600", fontSize: "0.9rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {result.error}
-        <ExpandingButton icon={RotateCcw} label="Reintentar" onClick={onRetry} small smallSize={32} radius={8} gap={6} padding="0 12px" fontWeight={700} fontSize="0.8rem" durationMs={300} colors={{ bg: "transparent", hoverBg: "#991b1b", text: "#991b1b", hoverText: "white", border: "#991b1b" }} />
+  if (loading) {
+    return (
+      <div style={{ padding: "80px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", minHeight: "400px" }}>
+        <Loader2 className="animate-spin" size={40} color="#1B396A" />
+        <p style={{ color: "#64748b", fontWeight: "700", fontSize: "1rem" }}>Cargando datos de la materia...</p>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const { units, teams, pastSessions } = result;
+  if (error) {
+    return (
+      <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ backgroundColor: "#fee2e2", border: "1px solid #fecaca", color: "#991b1b", padding: "16px 20px", borderRadius: "14px", fontWeight: "600", fontSize: "0.95rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{error}</span>
+          <button type="button" onClick={onRetry} style={{ padding: "8px 16px", backgroundColor: "#991b1b", color: "white", borderRadius: "8px", border: "none", fontWeight: "700", cursor: "pointer" }}>
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "40px", width: "100%", flex: 1, maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -54,7 +70,7 @@ function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetr
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <ExpandingButton icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
+          <ExpandingButton expanded icon={X} label="Cancelar" onClick={() => router.back()} variant="cancel" disabled={isSaving} size={42} radius={10} gap={10} padding="0 16px" fontWeight={600} fontSize="0.9rem" durationMs={300} />
         </div>
       </div>
 
@@ -108,20 +124,5 @@ function NuevaActividadContent({ courseId, onRetry }: { courseId: string; onRetr
         />
       )}
     </div>
-  );
-}
-
-export default function NuevaActividadPage() {
-  const { id: courseId } = useParams() as { id: string };
-  const [reloadKey, setReloadKey] = useState(0);
-
-  return (
-    <Suspense fallback={
-      <div style={{ padding: "40px", display: "flex", justifyContent: "center" }}>
-        <Loader2 className="animate-spin" size={32} color="#1B396A" />
-      </div>
-    }>
-      <NuevaActividadContent key={reloadKey} courseId={courseId} onRetry={() => setReloadKey((k) => k + 1)} />
-    </Suspense>
   );
 }

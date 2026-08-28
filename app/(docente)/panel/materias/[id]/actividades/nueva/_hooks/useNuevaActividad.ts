@@ -1,4 +1,4 @@
-import { useMemo, useState, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -6,48 +6,16 @@ export type UnitOption = { id: string; unit_number: number; title: string };
 export type TeamOption = { id: string; name: string; memberCount: number };
 export type SessionOption = { id: string; created_at: string; session_number: number };
 
-export type FetchResult = { ok: true; units: UnitOption[]; teams: TeamOption[]; pastSessions: SessionOption[] } | { ok: false; error: string };
-
-// No usamos throw/reject: use() reserva el "throw" para Suspense/ErrorBoundary,
-// y esta pantalla ya tenía su propia UI de error con botón de reintento.
-async function fetchDependencias(courseId: string, _reloadKey: number): Promise<FetchResult> {
-  try {
-    const { data: unitsData } = await supabase
-      .from("course_units")
-      .select("id, unit_number, title")
-      .eq("course_id", courseId)
-      .order("unit_number", { ascending: true });
-
-    const { data: teamsData } = await supabase
-      .from("teams")
-      .select("id, name, team_members(student_id)")
-      .eq("course_id", courseId)
-      .order("name");
-    const teams = (teamsData ?? []).map((t: { id: string; name: string; team_members: unknown[] | null }) => ({ id: t.id, name: t.name, memberCount: t.team_members?.length ?? 0 }));
-
-    const { data: sesiones } = await supabase
-      .from('insitu_sessions')
-      .select('id, created_at, session_number')
-      .eq('course_id', courseId)
-      .order('created_at', { ascending: false });
-
-    return { ok: true, units: unitsData ?? [], teams, pastSessions: sesiones ?? [] };
-  } catch (error) {
-    console.error("Error cargando dependencias de la actividad:", error);
-    return { ok: false, error: "No se pudieron cargar las unidades/equipos de la materia. Intenta recargar la página." };
-  }
-}
-
 export function useNuevaActividad(courseId: string) {
   const router = useRouter();
-  const [reloadKey, setReloadKey] = useState(0);
-  const resource = useMemo(() => fetchDependencias(courseId, reloadKey), [courseId, reloadKey]);
-  const result = use(resource);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [units, setUnits] = useState<UnitOption[]>([]);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [pastSessions, setPastSessions] = useState<SessionOption[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  // Archivo de la actividad ya existente (con puntajes, etc.) que la IA lee
-  // como contexto extra al sugerir la rúbrica — opcional.
   const [rubricSourceFile, setRubricSourceFile] = useState<File | null>(null);
 
   // --- ESTADOS PARA SELECCIÓN DE EQUIPOS YA CREADOS (Alumnos > Equipos) ---
@@ -59,13 +27,11 @@ export function useNuevaActividad(courseId: string) {
   const [requireAttendance, setRequireAttendance] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState("");
 
-  const initialUnitId = result.ok && result.units.length > 0 ? result.units[0].id : "";
-
   // ESTADO LIMPIO PARA NUEVA ACTIVIDAD
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    unit_id: initialUnitId,
+    unit_id: "",
     criteria_id: "",
     format: "individual", // "individual" | "equipo"
     submission_type: "file", // "file" | "doc" | "sheet" | "slide"
@@ -79,13 +45,67 @@ export function useNuevaActividad(courseId: string) {
   const totalRubricWeight = rubrics.reduce((sum, r) => sum + Number(r.weight), 0);
   const isRubricValid = totalRubricWeight === 100;
 
+  const loadDependencias = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: unitsData, error: uErr } = await supabase
+        .from("course_units")
+        .select("id, unit_number, title")
+        .eq("course_id", courseId)
+        .order("unit_number", { ascending: true });
+      if (uErr) throw uErr;
+
+      const { data: teamsData, error: tErr } = await supabase
+        .from("teams")
+        .select("id, name, team_members(student_id)")
+        .eq("course_id", courseId)
+        .order("name");
+      if (tErr) throw tErr;
+
+      const mappedTeams = (teamsData ?? []).map((t: { id: string; name: string; team_members: unknown[] | null }) => ({
+        id: t.id,
+        name: t.name,
+        memberCount: t.team_members?.length ?? 0
+      }));
+
+      const { data: sesiones, error: sErr } = await supabase
+        .from('insitu_sessions')
+        .select('id, created_at, session_number')
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false });
+      if (sErr) throw sErr;
+
+      const loadedUnits = unitsData ?? [];
+      setUnits(loadedUnits);
+      setTeams(mappedTeams);
+      setPastSessions(sesiones ?? []);
+
+      if (loadedUnits.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          unit_id: prev.unit_id || loadedUnits[0].id
+        }));
+      }
+    } catch (err) {
+      console.error("Error cargando dependencias de la actividad:", err);
+      setError("No se pudieron cargar las unidades/equipos de la materia. Intenta recargar la página.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (courseId) {
+      loadDependencias();
+    }
+  }, [courseId]);
+
   const handleAddRubricRow = () => setRubrics([...rubrics, { id: Date.now(), name: "", description: "", weight: 0 }]);
   const handleRemoveRubricRow = (id: number) => { if (rubrics.length > 1) setRubrics(rubrics.filter(r => r.id !== id)); };
   const handleUpdateRubric = (id: number, field: string, value: string | number) => setRubrics(rubrics.map(r => r.id === id ? { ...r, [field]: value } : r));
 
-  // MAGIA CON IA — si hay un archivo adjunto (actividad existente del docente
-  // con puntajes, etc.) se manda como FormData para que la IA lo lea y lo use
-  // de contexto extra, en vez de inventar la rúbrica solo desde el texto.
+  // MAGIA CON IA
   const handleGenerateAI = async () => {
     if (!formData.title?.trim()) {
       alert("Por favor, escribe primero el Título de la actividad arriba para que la IA sepa qué criterios y competencias generar.");
@@ -161,7 +181,11 @@ export function useNuevaActividad(courseId: string) {
   };
 
   return {
-    result,
+    loading,
+    error,
+    units,
+    teams,
+    pastSessions,
     isGenerating,
     isSaving,
     rubricSourceFile, setRubricSourceFile,
@@ -179,6 +203,6 @@ export function useNuevaActividad(courseId: string) {
     handleUpdateRubric,
     handleGenerateAI,
     handleSave,
-    onRetry: () => setReloadKey((k) => k + 1),
+    onRetry: loadDependencias,
   };
 }

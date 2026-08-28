@@ -3,17 +3,20 @@
 import { use, useState, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { FileText, Plus, Search, Calendar, Users, ArrowRight, Pencil, ChevronDown, FileSpreadsheet, Presentation, MessageSquare, Cloud, HardDrive, ExternalLink, FolderOpen, RotateCcw } from "lucide-react";
+import { FileText, Plus, Search, Calendar, Users, ArrowRight, Pencil, ChevronDown, FileSpreadsheet, Presentation, MessageSquare, Cloud, HardDrive, ExternalLink, FolderOpen, RotateCcw, Gamepad2 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 
 // ── Chip de tipo de entrega ─────────────────────────────────────────────────
 const TYPE_MAP: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-  doc:    { icon: <FileText size={12} />,        label: 'Google Docs',   color: '#2563eb', bg: '#eff6ff' },
-  sheet:  { icon: <FileSpreadsheet size={12} />, label: 'Google Sheets', color: '#16a34a', bg: '#f0fdf4' },
-  slide:  { icon: <Presentation size={12} />,    label: 'Google Slides', color: '#ea580c', bg: '#fff7ed' },
-  hybrid: { icon: <Cloud size={12} />,           label: 'Híbrido',       color: '#7c3aed', bg: '#f5f3ff' },
-  forum:  { icon: <MessageSquare size={12} />,   label: 'Foro',          color: '#a21caf', bg: '#fdf4ff' },
-  file:   { icon: <HardDrive size={12} />,       label: 'Archivo',       color: '#1B396A', bg: '#f0f7ff' },
+  doc:               { icon: <FileText size={12} />,        label: 'Google Docs',   color: '#2563eb', bg: '#eff6ff' },
+  sheet:             { icon: <FileSpreadsheet size={12} />, label: 'Google Sheets', color: '#16a34a', bg: '#f0fdf4' },
+  slide:             { icon: <Presentation size={12} />,    label: 'Google Slides', color: '#ea580c', bg: '#fff7ed' },
+  workspace:         { icon: <FileText size={12} />,        label: 'Workspace',     color: '#2563eb', bg: '#eff6ff' },
+  hybrid:            { icon: <Cloud size={12} />,           label: 'Híbrido',       color: '#7c3aed', bg: '#f5f3ff' },
+  forum:             { icon: <MessageSquare size={12} />,   label: 'Foro',          color: '#a21caf', bg: '#fdf4ff' },
+  file:              { icon: <HardDrive size={12} />,       label: 'Archivo',       color: '#1B396A', bg: '#f0f7ff' },
+  puzzle_crossword:  { icon: <Gamepad2 size={12} />,        label: 'Crucigrama',    color: '#7c3aed', bg: '#f5f3ff' },
+  puzzle_wordsearch: { icon: <Gamepad2 size={12} />,        label: 'Sopa de Letras',color: '#059669', bg: '#ecfdf5' },
 };
 
 const TypeChip = ({ type }: { type: string }) => {
@@ -32,6 +35,7 @@ type ActividadListItem = {
   description: string | null;
   soft_deadline: string | null;
   submission_type: string | null;
+  rubric_data?: unknown;
   workspace_url: string | null;
   drive_folder_id: string | null;
   submissions: { count: number }[];
@@ -41,6 +45,12 @@ type ActividadListItem = {
 const ActivityHoverCard = ({ act, courseId }: { act: ActividadListItem, courseId: string }) => {
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
+
+  const effectiveType =
+    (act.rubric_data as Record<string, unknown>)?.puzzle_type as string ||
+    (act.rubric_data as Record<string, unknown>)?.workspace_type as string ||
+    act.submission_type ||
+    'file';
 
   return (
     <div
@@ -57,7 +67,7 @@ const ActivityHoverCard = ({ act, courseId }: { act: ActividadListItem, courseId
       <div style={{ padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <TypeChip type={act.submission_type ?? 'file'} />
+            <TypeChip type={effectiveType} />
             {act.workspace_url && (
               <a href={act.workspace_url} target="_blank" rel="noopener noreferrer"
                 style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.65rem', fontWeight: 700 }}

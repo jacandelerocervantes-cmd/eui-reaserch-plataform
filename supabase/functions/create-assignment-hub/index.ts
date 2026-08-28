@@ -98,17 +98,44 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const dbFormat = (format === 'equipo' || format === 'team') ? 'team' : 'individual'
+
+    // Mapeo seguro para respetar el check constraint de Postgres ('file', 'workspace', 'forum', 'hybrid')
+    let dbSubmissionType = submission_type ?? 'file'
+    if (['doc', 'sheet', 'slide'].includes(submission_type)) {
+      dbSubmissionType = 'workspace'
+    } else if (submission_type?.startsWith('puzzle_')) {
+      dbSubmissionType = 'file'
+    } else if (!['file', 'workspace', 'forum', 'hybrid'].includes(dbSubmissionType)) {
+      dbSubmissionType = 'file'
+    }
+
+    let finalRubricData = rubric_json ?? []
+    if (typeof rubric_json === 'object' && rubric_json !== null) {
+      if (submission_type?.startsWith('puzzle_')) {
+        finalRubricData = {
+          ...(typeof rubric_json === 'object' ? rubric_json : {}),
+          puzzle_type: submission_type,
+        }
+      } else if (['doc', 'sheet', 'slide'].includes(submission_type)) {
+        finalRubricData = {
+          ...(typeof rubric_json === 'object' ? rubric_json : {}),
+          workspace_type: submission_type,
+        }
+      }
+    }
+
     const insertPayload: Record<string, unknown> = {
       course_id,
       unit_id,
       title,
       description:          description ?? "",
-      format:               format ?? "individual",
-      submission_type:      submission_type ?? "file",
+      format:               dbFormat,
+      submission_type:      dbSubmissionType,
       soft_deadline,
       hard_deadline:        hard_deadline ?? null,
       late_penalty_percent: late_penalty_percent ?? 0,
-      rubric_data:          rubric_json ?? [],
+      rubric_data:          finalRubricData,
       workspace_url:        null,
       drive_folder_id:      null,
       requiere_sesion_id:   requiere_sesion_id ?? null,

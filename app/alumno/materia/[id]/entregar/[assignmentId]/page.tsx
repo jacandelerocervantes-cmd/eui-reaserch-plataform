@@ -226,12 +226,15 @@ function EntregarContent({
       <AssignmentHeader assignment={assignment} isOverdue={isOverdue} />
 
       {/* Sección de entrega: PUZZLE GAMIFICADO INTERACTIVO */}
-      {assignment?.submission_type?.startsWith('puzzle_') ? (
+      {(assignment?.submission_type?.startsWith('puzzle_') || Boolean((assignment?.rubric_data as Record<string, unknown>)?.puzzle_data) || Boolean((assignment?.rubric_data as Record<string, unknown>)?.puzzle_type)) ? (
         <PuzzlePlayZone
           assignmentId={assignmentId}
           studentId={studentId}
           courseId={courseId}
-          puzzleType={assignment.submission_type as "puzzle_crossword" | "puzzle_wordsearch"}
+          puzzleType={
+            ((assignment?.rubric_data as Record<string, unknown>)?.puzzle_type ||
+              (assignment.submission_type?.startsWith('puzzle_') ? assignment.submission_type : "puzzle_crossword")) as "puzzle_crossword" | "puzzle_wordsearch"
+          }
           puzzleData={
             (((assignment.rubric_data as Record<string, unknown>)?.puzzle_data ||
               assignment.rubric_data) as PuzzleData)

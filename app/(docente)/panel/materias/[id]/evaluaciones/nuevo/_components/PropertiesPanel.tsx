@@ -40,10 +40,10 @@ export default function PropertiesPanel({
   total: number;
 }) {
   return (
-    <div style={{ width: "380px", backgroundColor: "white", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "35px 35px 0 35px" }}>
-        <h3 style={{ color: "#1B396A", marginBottom: "30px", display: "flex", alignItems: "center", gap: "12px", fontWeight: "950", fontSize: "1.3rem" }}>
-          <Layers size={22} /> Propiedades
+    <div style={{ width: "clamp(300px, 26vw, 380px)", minWidth: "290px", backgroundColor: "white", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", height: "100%", flexShrink: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "clamp(20px, 2vw, 32px) clamp(20px, 2vw, 32px) 0" }}>
+        <h3 style={{ color: "#1B396A", marginBottom: "24px", display: "flex", alignItems: "center", gap: "10px", fontWeight: "900", fontSize: "1.2rem" }}>
+          <Layers size={20} /> Propiedades
         </h3>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>

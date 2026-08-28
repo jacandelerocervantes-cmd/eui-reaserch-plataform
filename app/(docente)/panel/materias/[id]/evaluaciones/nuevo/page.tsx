@@ -45,9 +45,9 @@ export default function ExamenWorkspace() {
   } = useNuevaEvaluacion(courseId);
 
   return (
-    <div style={{ display: "flex", height: "100vh", backgroundColor: "#F8FAFC", overflow: "hidden" }}>
+    <div style={{ display: "flex", width: "100%", minHeight: "100vh", height: "100dvh", backgroundColor: "#F8FAFC", overflow: "hidden" }}>
 
-      <div style={{ flex: 1, padding: "30px 40px", overflowY: "auto" }}>
+      <div style={{ flex: 1, padding: "clamp(16px, 2.5vw, 32px)", overflowY: "auto", minWidth: 0 }}>
 
         <ExamHeaderNav unitId={unitId} setUnitId={setUnitId} units={units} />
 
@@ -105,7 +105,13 @@ export default function ExamenWorkspace() {
         total={total}
       />
 
-      {isSimulating && <SimulacionModal questions={questions} onClose={() => setIsSimulating(false)} />}
+      {isSimulating && (
+        <SimulacionModal
+          questions={questions}
+          examTitle={examConfig.title || "Examen de Prueba"}
+          onClose={() => setIsSimulating(false)}
+        />
+      )}
 
       <style jsx>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

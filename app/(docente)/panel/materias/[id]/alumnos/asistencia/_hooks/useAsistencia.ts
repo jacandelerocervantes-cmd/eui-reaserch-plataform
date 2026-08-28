@@ -189,10 +189,16 @@ export function useAsistencia(courseId: string) {
     let channel: ReturnType<typeof supabase.channel> | undefined;
     if (isActive && sesionId) {
       channel = supabase.channel(`radar-${sesionId}`).on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'validated_attendances', filter: `session_id=eq.${sesionId}` },
-      (payload: { new: { student_id: string } }) => {
-        setAsistencia((prev: Record<string, number>) => (prev[payload.new.student_id] === 0.5) ? prev : { ...prev, [payload.new.student_id]: 1 });
-        setAutoMarcados((prev) => new Set(prev).add(payload.new.student_id));
+      { event: '*', schema: 'public', table: 'validated_attendances', filter: `session_id=eq.${sesionId}` },
+      (payload: { new: { student_id: string; status?: number } }) => {
+        if (payload.new && payload.new.student_id) {
+          const newStatus = typeof payload.new.status === 'number' ? payload.new.status : 1;
+          setAsistencia((prev: Record<string, number>) => ({
+            ...prev,
+            [payload.new.student_id]: newStatus,
+          }));
+          setAutoMarcados((prev) => new Set(prev).add(payload.new.student_id));
+        }
       }).subscribe();
     }
     return () => { if (channel) supabase.removeChannel(channel); };

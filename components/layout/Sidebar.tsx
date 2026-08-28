@@ -113,7 +113,7 @@ export default function MasterSidebar() {
       else if (subModule === "actividades") {
         backButton = { name: "Volver a la Clase", path: `/panel/materias/${materiaId}`, icon: <ArrowLeft size={20} /> };
         localTools = [
-          { name: "Tareas", icon: <NotebookPen size={20} />, path: `/panel/materias/${materiaId}/actividades` },
+          { name: "Actividades", icon: <NotebookPen size={20} />, path: `/panel/materias/${materiaId}/actividades` },
         ];
       }
       // NIVEL: Sección Evaluaciones

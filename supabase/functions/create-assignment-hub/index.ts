@@ -237,77 +237,75 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── 5. Responder YA al docente — la actividad está guardada y lista ───
-    const response = new Response(
-      JSON.stringify({ success: true, data: assignment }),
-      { headers: { ...cors, "Content-Type": "application/json" } }
-    )
-
-    // ── 6. Drive/correos en segundo plano, DESPUÉS de responder. Si algo
-    // truena por cuota, las filas quedan pendientes y el cron las retoma.
+    // ── 5. Drive: Crear Carpeta de la Actividad y Documento Informativo ────
     const APPS_SCRIPT_URL = Deno.env.get("APPS_SCRIPT_URL")
     const WEBHOOK_SECRET  = Deno.env.get("APPS_SCRIPT_SECRET")
+
+    const callAppsScript = async (action: string, scriptPayload: Record<string, unknown>, timeoutMs = 20_000) => {
+      if (!APPS_SCRIPT_URL) return { success: false, error: "APPS_SCRIPT_URL no configurado." }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secret: WEBHOOK_SECRET, action, payload: scriptPayload }),
+          signal: controller.signal,
+        })
+        const json = await res.json()
+        if (!json.success) return { success: false, error: json.error }
+        return json.data ?? {}
+      } catch (err) {
+        console.error(`[CREATE_ASSIGNMENT_HUB] Error en ${action}:`, err)
+        return { success: false, error: String(err) }
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+
+    const { data: course } = await serviceClient.from("courses").select("drive_folder_id").eq("id", course_id).single()
+    const { data: unit } = await serviceClient.from("course_units").select("unit_number, title").eq("id", unit_id).single()
+
+    let activityFolderId: string | null = null
+    if (course?.drive_folder_id) {
+      try {
+        const r = await callAppsScript("crearCarpetaActividad", {
+          courseFolderId: course.drive_folder_id,
+          unitNumber: unit?.unit_number ?? 1,
+          unitTitle: unit?.title ?? "",
+          activityTitle: title,
+        }, 20_000)
+
+        if (r.success) {
+          activityFolderId = r.activity_folder_id ?? r.drive_folder_id
+          await serviceClient.from("assignments").update({ drive_folder_id: activityFolderId }).eq("id", assignment.id)
+
+          try {
+            const docResult = await callAppsScript("crearDocInformativoActividad", {
+              folderId: activityFolderId,
+              title,
+              description: descriptionForDelivery,
+              rubric: rubric_json,
+            }, 20_000)
+            await serviceClient.from("assignments").update({ info_doc_synced: !!docResult.success }).eq("id", assignment.id)
+          } catch (docErr) {
+            console.error("[CREATE_ASSIGNMENT_HUB] Doc informativo lanzó excepción:", docErr)
+          }
+        }
+      } catch (e) {
+        console.error("[CREATE_ASSIGNMENT_HUB] Error creando carpeta actividad:", e)
+      }
+    }
+
+    // ── 6. Responder YA al docente — la actividad y su carpeta Drive están listas
+    const response = new Response(
+      JSON.stringify({ success: true, data: { ...assignment, drive_folder_id: activityFolderId } }),
+      { headers: { ...cors, "Content-Type": "application/json" } }
+    )
 
     const backgroundWork = (async () => {
       try {
         if (!APPS_SCRIPT_URL) return
-
-        const callAppsScript = async (action: string, scriptPayload: Record<string, unknown>, timeoutMs: number) => {
-          const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), timeoutMs)
-          try {
-            const res = await fetch(APPS_SCRIPT_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ secret: WEBHOOK_SECRET, action, payload: scriptPayload }),
-              signal: controller.signal,
-            })
-            const json = await res.json()
-            // Router.gs envuelve TODO éxito como {success:true, data:<resultado real>}.
-            // Sin este unwrap, r.success siempre era true (el de Router, no el de
-            // la acción) y r.drive_folder_id/r.fileUrl siempre venían undefined
-            // porque el valor real vive en json.data — la causa de que carpeta y
-            // archivo se crearan sueltos, sin enterarse uno del otro.
-            if (!json.success) return { success: false, error: json.error }
-            return json.data ?? {}
-          } finally {
-            clearTimeout(timeout)
-          }
-        }
-
-        const { data: course } = await serviceClient.from("courses").select("drive_folder_id").eq("id", course_id).single()
-        const { data: unit } = await serviceClient.from("course_units").select("unit_number, title").eq("id", unit_id).single()
-
-        // Carpeta contenedora de la actividad — una sola vez, antes de los
-        // ciclos por alumno/equipo. Aquí también se deja el doc informativo
-        // (título + instrucciones + rúbrica) para quien abra la carpeta directo.
-        let activityFolderId: string | null = null
-        if (course?.drive_folder_id) {
-          try {
-            const r = await callAppsScript("crearCarpetaActividad", {
-              courseFolderId: course.drive_folder_id, unitNumber: unit?.unit_number ?? 1,
-              unitTitle: unit?.title ?? "", activityTitle: title,
-            }, 20_000)
-            if (r.success) {
-              activityFolderId = r.activity_folder_id ?? r.drive_folder_id
-              await serviceClient.from("assignments").update({ drive_folder_id: activityFolderId }).eq("id", assignment.id)
-              let infoDocSynced = false
-              try {
-                const docResult = await callAppsScript("crearDocInformativoActividad", {
-                  folderId: activityFolderId, title, description: descriptionForDelivery, rubric: rubric_json,
-                }, 20_000)
-                infoDocSynced = !!docResult.success
-                if (!infoDocSynced) console.error("[CREATE_ASSIGNMENT_HUB] Doc informativo falló:", docResult.error)
-              } catch (docErr) {
-                console.error("[CREATE_ASSIGNMENT_HUB] Doc informativo lanzó excepción:", docErr)
-              }
-              // Si falló, info_doc_synced queda false — retry-pending-deliveries
-              // lo detecta y reintenta solo, sin que el docente tenga que editar
-              // la actividad para forzar la regeneración.
-              await serviceClient.from("assignments").update({ info_doc_synced: infoDocSynced }).eq("id", assignment.id)
-            }
-          } catch (_) { /* lo recoge el retry para la carpeta contenedora */ }
-        }
 
         if (isTeamFormat && teamsData) {
           await runThrottled(teamsData, async (team) => {

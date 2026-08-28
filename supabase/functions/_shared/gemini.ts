@@ -158,6 +158,12 @@ async function recordOutcome(isFailure: boolean): Promise<void> {
  * llama al SLM local en paralelo (el fallback pasa por el mismo permiso que
  * la llamada a Gemini que reemplaza).
  */
+const FALLBACK_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+]
+
 export async function fetchGeminiWithRetry(
   url: string,
   body: unknown,
@@ -167,7 +173,39 @@ export async function fetchGeminiWithRetry(
 ): Promise<Response> {
   const release = await acquireGeminiSlot()
   try {
-    return await fetchGeminiWithRetryInner(url, body, signal, maxRetries, retryableStatuses)
+    // Si la URL apunta a generativelanguage y contiene uno de los modelos conocidos,
+    // preparamos la lista de fallback de modelos en caso de rate-limit 429 persistente.
+    const isGoogleGemini = url.includes("generativelanguage.googleapis.com")
+    let modelsToTry: string[] = []
+
+    if (isGoogleGemini) {
+      const match = url.match(/models\/([^:]+):generateContent/)
+      const currentModel = match ? match[1] : ""
+      if (currentModel) {
+        modelsToTry = [currentModel, ...FALLBACK_MODELS.filter((m) => m !== currentModel)]
+      }
+    }
+
+    if (modelsToTry.length === 0) {
+      return await fetchGeminiWithRetryInner(url, body, signal, maxRetries, retryableStatuses)
+    }
+
+    let lastRes: Response | undefined
+    for (const model of modelsToTry) {
+      const modelUrl = url.replace(/models\/([^:]+):generateContent/, `models/${model}:generateContent`)
+      const res = await fetchGeminiWithRetryInner(modelUrl, body, signal, maxRetries, retryableStatuses)
+      if (res.ok) return res
+
+      lastRes = res
+      if (res.status === 429 || res.status === 503) {
+        console.warn(`[GEMINI_CLIENT] Modelo ${model} respondió ${res.status}. Probando fallback al siguiente modelo...`)
+        continue
+      }
+      // Si fue otro error (ej: 400 bad request), no tiene sentido probar otro modelo
+      return res
+    }
+
+    return lastRes ?? new Response(JSON.stringify({ error: "Todos los modelos de Gemini devolvieron 429/503." }), { status: 429 })
   } finally {
     await release()
   }
@@ -206,7 +244,8 @@ async function fetchGeminiWithRetryInner(
 
     const shouldRetry = networkErr !== undefined || (res !== undefined && retryable.has(res.status))
     if (!shouldRetry || attempt === maxRetries) break
-    await sleep(BASE_DELAY_MS * 2 ** attempt)
+    const jitter = Math.random() * 400
+    await sleep(BASE_DELAY_MS * (2 ** attempt) + jitter)
   }
 
   if (!res) {
@@ -216,10 +255,6 @@ async function fetchGeminiWithRetryInner(
   }
 
   await recordOutcome(retryable.has(res.status))
-  // Reintentos agotados y el último intento SIGUE en status reintentable
-  // (429/503 persistente) — antes esto se devolvía tal cual y el caller
-  // tenía que darse cuenta solo revisando res.ok. Con SLM local configurado,
-  // se degrada a esa respuesta en vez de una falla persistente silenciosa.
   if (retryable.has(res.status) && isLocalSlmConfigured()) {
     return await callLocalSlmAsGeminiShape(body as GeminiRequestBody, signal)
   }

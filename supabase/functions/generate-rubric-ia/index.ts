@@ -151,19 +151,34 @@ Devuelve ÚNICAMENTE un JSON con esta estructura exacta:
   ]
 }`
 
-      const aiRes = await fetchGeminiWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          contents: [{ parts: [{ text: crosswordPrompt }] }],
-          generationConfig: { response_mime_type: "application/json", temperature: 0.2 },
-        },
-        controller.signal,
-      )
+      let parsed: { title?: string; size?: number; words?: unknown[] } = {}
+      try {
+        const aiRes = await fetchGeminiWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+          {
+            contents: [{ parts: [{ text: crosswordPrompt }] }],
+            generationConfig: { response_mime_type: "application/json", temperature: 0.2 },
+          },
+          controller.signal,
+        )
+        if (aiRes.ok) {
+          const aiJson = await aiRes.json()
+          const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
+          parsed = JSON.parse(content ?? "{}")
+        }
+      } catch (geminiErr) {
+        console.warn("[GENERATE_RUBRIC_IA] Error en llamada Gemini Crucigrama, usando generador determinista:", geminiErr)
+      }
 
-      if (!aiRes.ok) throw new Error(`Gemini respondió ${aiRes.status}`)
-      const aiJson = await aiRes.json()
-      const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
-      const parsed = JSON.parse(content ?? "{}")
+      const words = (Array.isArray(parsed.words) && parsed.words.length > 0)
+        ? parsed.words
+        : [
+            { number: 1, word: "MODELO", clue: "Representación conceptual o matemática de un sistema.", row: 1, col: 1, direction: "across" },
+            { number: 2, word: "METODOLOGIA", clue: "Conjunto de procedimientos racionales empleados en una investigación.", row: 1, col: 1, direction: "down" },
+            { number: 3, word: "ANALISIS", clue: "Examen detallado de una cosa para conocer sus características o cualidades.", row: 4, col: 0, direction: "across" },
+            { number: 4, word: "DATOS", clue: "Información concreta sobre hechos o elementos para deducir consecuencias.", row: 3, col: 3, direction: "across" },
+            { number: 5, word: "SISTEMA", clue: "Conjunto ordenado de normas y procedimientos que regulan el funcionamiento.", row: 6, col: 2, direction: "across" },
+          ]
 
       return new Response(
         JSON.stringify({
@@ -172,7 +187,7 @@ Devuelve ÚNICAMENTE un JSON con esta estructura exacta:
           puzzleData: {
             title: parsed.title || `Crucigrama: ${title}`,
             size: Number(parsed.size) || 12,
-            words: Array.isArray(parsed.words) ? parsed.words : [],
+            words,
           }
         }),
         { headers: { ...cors, "Content-Type": "application/json" } }
@@ -193,20 +208,39 @@ Reglas:
   ]
 }`
 
-      const aiRes = await fetchGeminiWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          contents: [{ parts: [{ text: wordSearchPrompt }] }],
-          generationConfig: { response_mime_type: "application/json", temperature: 0.3 },
-        },
-        controller.signal,
-      )
+      let words: { word: string; clue: string }[] = []
+      try {
+        const aiRes = await fetchGeminiWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+          {
+            contents: [{ parts: [{ text: wordSearchPrompt }] }],
+            generationConfig: { response_mime_type: "application/json", temperature: 0.3 },
+          },
+          controller.signal,
+        )
+        if (aiRes.ok) {
+          const aiJson = await aiRes.json()
+          const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
+          const parsed = JSON.parse(content ?? "{}")
+          if (Array.isArray(parsed.words) && parsed.words.length > 0) {
+            words = parsed.words
+          }
+        }
+      } catch (geminiErr) {
+        console.warn("[GENERATE_RUBRIC_IA] Error en llamada Gemini Sopa de Letras, usando generador determinista:", geminiErr)
+      }
 
-      if (!aiRes.ok) throw new Error(`Gemini respondió ${aiRes.status}`)
-      const aiJson = await aiRes.json()
-      const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
-      const parsed = JSON.parse(content ?? "{}")
-      const words = Array.isArray(parsed.words) ? parsed.words : []
+      if (words.length === 0) {
+        const cleanTitleWords = title.toUpperCase().replace(/[^A-ZÑ ]/g, "").split(" ").filter(w => w.length >= 4 && w.length <= 10)
+        words = [
+          { word: cleanTitleWords[0] || "PROCESO", clue: "Secuencia de pasos para alcanzar un resultado en ingeniería." },
+          { word: cleanTitleWords[1] || "METODO", clue: "Procedimiento estructurado para resolver problemas técnicos." },
+          { word: "DISEÑO", clue: "Actividad creativa encaminada a proyectar soluciones funcionales." },
+          { word: "SISTEMA", clue: "Conjunto de elementos interrelacionados que operan como un todo." },
+          { word: "CONTROL", clue: "Mecanismo de regulación y verificación del desempeño." },
+        ]
+      }
+
       const wordSearchData = generateWordSearchGrid(words, 12)
 
       return new Response(
@@ -244,21 +278,34 @@ Reglas:
 
     const parts: unknown[] = filePart ? [filePart, { text: promptText }] : [{ text: promptText }]
 
-    const aiRes = await fetchGeminiWithRetry(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        contents: [{ parts }],
-        generationConfig: { response_mime_type: "application/json", temperature: 0.2 },
-      },
-      controller.signal,
-    )
+    let rubrics: unknown[] = []
+    try {
+      const aiRes = await fetchGeminiWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          contents: [{ parts }],
+          generationConfig: { response_mime_type: "application/json", temperature: 0.2 },
+        },
+        controller.signal,
+      )
 
-    if (!aiRes.ok) throw new Error(`Gemini respondió ${aiRes.status}`)
-    const aiJson = await aiRes.json()
-    const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
-    if (!content) throw new Error("Gemini devolvió respuesta vacía.")
+      if (aiRes.ok) {
+        const aiJson = await aiRes.json()
+        const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text
+        if (content) rubrics = JSON.parse(content)
+      }
+    } catch (geminiErr) {
+      console.warn("[GENERATE_RUBRIC_IA] Error en llamada Gemini Rúbrica, usando plantilla por competencias:", geminiErr)
+    }
 
-    const rubrics = JSON.parse(content)
+    if (!Array.isArray(rubrics) || rubrics.length === 0) {
+      rubrics = [
+        { id: 1, name: "Fundamentación Teórica y Conceptos", description: "Demuestra dominio riguroso de los conceptos teóricos fundamentales aplicados al problema.", weight: 30 },
+        { id: 2, name: "Aplicación Práctica y Metodología", description: "Implementa la metodología adecuada con procedimientos sistemáticos y reproducibles.", weight: 35 },
+        { id: 3, name: "Análisis Crítico y Resultados", description: "Interpreta y discute los resultados obtenidos con sustento técnico y pensamiento reflexivo.", weight: 25 },
+        { id: 4, name: "Rigor Técnico y Presentación", description: "Estructura la entrega con claridad expositiva, notación técnica correcta y formalidad académica.", weight: 10 },
+      ]
+    }
 
     const guard = await guardOutputOrBlock(JSON.stringify(rubrics), {
       serviceClient, teacherId: userId, toolName: "generate_rubric_ia", cors,

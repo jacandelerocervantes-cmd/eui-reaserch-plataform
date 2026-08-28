@@ -46,32 +46,20 @@ const SUPABASE_ORIGIN = (() => {
 const SUPABASE_WS_ORIGIN = SUPABASE_ORIGIN.replace(/^http/, 'ws')
 
 function buildCsp(nonce: string): string {
-  // 'strict-dynamic' + nonce es el patrón que recomienda Next.js para App
-  // Router: los scripts propios de Next (hidratación/RSC) se inyectan
-  // inline y Next les aplica el nonce automáticamente al detectar esta
-  // cabecera. 'strict-dynamic' además cubre el <script> que
-  // @react-google-maps/api inserta dinámicamente en runtime (heredá la
-  // confianza del código que lo inserta, que sí corre con nonce válido).
-  // Turbopack/React en modo desarrollo necesitan eval() para HMR y stack
-  // traces — nunca ocurre en producción ("React will never use eval() in
-  // production mode"), así que solo se permite fuera de NODE_ENV=production.
-  const devEval = process.env.NODE_ENV === 'production' ? '' : ` 'unsafe-eval'`
   return [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval}`,
-    // style-src necesita 'unsafe-inline': la UI usa style={{...}} inline en
-    // casi todas las páginas — pasar eso a nonce/hash sería una reescritura
-    // completa de la capa visual, fuera de alcance de este hardening.
-    `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' blob: data: https://maps.gstatic.com https://maps.googleapis.com https://*.googleusercontent.com`,
-    `font-src 'self' data:`,
-    `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://maps.googleapis.com`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://*.googleapis.com https://*.gstatic.com https://accounts.google.com https://apis.google.com https://*.supabase.co`,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `img-src 'self' blob: data: https://maps.gstatic.com https://maps.googleapis.com https://*.googleusercontent.com https://*.supabase.co`,
+    `font-src 'self' data: https://fonts.gstatic.com`,
+    `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://generativelanguage.googleapis.com https://accounts.google.com https://*.google.com`,
+    `frame-src 'self' https://accounts.google.com https://*.google.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
-    `form-action 'self'`,
+    `form-action 'self' https://accounts.google.com`,
     `frame-ancestors 'none'`,
     `upgrade-insecure-requests`,
-  ].join('; ')
+  ].filter(Boolean).join('; ')
 }
 
 function withSecurityHeaders(res: NextResponse, csp: string): NextResponse {

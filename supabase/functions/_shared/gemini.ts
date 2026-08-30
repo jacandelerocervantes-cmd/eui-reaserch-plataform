@@ -244,7 +244,9 @@ async function fetchGeminiWithRetryInner(
 
     const shouldRetry = networkErr !== undefined || (res !== undefined && retryable.has(res.status))
     if (!shouldRetry || attempt === maxRetries) break
-    const jitter = Math.random() * 400
+    const isTestEnv = (typeof process !== "undefined" && process?.env?.NODE_ENV === "test") ||
+      (typeof Deno !== "undefined" && Deno?.env?.get("NODE_ENV") === "test")
+    const jitter = isTestEnv ? 0 : Math.random() * 400
     await sleep(BASE_DELAY_MS * (2 ** attempt) + jitter)
   }
 

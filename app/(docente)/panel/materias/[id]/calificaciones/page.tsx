@@ -70,6 +70,9 @@ export default function ConfiguracionCalificaciones() {
           students={c.students}
           allGrades={c.allGrades}
           grades={c.grades}
+          setGrades={c.setGrades}
+          isSaving={c.isSaving}
+          handleSaveGrades={c.handleSaveGrades}
           setCurrentView={c.setCurrentView}
           handleExportToSheets={c.handleExportToSheets}
         />

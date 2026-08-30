@@ -202,26 +202,49 @@ function UnitWeightingModal({
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid #dbeafe", paddingTop: "8px" }}>
                   <div style={{ fontSize: "0.72rem", color: "#1e40af", display: "flex", justifyContent: "space-between", fontWeight: "700" }}>
                     <span>Desglose por tarea:</span>
-                    <span>Suma: {sumAsgnPts} / {activWeight} {mode === 'percent' ? '%' : 'pts'}</span>
+                    <span>
+                      {mode === 'points'
+                        ? `Suma: ${sumAsgnPts} / ${activWeight} pts`
+                        : `Suma: ${activWeight > 0 ? ((sumAsgnPts / activWeight) * 100).toFixed(0) : 0}% / 100%`}
+                    </span>
                   </div>
                   {unitAssignments.map(asg => {
-                    const currentVal = asgnWeights[asg.id] ?? defaultAsgnW;
-                    const relP = activWeight > 0 ? ((currentVal / activWeight) * 100).toFixed(0) : "0";
+                    const currentPts = asgnWeights[asg.id] ?? defaultAsgnW;
+                    const relPercent = activWeight > 0 ? Number(((currentPts / activWeight) * 100).toFixed(1)) : 0;
+
                     return (
                       <div key={asg.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "white", padding: "6px 10px", borderRadius: "6px", border: "1px solid #dbeafe" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "60%" }}>
                           <span style={{ fontSize: "0.78rem", color: "#1e293b", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{asg.title}</span>
-                          <span style={{ fontSize: "0.7rem", color: "#64748b" }}>({relP}% del pilar)</span>
+                          <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "600" }}>
+                            {mode === 'points'
+                              ? `(${relPercent.toFixed(0)}% del pilar)`
+                              : `(${currentPts.toFixed(1)} pts)`}
+                          </span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                          <input
-                            type="number" min="0" max="100"
-                            disabled={unit.is_closed}
-                            value={currentVal}
-                            onChange={(e) => setAsgnWeights({ ...asgnWeights, [asg.id]: Number(e.target.value) })}
-                            style={{ width: "45px", padding: "4px", borderRadius: "4px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.78rem" }}
-                          />
-                          <span style={{ fontSize: "0.72rem", color: "#64748b" }}>{mode === 'percent' ? '%' : 'pts'}</span>
+                          {mode === 'points' ? (
+                            <input
+                              type="number" min="0" max={activWeight}
+                              disabled={unit.is_closed}
+                              value={currentPts}
+                              onChange={(e) => setAsgnWeights({ ...asgnWeights, [asg.id]: Number(e.target.value) })}
+                              style={{ width: "45px", padding: "4px", borderRadius: "4px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.78rem" }}
+                            />
+                          ) : (
+                            <input
+                              type="number" min="0" max="100"
+                              disabled={unit.is_closed}
+                              value={relPercent}
+                              onChange={(e) => {
+                                const newPct = Number(e.target.value);
+                                const newPts = Math.round((newPct / 100) * activWeight);
+                                setAsgnWeights({ ...asgnWeights, [asg.id]: newPts });
+                              }}
+                              style={{ width: "45px", padding: "4px", borderRadius: "4px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.78rem" }}
+                            />
+                          )}
+                          <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: "700" }}>{mode === 'percent' ? '%' : 'pts'}</span>
                         </div>
                       </div>
                     );

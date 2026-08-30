@@ -161,8 +161,15 @@ export default function CaptureView({
                     <th key={asg.id} style={{ padding: "12px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "1px solid #dbeafe", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{asg.title}</div>
                       <div style={{ color: "#3b82f6", fontSize: "0.75rem", fontWeight: "700" }}>
-                        {asgW} {viewMode === 'percent' ? '%' : 'pts'}
-                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({relP}% de act.)</span>
+                        {viewMode === 'points' ? (
+                          <>
+                            {asgW} pts <span style={{ fontWeight: "600", color: "#64748b" }}>({relP}% de act.)</span>
+                          </>
+                        ) : (
+                          <>
+                            {relP}% <span style={{ fontWeight: "600", color: "#64748b" }}>({asgW} pts)</span>
+                          </>
+                        )}
                       </div>
                     </th>
                   );

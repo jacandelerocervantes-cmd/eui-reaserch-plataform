@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Lock, Unlock, Wand2, Save } from "lucide-react";
+import { Lock, Unlock, Wand2, Save } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
 import type { CSSProperties } from "react";
 
 export default function CaptureView({
-  selectedUnit, activities, assignments = [], exams = [], assignmentWeights = {}, examWeights = {},
+  selectedUnit, activities, assignments = [], exams = [],
+  assignmentWeights = {}, examWeights = {},
   students, grades, setGrades, isSaving,
-  setCurrentView, handleMagicAttendance, handleSaveGrades, handleToggleCloseUnit, inputStyle,
+  handleMagicAttendance, handleSaveGrades, handleToggleCloseUnit, inputStyle,
 }: {
   selectedUnit: Unit;
   activities: Activity[];
@@ -21,18 +22,19 @@ export default function CaptureView({
   grades: GradesMap;
   setGrades: (g: GradesMap) => void;
   isSaving: boolean;
-  setCurrentView: (v: 'units' | 'capture' | 'final' | 'sabana') => void;
   handleMagicAttendance: () => void;
-  handleSaveGrades: () => void;
+  handleSaveGrades: () => Promise<void>;
   handleToggleCloseUnit: (unit?: Unit) => void;
   inputStyle: (locked: boolean) => CSSProperties;
 }) {
-  const [viewMode, setViewMode] = useState<'percent' | 'points'>('percent');
+  const [viewMode, setViewMode] = useState<'percent' | 'points'>('points');
+
+  // Filtrar actividades y tareas de la unidad seleccionada
   const unitActs = activities.filter(a => a.unit_id === selectedUnit.id);
   const unitAssignments = assignments.filter(a => a.unit_id === selectedUnit.id);
   const unitExams = exams.filter(e => e.unit_id === selectedUnit.id);
 
-  // Pilares Macro
+  // Pilares Macro de la BD
   const assistAct = unitActs.find(a => a.name.toLowerCase().includes("asist"));
   const activAct = unitActs.find(a =>
     a.name.toLowerCase().includes("activ") ||
@@ -48,60 +50,40 @@ export default function CaptureView({
   );
 
   const assistWeight = assistAct?.weight_percentage ?? 10;
-  const activWeight = activAct?.weight_percentage ?? 50;
-  const evalWeight = evalAct?.weight_percentage ?? 40;
+  const activWeight = activAct?.weight_percentage ?? 40;
+  const evalWeight = evalAct?.weight_percentage ?? 50;
 
-  // Pesos micro por defecto
-  const defaultAsgnWeight = unitAssignments.length > 0 ? (activWeight / unitAssignments.length) : activWeight;
-  const defaultExamWeight = unitExams.length > 0 ? (evalWeight / unitExams.length) : evalWeight;
+  const defaultAsgnW = unitAssignments.length > 0 ? (activWeight / unitAssignments.length) : activWeight;
+  const defaultExamW = unitExams.length > 0 ? (evalWeight / unitExams.length) : evalWeight;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Header */}
+      {/* Header y Acciones */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <button onClick={() => setCurrentView('units')} style={{ background: "none", border: "none", color: "#64748b", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", padding: 0, marginBottom: "8px" }} onMouseOver={(e) => e.currentTarget.style.color = "#1B396A"} onMouseOut={(e) => e.currentTarget.style.color = "#64748b"}>
-            <ArrowLeft size={16} /> Volver a Configuración de Unidades
-          </button>
-          <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "800", margin: "0 0 8px 0", display: "flex", alignItems: "center", gap: "10px" }}>
-            {selectedUnit.is_closed && <Lock size={22} color="#f59e0b" />} Captura de Calificaciones: {selectedUnit.name}
-          </h1>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.8rem", color: "#1e40af", backgroundColor: "#eff6ff", padding: "4px 8px", borderRadius: "6px", fontWeight: "700" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "6px" }}>
+            <span style={{ fontSize: "0.8rem", color: "#1e40af", backgroundColor: "#eff6ff", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
               Asistencia: {assistWeight}%
             </span>
-            <span style={{ fontSize: "0.8rem", color: "#166534", backgroundColor: "#f0fdf4", padding: "4px 8px", borderRadius: "6px", fontWeight: "700" }}>
+            <span style={{ fontSize: "0.8rem", color: "#166534", backgroundColor: "#f0fdf4", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
               Actividades: {activWeight}% ({unitAssignments.length} tareas)
             </span>
-            <span style={{ fontSize: "0.8rem", color: "#92400e", backgroundColor: "#fffbeb", padding: "4px 8px", borderRadius: "6px", fontWeight: "700" }}>
+            <span style={{ fontSize: "0.8rem", color: "#92400e", backgroundColor: "#fffbeb", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
               Evaluaciones: {evalWeight}% ({unitExams.length} exámenes)
             </span>
           </div>
+          <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
+            Las calificaciones se ponderan en automático con base en la rúbrica configurada en el módulo de Unidades.
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           {/* Switch de modo de vista */}
-          <div style={{ display: "flex", alignItems: "center", gap: "2px", backgroundColor: "#e2e8f0", padding: "3px", borderRadius: "8px" }}>
-            <button
-              onClick={() => setViewMode('percent')}
-              style={{
-                padding: "5px 10px",
-                fontSize: "0.75rem",
-                fontWeight: "700",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                backgroundColor: viewMode === 'percent' ? "#ffffff" : "transparent",
-                color: viewMode === 'percent' ? "#1B396A" : "#64748b",
-                boxShadow: viewMode === 'percent' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
-              }}
-            >
-              Ver %
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "2px", backgroundColor: "#e2e8f0", padding: "2px", borderRadius: "8px" }}>
             <button
               onClick={() => setViewMode('points')}
               style={{
-                padding: "5px 10px",
+                padding: "4px 10px",
                 fontSize: "0.75rem",
                 fontWeight: "700",
                 border: "none",
@@ -112,7 +94,23 @@ export default function CaptureView({
                 boxShadow: viewMode === 'points' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
               }}
             >
-              Ver Puntos
+              Puntos (pts)
+            </button>
+            <button
+              onClick={() => setViewMode('percent')}
+              style={{
+                padding: "4px 10px",
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                backgroundColor: viewMode === 'percent' ? "#ffffff" : "transparent",
+                color: viewMode === 'percent' ? "#1B396A" : "#64748b",
+                boxShadow: viewMode === 'percent' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+              }}
+            >
+              Porcentaje (%)
             </button>
           </div>
 
@@ -139,7 +137,7 @@ export default function CaptureView({
         </div>
       )}
 
-      {/* Matriz Completa de Captura */}
+      {/* MATRIZ DE CALIFICACIONES DE LA UNIDAD */}
       <div style={{ backgroundColor: "white", borderRadius: "14px", border: "1px solid #e2e8f0", overflowX: "auto", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "850px" }}>
           <thead>
@@ -147,22 +145,24 @@ export default function CaptureView({
               <th style={{ padding: "14px 16px", color: "#1B396A", fontSize: "0.85rem", textAlign: "left", position: "sticky", left: 0, backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", zIndex: 10 }}>
                 Alumno / Matrícula
               </th>
+
+              {/* Asistencia */}
               <th style={{ padding: "12px 14px", textAlign: "center", color: "#1B396A", backgroundColor: "#f1f5f9", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700" }}>
                 <div>Asistencia</div>
                 <div style={{ color: "#64748b", fontSize: "0.75rem" }}>{assistWeight} {viewMode === 'percent' ? '%' : 'pts'}</div>
               </th>
 
-              {/* Encabezado Grupo Actividades */}
+              {/* Actividades */}
               {unitAssignments.length > 0 ? (
                 unitAssignments.map(asg => {
-                  const asgW = assignmentWeights[asg.id] ?? defaultAsgnWeight;
-                  const percentOfPillar = activWeight > 0 ? ((asgW / activWeight) * 100).toFixed(0) : "0";
+                  const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
+                  const relP = activWeight > 0 ? ((asgW / activWeight) * 100).toFixed(0) : "0";
                   return (
                     <th key={asg.id} style={{ padding: "12px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "1px solid #dbeafe", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{asg.title}</div>
                       <div style={{ color: "#3b82f6", fontSize: "0.75rem", fontWeight: "700" }}>
-                        {asgW.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}
-                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({percentOfPillar}% de act.)</span>
+                        {asgW} {viewMode === 'percent' ? '%' : 'pts'}
+                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({relP}% de act.)</span>
                       </div>
                     </th>
                   );
@@ -174,14 +174,18 @@ export default function CaptureView({
                 </th>
               )}
 
-              {/* Encabezado Grupo Evaluaciones */}
+              {/* Evaluaciones */}
               {unitExams.length > 0 ? (
                 unitExams.map(ex => {
-                  const exW = examWeights[ex.id] ?? defaultExamWeight;
+                  const exW = examWeights[ex.id] ?? defaultExamW;
+                  const relP = evalWeight > 0 ? ((exW / evalWeight) * 100).toFixed(0) : "0";
                   return (
                     <th key={ex.id} style={{ padding: "12px 12px", textAlign: "center", color: "#92400e", backgroundColor: "#fffbeb", borderRight: "1px solid #fef3c7", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{ex.title}</div>
-                      <div style={{ color: "#d97706", fontSize: "0.75rem", fontWeight: "700" }}>{exW.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}</div>
+                      <div style={{ color: "#d97706", fontSize: "0.75rem", fontWeight: "700" }}>
+                        {exW} {viewMode === 'percent' ? '%' : 'pts'}
+                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({relP}% de eval.)</span>
+                      </div>
                     </th>
                   );
                 })
@@ -193,7 +197,7 @@ export default function CaptureView({
               )}
 
               <th style={{ padding: "14px 16px", color: "#1B396A", fontSize: "0.85rem", textAlign: "center", backgroundColor: "#f8fafc", fontWeight: "800" }}>
-                Total ({viewMode === 'percent' ? '100%' : '100 pts'})
+                Total (100 {viewMode === 'percent' ? '%' : 'pts'})
               </th>
             </tr>
           </thead>
@@ -214,7 +218,7 @@ export default function CaptureView({
                 if (unitAssignments.length > 0) {
                   unitAssignments.forEach(asg => {
                     const score = Number(grades[`${s.id}_asgn_${asg.id}`] || 0);
-                    const asgW = assignmentWeights[asg.id] ?? defaultAsgnWeight;
+                    const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
                     activPoints += (score * (asgW / 100));
                   });
                 } else if (activAct) {
@@ -227,7 +231,7 @@ export default function CaptureView({
                 if (unitExams.length > 0) {
                   unitExams.forEach(ex => {
                     const score = Number(grades[`${s.id}_exam_${ex.id}`] || 0);
-                    const exW = examWeights[ex.id] ?? defaultExamWeight;
+                    const exW = examWeights[ex.id] ?? defaultExamW;
                     evalPoints += (score * (exW / 100));
                   });
                 } else if (evalAct) {
@@ -255,7 +259,7 @@ export default function CaptureView({
                         style={inputStyle(selectedUnit.is_closed)}
                       />
                       <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "2px", fontWeight: "600" }}>
-                        {assistPoints.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}
+                        +{assistPoints.toFixed(1)} pts
                       </div>
                     </td>
 
@@ -264,7 +268,7 @@ export default function CaptureView({
                       unitAssignments.map(asg => {
                         const key = `${s.id}_asgn_${asg.id}`;
                         const score = Number(grades[key] || 0);
-                        const asgW = assignmentWeights[asg.id] ?? defaultAsgnWeight;
+                        const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
                         const pts = (score * (asgW / 100));
                         return (
                           <td key={asg.id} style={{ padding: "8px 10px", textAlign: "center", borderRight: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
@@ -276,7 +280,7 @@ export default function CaptureView({
                               style={inputStyle(selectedUnit.is_closed)}
                             />
                             <div style={{ fontSize: "0.7rem", color: "#2563eb", marginTop: "2px", fontWeight: "600" }}>
-                              {pts.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}
+                              +{pts.toFixed(1)} pts
                             </div>
                           </td>
                         );
@@ -298,7 +302,7 @@ export default function CaptureView({
                       unitExams.map(ex => {
                         const key = `${s.id}_exam_${ex.id}`;
                         const score = Number(grades[key] || 0);
-                        const exW = examWeights[ex.id] ?? defaultExamWeight;
+                        const exW = examWeights[ex.id] ?? defaultExamW;
                         const pts = (score * (exW / 100));
                         return (
                           <td key={ex.id} style={{ padding: "8px 10px", textAlign: "center", borderRight: "1px solid #e2e8f0", backgroundColor: "#fffdfa" }}>
@@ -310,7 +314,7 @@ export default function CaptureView({
                               style={inputStyle(selectedUnit.is_closed)}
                             />
                             <div style={{ fontSize: "0.7rem", color: "#b45309", marginTop: "2px", fontWeight: "600" }}>
-                              {pts.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}
+                              +{pts.toFixed(1)} pts
                             </div>
                           </td>
                         );

@@ -1,22 +1,42 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { RotateCcw, FileSpreadsheet, GraduationCap, Users, BookOpen } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
-import UnitsView from "./_components/UnitsView";
 import CaptureView from "./_components/CaptureView";
 import FinalGradesView from "./_components/FinalGradesView";
-import SabanaView from "./_components/SabanaView";
-import NewUnitModal from "./_components/NewUnitModal";
-import NewActivityModal from "./_components/NewActivityModal";
 import { useCalificaciones } from "./_hooks/useCalificaciones";
 
-export default function ConfiguracionCalificaciones() {
+export default function CalificacionesPage() {
   const params = useParams();
+  const router = useRouter();
   const courseId = params?.id as string;
   const c = useCalificaciones(courseId);
 
-  if (c.error && c.currentView === 'units') {
+  const [activeTab, setActiveTab] = useState<'units' | 'final'>('units');
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+
+  // Seleccionar la primera unidad por defecto si no hay seleccionada
+  useEffect(() => {
+    if (c.units.length > 0 && !selectedUnitId) {
+      const active = c.units.find(u => !u.is_closed) || c.units[0];
+      setSelectedUnitId(active.id);
+      c.handleOpenCapture(active);
+    }
+  }, [c.units, selectedUnitId]);
+
+  const currentUnit = c.units.find(u => u.id === selectedUnitId) || c.units[0];
+
+  const handleSelectUnit = (unitId: string) => {
+    setSelectedUnitId(unitId);
+    const u = c.units.find(unit => unit.id === unitId);
+    if (u) {
+      c.handleOpenCapture(u);
+    }
+  };
+
+  if (c.error) {
     return (
       <div style={{ padding: "40px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", color: "#ef4444", minHeight: "60vh" }}>
         <p style={{ fontWeight: "700" }}>{c.error}</p>
@@ -26,48 +46,141 @@ export default function ConfiguracionCalificaciones() {
   }
 
   return (
-    <div style={{ padding: "40px", width: "100%", flex: 1, maxWidth: c.currentView === 'sabana' ? "100%" : "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "30px", position: "relative" }}>
+    <div style={{ padding: "30px 40px", width: "100%", flex: 1, maxWidth: "1300px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px", position: "relative" }}>
+      {/* Encabezado y Selector de Vista Principal */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px", borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
+        <div>
+          <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 4px 0" }}>
+            Calificaciones y Seguimiento
+          </h1>
+          <p style={{ color: "#64748b", margin: 0, fontSize: "0.9rem", fontWeight: "500" }}>
+            Captura operativa de notas por unidad y acta final con recuperaciones.
+          </p>
+        </div>
 
-      {c.currentView === 'units' && (
-        <UnitsView
-          units={c.units}
-          activities={c.activities}
-          assignments={c.assignments}
-          exams={c.exams}
-          loading={c.loading}
-          collapsedUnits={c.collapsedUnits}
-          setCollapsedUnits={c.setCollapsedUnits}
-          openNewUnitModal={c.openNewUnitModal}
-          handleOpenSabana={c.handleOpenSabana}
-          handleOpenFinalGrades={c.handleOpenFinalGrades}
-          handleUpdateUnitPillars={c.handleUpdateUnitPillars}
-          handleUpdateAssignmentWeight={c.handleUpdateAssignmentWeight}
-          handleOpenCapture={c.handleOpenCapture}
-          assignmentWeights={c.assignmentWeights}
-        />
+        {/* Tabs Principales */}
+        <div style={{ display: "flex", gap: "6px", backgroundColor: "#e2e8f0", padding: "4px", borderRadius: "10px" }}>
+          <button
+            onClick={() => setActiveTab('units')}
+            style={{
+              padding: "8px 16px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              backgroundColor: activeTab === 'units' ? "#ffffff" : "transparent",
+              color: activeTab === 'units' ? "#1B396A" : "#64748b",
+              boxShadow: activeTab === 'units' ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              transition: "all 0.2s"
+            }}
+          >
+            <Users size={16} /> Calificaciones por Unidad
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('final');
+              c.handleOpenFinalGrades();
+            }}
+            style={{
+              padding: "8px 16px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              backgroundColor: activeTab === 'final' ? "#ffffff" : "transparent",
+              color: activeTab === 'final' ? "#1B396A" : "#64748b",
+              boxShadow: activeTab === 'final' ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              transition: "all 0.2s"
+            }}
+          >
+            <GraduationCap size={16} /> Track Final y Recuperaciones
+          </button>
+        </div>
+      </div>
+
+      {/* CONTENIDO 1: CALIFICACIONES POR UNIDAD */}
+      {activeTab === 'units' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {c.units.length === 0 ? (
+            <div style={{ backgroundColor: "white", padding: "60px 20px", borderRadius: "16px", border: "1px dashed #cbd5e1", textAlign: "center" }}>
+              <BookOpen size={48} color="#cbd5e1" style={{ marginBottom: "16px" }} />
+              <h3 style={{ color: "#1B396A", margin: "0 0 8px 0", fontSize: "1.2rem" }}>No hay unidades creadas</h3>
+              <p style={{ color: "#64748b", margin: "0 0 20px 0", fontSize: "0.95rem" }}>
+                Las unidades y sus ponderaciones se configuran en el módulo de Unidades.
+              </p>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <ExpandingButton
+                  icon={BookOpen}
+                  label="Ir al Módulo de Unidades"
+                  onClick={() => router.push(`/panel/materias/${courseId}/unidades`)}
+                  variant="primary"
+                  size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover"
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Pills / Selector de Unidades */}
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#475569" }}>Unidad:</span>
+                {c.units.map(u => {
+                  const isSelected = u.id === selectedUnitId;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => handleSelectUnit(u.id)}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: "8px",
+                        fontSize: "0.85rem",
+                        fontWeight: "700",
+                        border: isSelected ? "2px solid #1B396A" : "1px solid #cbd5e1",
+                        backgroundColor: isSelected ? "#1B396A" : "white",
+                        color: isSelected ? "white" : "#475569",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      U{u.unit_number}: {u.name} {u.is_closed && "🔒"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Matriz de Captura Operativa */}
+              {currentUnit && (
+                <CaptureView
+                  selectedUnit={currentUnit}
+                  activities={c.activities}
+                  assignments={c.assignments}
+                  exams={c.exams}
+                  assignmentWeights={c.assignmentWeights}
+                  examWeights={c.examWeights}
+                  students={c.students}
+                  grades={c.grades}
+                  setGrades={c.setGrades}
+                  isSaving={c.isSaving}
+                  handleMagicAttendance={c.handleMagicAttendance}
+                  handleSaveGrades={c.handleSaveGrades}
+                  handleToggleCloseUnit={c.handleToggleCloseUnit}
+                  inputStyle={c.inputStyle}
+                />
+              )}
+            </>
+          )}
+        </div>
       )}
 
-      {c.currentView === 'capture' && c.selectedUnit && (
-        <CaptureView
-          selectedUnit={c.selectedUnit}
-          activities={c.activities}
-          assignments={c.assignments}
-          exams={c.exams}
-          assignmentWeights={c.assignmentWeights}
-          examWeights={c.examWeights}
-          students={c.students}
-          grades={c.grades}
-          setGrades={c.setGrades}
-          isSaving={c.isSaving}
-          setCurrentView={c.setCurrentView}
-          handleMagicAttendance={c.handleMagicAttendance}
-          handleSaveGrades={c.handleSaveGrades}
-          handleToggleCloseUnit={c.handleToggleCloseUnit}
-          inputStyle={c.inputStyle}
-        />
-      )}
-
-      {c.currentView === 'final' && (
+      {/* CONTENIDO 2: TRACK FINAL Y RECUPERACIONES */}
+      {activeTab === 'final' && (
         <FinalGradesView
           loading={c.loading}
           units={c.units}
@@ -78,51 +191,8 @@ export default function ConfiguracionCalificaciones() {
           setGrades={c.setGrades}
           isSaving={c.isSaving}
           handleSaveGrades={c.handleSaveGrades}
-          setCurrentView={c.setCurrentView}
+          setCurrentView={() => setActiveTab('units')}
           handleExportToSheets={c.handleExportToSheets}
-        />
-      )}
-
-      {c.currentView === 'sabana' && (
-        <SabanaView
-          loading={c.loading}
-          units={c.units}
-          activities={c.activities}
-          students={c.students}
-          grades={c.grades}
-          setGrades={c.setGrades}
-          lockedUnits={c.lockedUnits}
-          toggleLockSabana={c.toggleLockSabana}
-          isSaving={c.isSaving}
-          setCurrentView={c.setCurrentView}
-          handleSaveGrades={c.handleSaveGrades}
-          handleExportToSheets={c.handleExportToSheets}
-          inputStyle={c.inputStyle}
-        />
-      )}
-
-      {c.showUnitModal && c.currentView === 'units' && (
-        <NewUnitModal
-          newUnitName={c.newUnitName}
-          setNewUnitName={c.setNewUnitName}
-          unitCriteria={c.unitCriteria}
-          isWeightValid={c.isWeightValid}
-          totalWeight={c.totalWeight}
-          handleUpdateUnitCriterion={c.handleUpdateUnitCriterion}
-          handleRemoveUnitCriterion={c.handleRemoveUnitCriterion}
-          handleAddUnitCriterion={c.handleAddUnitCriterion}
-          handleAddUnit={c.handleAddUnit}
-          setShowUnitModal={c.setShowUnitModal}
-        />
-      )}
-
-      {c.showActivityModal && c.currentView === 'units' && (
-        <NewActivityModal
-          newActivity={c.newActivity}
-          setNewActivity={c.setNewActivity}
-          handleAddActivity={c.handleAddActivity}
-          setShowActivityModal={c.setShowActivityModal}
-          isEditing={Boolean(c.editingActivityId)}
         />
       )}
     </div>

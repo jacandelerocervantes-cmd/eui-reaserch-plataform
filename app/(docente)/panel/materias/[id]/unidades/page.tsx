@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useParams } from "next/navigation";
 import {
-  Plus, Trash2, X, Lock, Loader2, BookOpen, Save,
+  Plus, Trash2, X, Loader2, BookOpen, Save,
   CheckCircle2, AlertTriangle, Sliders, Calendar
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";

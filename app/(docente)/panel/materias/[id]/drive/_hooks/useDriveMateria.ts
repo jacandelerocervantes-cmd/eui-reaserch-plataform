@@ -92,6 +92,17 @@ export function useDriveMateriaContent(resource: Promise<FetchResult>, courseId:
     }
   };
 
+  const handleDelete = async (fileId: string) => {
+    if (!confirm("¿Deseas eliminar este material de la bóveda?")) return;
+    try {
+      const { error } = await supabase.from('materiales_boveda').delete().eq('id', fileId);
+      if (error) throw error;
+      setArchivos(prev => prev.filter(f => f.id !== fileId));
+    } catch {
+      alert("Error al eliminar el material.");
+    }
+  };
+
   const selectedUnit = units.find(u => u.id === selectedUnitId);
   const unitFiles = selectedUnitId ? archivos.filter(a => a.unit_id === selectedUnitId) : [];
 
@@ -105,5 +116,6 @@ export function useDriveMateriaContent(resource: Promise<FetchResult>, courseId:
     unitFiles,
     toggleVisibility,
     handleFileSelected,
+    handleDelete,
   };
 }

@@ -275,25 +275,6 @@ export function useCalificaciones(courseId: string) {
     }
   };
 
-  const handleResetUnitCriteria = async (unitId: string) => {
-    if (!confirm("¿Deseas restablecer los criterios de esta unidad a la ponderación estándar (Asistencia 10% + Actividades 50% + Evaluaciones 40% = 100%)?")) return;
-    try {
-      await supabase.from("activities").delete().eq("unit_id", unitId);
-      const standard = [
-        { unit_id: unitId, name: "Asistencia", weight_percentage: 10 },
-        { unit_id: unitId, name: "Actividades", weight_percentage: 50 },
-        { unit_id: unitId, name: "Evaluaciones", weight_percentage: 40 },
-      ];
-      const { error } = await supabase.from("activities").insert(standard);
-      if (error) throw error;
-      await fetchData();
-      alert("✅ Criterios restablecidos al estándar institucional (10% + 50% + 40% = 100%).");
-    } catch (err) {
-      console.error("Error al restablecer criterios:", err);
-      alert("Error al restablecer criterios de la unidad.");
-    }
-  };
-
   const handleOpenFinalGrades = async () => {
     setCurrentView('final');
     setLoading(true);
@@ -432,7 +413,6 @@ export function useCalificaciones(courseId: string) {
     handleAddActivity,
     handleDeleteActivity,
     handleOpenCapture,
-    handleResetUnitCriteria,
     handleSaveGrades,
     handleMagicAttendance,
     handleToggleCloseUnit,

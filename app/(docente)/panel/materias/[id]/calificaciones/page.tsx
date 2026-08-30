@@ -43,7 +43,6 @@ export default function ConfiguracionCalificaciones() {
           setShowActivityModal={c.setShowActivityModal}
           handleOpenCapture={c.handleOpenCapture}
           handleDeleteActivity={c.handleDeleteActivity}
-          handleResetUnitCriteria={c.handleResetUnitCriteria}
         />
       )}
 

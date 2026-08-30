@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Unit, Activity, Student, GradeRow, GradesMap, AttendanceRow } from "../_components/types";
+import type { Unit, Activity, Student, Assignment, Exam, GradeRow, GradesMap, AttendanceRow } from "../_components/types";
 
 export function useCalificaciones(courseId: string) {
   // ESTADOS GLOBALES
@@ -9,6 +9,8 @@ export function useCalificaciones(courseId: string) {
   const [error, setError] = useState<string | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
 
   // NUEVO ESTADO: Controlar qué tarjetas están colapsadas (por defecto todas abiertas: false)
@@ -17,6 +19,7 @@ export function useCalificaciones(courseId: string) {
   // Estados para Modales
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [newUnitName, setNewUnitName] = useState("");
   const [activeUnitId, setActiveUnitId] = useState("");
   const [newActivity, setNewActivity] = useState({ name: "", weight: "" });
@@ -46,10 +49,23 @@ export function useCalificaciones(courseId: string) {
     setError(null);
     try {
       const { data: unitsData } = await supabase.from("course_units").select("*").eq("course_id", courseId).order("unit_number", { ascending: true });
-      if (unitsData) setUnits(unitsData);
+      if (unitsData) {
+        setUnits((unitsData as { id: string; name?: string; title?: string; unit_number: number; is_closed: boolean }[]).map(u => ({
+          id: u.id,
+          name: u.name || u.title || `Unidad ${u.unit_number}`,
+          unit_number: u.unit_number,
+          is_closed: u.is_closed,
+        })));
+      }
 
       const { data: actsData } = await supabase.from("activities").select("*, course_units!inner(course_id)").eq("course_units.course_id", courseId);
       if (actsData) setActivities(actsData);
+
+      const { data: asgData } = await supabase.from("assignments").select("id, unit_id, title, submission_type").eq("course_id", courseId);
+      if (asgData) setAssignments(asgData);
+
+      const { data: exData } = await supabase.from("exams").select("id, unit_id, title").eq("course_id", courseId);
+      if (exData) setExams(exData);
 
       const { data: stData } = await supabase.from("students").select("*").eq("course_id", courseId).order("apellido_paterno", { ascending: true });
       if (stData) setStudents(stData);
@@ -100,16 +116,43 @@ export function useCalificaciones(courseId: string) {
     } catch { alert("Error creando unidad"); }
   };
 
+  const openAddActivityModal = (unitId: string) => {
+    setActiveUnitId(unitId);
+    setEditingActivityId(null);
+    setNewActivity({ name: "", weight: "" });
+    setShowActivityModal(true);
+  };
+
+  const openEditActivityModal = (act: Activity) => {
+    setActiveUnitId(act.unit_id);
+    setEditingActivityId(act.id);
+    setNewActivity({ name: act.name, weight: String(act.weight_percentage) });
+    setShowActivityModal(true);
+  };
+
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newActivity.name.trim() || !newActivity.weight) return;
     try {
-      const { error } = await supabase.from("activities").insert([{ unit_id: activeUnitId, name: newActivity.name.trim(), weight_percentage: parseInt(newActivity.weight) }]);
-      if (error) throw error;
+      if (editingActivityId) {
+        const { error } = await supabase.from("activities").update({
+          name: newActivity.name.trim(),
+          weight_percentage: parseInt(newActivity.weight)
+        }).eq("id", editingActivityId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("activities").insert([{
+          unit_id: activeUnitId,
+          name: newActivity.name.trim(),
+          weight_percentage: parseInt(newActivity.weight)
+        }]);
+        if (error) throw error;
+      }
       setNewActivity({ name: "", weight: "" });
+      setEditingActivityId(null);
       setShowActivityModal(false);
       fetchData();
-    } catch { alert("Error agregando criterio"); }
+    } catch { alert("Error guardando criterio"); }
   };
 
   const handleDeleteActivity = async (id: string) => {
@@ -124,27 +167,30 @@ export function useCalificaciones(courseId: string) {
     }
   };
 
-  // --- PRECARGA AUTOMÁTICA DE LOS 3 CRITERIOS ESTÁNDAR ---
-  // Asistencia/Actividades/Evaluación ya se sugieren como criterios al crear
-  // la unidad; esto rellena su VALOR real desde los datos de la materia (no
-  // solo el nombre) para que el docente no tenga que volver a teclear lo que
-  // ya existe en otras secciones — solo define el peso (%) de cada uno.
-  // Nunca pisa una nota que el docente ya guardó a mano para ese alumno.
+  // --- PRECARGA AUTOMÁTICA DE CRITERIOS (Asistencias, Actividades, Evaluaciones) ---
   const autoFillStandardCriteria = async (unit: Unit, unitActs: Activity[], gradesMap: GradesMap) => {
     const attendanceCrit = unitActs.find(a => a.name.toLowerCase().includes("asist"));
-    const activitiesCrit = unitActs.find(a =>
+    let activitiesCrit = unitActs.find(a =>
       a.name.toLowerCase().includes("activ") ||
       a.name.toLowerCase().includes("tarea") ||
       a.name.toLowerCase().includes("práct") ||
       a.name.toLowerCase().includes("pract") ||
-      a.name.toLowerCase().includes("trabaj")
+      a.name.toLowerCase().includes("trabaj") ||
+      a.name.toLowerCase().includes("ensayo") ||
+      a.name.toLowerCase().includes("rubric")
     );
     const examCrit = unitActs.find(a =>
       a.name.toLowerCase().includes("eval") ||
       a.name.toLowerCase().includes("examen") ||
       a.name.toLowerCase().includes("cuest") ||
-      a.name.toLowerCase().includes("test")
+      a.name.toLowerCase().includes("test") ||
+      a.name.toLowerCase().includes("parcial")
     );
+
+    // Fallback: si solo hay 1 criterio en la unidad y no se detectó por nombre, enlazarlo a actividades
+    if (!activitiesCrit && unitActs.length === 1 && !attendanceCrit && !examCrit) {
+      activitiesCrit = unitActs[0];
+    }
 
     if (attendanceCrit) {
       const { data: att } = await supabase.from("validated_attendances").select("student_id, status").eq("course_id", courseId);
@@ -165,7 +211,7 @@ export function useCalificaciones(courseId: string) {
         const { data: subs } = await supabase.from("submissions").select("student_id, final_score, ai_score, status").in("assignment_id", assignmentIds);
         const byStudent: Record<string, number[]> = {};
         (subs ?? []).forEach((s: { student_id: string; final_score: number | null; ai_score: number | null; status: string }) => {
-          const score = s.final_score ?? (s.status === 'ai_draft' ? s.ai_score : null);
+          const score = s.final_score ?? (s.status === 'ai_draft' || s.status === 'draft' ? s.ai_score : null);
           if (score != null) (byStudent[s.student_id] ??= []).push(Number(score));
         });
         Object.entries(byStudent).forEach(([studentId, scores]) => {
@@ -208,6 +254,33 @@ export function useCalificaciones(courseId: string) {
 
     const gradesMap: GradesMap = {};
     (gr as GradeRow[] | null)?.forEach((g) => { gradesMap[`${g.student_id}_${g.activity_id}`] = g.score; });
+
+    // Cargar notas individuales de actividades / tareas de la unidad
+    const { data: assignmentsData } = await supabase.from("assignments").select("id, title").eq("unit_id", unit.id);
+    const assignmentIds = (assignmentsData ?? []).map((a: { id: string }) => a.id);
+    if (assignmentIds.length > 0) {
+      const { data: subs } = await supabase.from("submissions").select("student_id, assignment_id, final_score, ai_score, status").in("assignment_id", assignmentIds);
+      (subs ?? []).forEach((s: { student_id: string; assignment_id: string; final_score: number | null; ai_score: number | null; status: string }) => {
+        const score = s.final_score ?? (s.status === 'ai_draft' || s.status === 'draft' ? s.ai_score : null);
+        if (score != null) {
+          gradesMap[`${s.student_id}_asgn_${s.assignment_id}`] = score;
+        }
+      });
+    }
+
+    // Cargar notas individuales de exámenes de la unidad
+    const { data: examsData } = await supabase.from("exams").select("id, title").eq("unit_id", unit.id);
+    const examIds = (examsData ?? []).map((e: { id: string }) => e.id);
+    if (examIds.length > 0) {
+      const { data: responses } = await supabase.from("evaluation_responses").select("student_id, exam_id, final_score, score_ia").in("exam_id", examIds);
+      (responses ?? []).forEach((r: { student_id: string; exam_id: string; final_score: number | null; score_ia: number | null }) => {
+        const score = r.final_score ?? r.score_ia;
+        if (score != null) {
+          gradesMap[`${r.student_id}_exam_${r.exam_id}`] = score;
+        }
+      });
+    }
+
     await autoFillStandardCriteria(unit, unitActs, gradesMap);
     setGrades(gradesMap);
   };
@@ -215,16 +288,42 @@ export function useCalificaciones(courseId: string) {
   const handleSaveGrades = async () => {
     setIsSaving(true);
     try {
-      const updates = Object.entries(grades).map(([key, score]) => {
-        const [student_id, activity_id] = key.split("_");
-        return { student_id, activity_id, score: Number(score) };
+      const updatesGrades: { student_id: string; activity_id: string; score: number }[] = [];
+      const updatesSubs: { student_id: string; assignment_id: string; final_score: number }[] = [];
+      const updatesExams: { student_id: string; exam_id: string; final_score: number }[] = [];
+
+      Object.entries(grades).forEach(([key, score]) => {
+        if (score === "" || score === null || score === undefined) return;
+        if (key.includes("_asgn_")) {
+          const parts = key.split("_asgn_");
+          if (parts.length === 2) updatesSubs.push({ student_id: parts[0], assignment_id: parts[1], final_score: Number(score) });
+        } else if (key.includes("_exam_")) {
+          const parts = key.split("_exam_");
+          if (parts.length === 2) updatesExams.push({ student_id: parts[0], exam_id: parts[1], final_score: Number(score) });
+        } else if (!key.includes("_rec_") && !key.includes("_final_")) {
+          const [student_id, activity_id] = key.split("_");
+          if (student_id && activity_id) updatesGrades.push({ student_id, activity_id, score: Number(score) });
+        }
       });
-      if (updates.length > 0) {
-        const { error } = await supabase.from("grades").upsert(updates, { onConflict: "student_id, activity_id" });
+
+      if (updatesGrades.length > 0) {
+        const { error } = await supabase.from("grades").upsert(updatesGrades, { onConflict: "student_id, activity_id" });
         if (error) throw error;
       }
+      for (const sub of updatesSubs) {
+        await supabase.from("submissions").update({ final_score: sub.final_score, status: "graded" }).match({ student_id: sub.student_id, assignment_id: sub.assignment_id });
+      }
+      for (const ex of updatesExams) {
+        await supabase.from("evaluation_responses").update({ final_score: ex.final_score }).match({ student_id: ex.student_id, exam_id: ex.exam_id });
+      }
+
       alert("Calificaciones guardadas exitosamente.");
-    } catch { alert("Error al guardar las calificaciones."); } finally { setIsSaving(false); }
+    } catch (err) {
+      console.error("Error al guardar calificaciones:", err);
+      alert("Error al guardar las calificaciones.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleMagicAttendance = async () => {
@@ -395,10 +494,11 @@ export function useCalificaciones(courseId: string) {
   return {
     currentView, setCurrentView,
     loading, error,
-    units, activities, students,
+    units, activities, assignments, exams, students,
     collapsedUnits, setCollapsedUnits,
     showUnitModal, setShowUnitModal,
     showActivityModal, setShowActivityModal,
+    editingActivityId,
     newUnitName, setNewUnitName,
     activeUnitId, setActiveUnitId,
     newActivity, setNewActivity,
@@ -409,6 +509,8 @@ export function useCalificaciones(courseId: string) {
     fetchData,
     getUnitTotalWeight,
     openNewUnitModal,
+    openAddActivityModal,
+    openEditActivityModal,
     handleAddUnit,
     handleAddActivity,
     handleDeleteActivity,

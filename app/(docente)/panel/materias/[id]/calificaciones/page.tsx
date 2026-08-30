@@ -32,6 +32,8 @@ export default function ConfiguracionCalificaciones() {
         <UnitsView
           units={c.units}
           activities={c.activities}
+          assignments={c.assignments}
+          exams={c.exams}
           loading={c.loading}
           collapsedUnits={c.collapsedUnits}
           setCollapsedUnits={c.setCollapsedUnits}
@@ -39,8 +41,8 @@ export default function ConfiguracionCalificaciones() {
           openNewUnitModal={c.openNewUnitModal}
           handleOpenSabana={c.handleOpenSabana}
           handleOpenFinalGrades={c.handleOpenFinalGrades}
-          setActiveUnitId={c.setActiveUnitId}
-          setShowActivityModal={c.setShowActivityModal}
+          openAddActivityModal={c.openAddActivityModal}
+          openEditActivityModal={c.openEditActivityModal}
           handleOpenCapture={c.handleOpenCapture}
           handleDeleteActivity={c.handleDeleteActivity}
         />
@@ -50,6 +52,8 @@ export default function ConfiguracionCalificaciones() {
         <CaptureView
           selectedUnit={c.selectedUnit}
           activities={c.activities}
+          assignments={c.assignments}
+          exams={c.exams}
           students={c.students}
           grades={c.grades}
           setGrades={c.setGrades}
@@ -117,6 +121,7 @@ export default function ConfiguracionCalificaciones() {
           setNewActivity={c.setNewActivity}
           handleAddActivity={c.handleAddActivity}
           setShowActivityModal={c.setShowActivityModal}
+          isEditing={Boolean(c.editingActivityId)}
         />
       )}
     </div>

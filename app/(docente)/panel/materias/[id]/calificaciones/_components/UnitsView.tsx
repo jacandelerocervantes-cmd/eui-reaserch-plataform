@@ -3,18 +3,20 @@
 import {
   BookOpen, PlusCircle, Target, Edit3, AlertTriangle,
   CheckCircle2, Trash2, Lock, FileSpreadsheet,
-  GraduationCap, ChevronDown, ChevronUp
+  GraduationCap, ChevronDown, ChevronUp, Pencil, FileText, Award
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
-import type { Unit, Activity } from "./types";
+import type { Unit, Activity, Assignment, Exam } from "./types";
 
 export default function UnitsView({
-  units, activities, loading, collapsedUnits, setCollapsedUnits,
+  units, activities, assignments = [], exams = [], loading, collapsedUnits, setCollapsedUnits,
   getUnitTotalWeight, openNewUnitModal, handleOpenSabana, handleOpenFinalGrades,
-  setActiveUnitId, setShowActivityModal, handleOpenCapture, handleDeleteActivity,
+  openAddActivityModal, openEditActivityModal, handleOpenCapture, handleDeleteActivity,
 }: {
   units: Unit[];
   activities: Activity[];
+  assignments?: Assignment[];
+  exams?: Exam[];
   loading: boolean;
   collapsedUnits: { [key: string]: boolean };
   setCollapsedUnits: (fn: (prev: { [key: string]: boolean }) => { [key: string]: boolean }) => void;
@@ -22,14 +24,14 @@ export default function UnitsView({
   openNewUnitModal: () => void;
   handleOpenSabana: () => void;
   handleOpenFinalGrades: () => void;
-  setActiveUnitId: (id: string) => void;
-  setShowActivityModal: (v: boolean) => void;
+  openAddActivityModal: (unitId: string) => void;
+  openEditActivityModal: (act: Activity) => void;
   handleOpenCapture: (unit: Unit) => void;
   handleDeleteActivity: (id: string) => void;
 }) {
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 8px 0" }}>Configuración de Evaluación</h1>
           <p style={{ color: "#64748b", margin: 0, fontWeight: "500", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -37,7 +39,7 @@ export default function UnitsView({
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <ExpandingButton icon={PlusCircle} label="Nueva Unidad" onClick={openNewUnitModal} variant="secondary" size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
           <ExpandingButton icon={FileSpreadsheet} label="Sábana de Calificaciones" onClick={handleOpenSabana} variant="success" disabled={units.length === 0} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
           <ExpandingButton icon={GraduationCap} label="Ver Promedios Finales" onClick={handleOpenFinalGrades} variant="primary" disabled={units.length === 0} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
@@ -54,9 +56,11 @@ export default function UnitsView({
           <div style={{ display: "flex", justifyContent: "center" }}><ExpandingButton icon={PlusCircle} label="Crear Primera Unidad" onClick={openNewUnitModal} variant="primary" size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" /></div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: "24px", alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "24px", alignItems: "start" }}>
           {units.map((unit) => {
             const unitActs = activities.filter(a => a.unit_id === unit.id);
+            const unitAssignments = assignments.filter(a => a.unit_id === unit.id);
+            const unitExams = exams.filter(e => e.unit_id === unit.id);
             const totalWeight = getUnitTotalWeight(unit.id);
             const isPerfect = totalWeight === 100;
             const isOver = totalWeight > 100;
@@ -109,7 +113,7 @@ export default function UnitsView({
                       <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}>
                         {unit.is_closed && <Lock size={12} />} Unidad {unit.unit_number} {unit.is_closed && "(Cerrada)"}
                       </span>
-                      <h3 style={{ margin: "4px 0 0 0", color: "#1B396A", fontSize: "1.2rem" }}>{unit.name}</h3>
+                      <h3 style={{ margin: "4px 0 0 0", color: "#1B396A", fontSize: "1.2rem", fontWeight: "800" }}>{unit.name}</h3>
                     </div>
                   </div>
 
@@ -129,31 +133,75 @@ export default function UnitsView({
                         display: "flex",
                         flexDirection: "column",
                         gap: "10px",
-                        maxHeight: "260px",
+                        maxHeight: "320px",
                         overflowY: "auto"
                       }}
                     >
-                      {unitActs.length === 0 ? <p style={{ color: "#94a3b8", fontSize: "0.9rem", textAlign: "center" }}>No hay criterios.</p> :
+                      <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        Criterios de Ponderación ({unitActs.length})
+                      </div>
+
+                      {unitActs.length === 0 ? (
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "4px 0 10px 0" }}>No hay criterios configurados en esta unidad.</p>
+                      ) : (
                         unitActs.map(act => (
-                          <div key={act.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9", flexShrink: 0 }}>
+                          <div key={act.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9", flexShrink: 0 }}>
                             <div>
-                              <div style={{ color: "#1B396A", fontWeight: "600", fontSize: "0.9rem" }}>{act.name}</div>
-                              <div style={{ color: "#10b981", fontWeight: "700", fontSize: "0.8rem", marginTop: "2px" }}>Valor: {act.weight_percentage}%</div>
+                              <div style={{ color: "#1B396A", fontWeight: "700", fontSize: "0.9rem" }}>{act.name}</div>
+                              <div style={{ color: "#10b981", fontWeight: "800", fontSize: "0.8rem", marginTop: "2px" }}>Ponderación: {act.weight_percentage}%</div>
                             </div>
                             {!unit.is_closed && (
-                              <button onClick={() => handleDeleteActivity(act.id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "6px", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#fee2e2"} onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
-                                <Trash2 size={16} />
-                              </button>
+                              <div style={{ display: "flex", gap: "4px" }}>
+                                <button
+                                  onClick={() => openEditActivityModal(act)}
+                                  style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", padding: "6px", borderRadius: "6px", transition: "all 0.2s" }}
+                                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#eff6ff"}
+                                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                                  title="Editar Criterio"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteActivity(act.id)}
+                                  style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "6px", borderRadius: "6px", transition: "all 0.2s" }}
+                                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#fee2e2"}
+                                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                                  title="Eliminar Criterio"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
                             )}
                           </div>
                         ))
-                      }
+                      )}
+
+                      {/* Resumen de Actividades y Exámenes Vinculados */}
+                      {(unitAssignments.length > 0 || unitExams.length > 0) && (
+                        <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px dashed #e2e8f0" }}>
+                          <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <FileText size={14} /> Contenido Creado en la Unidad ({unitAssignments.length + unitExams.length})
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            {unitAssignments.map(asg => (
+                              <div key={asg.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", backgroundColor: "#f1f5f9", borderRadius: "8px", fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>
+                                <Award size={13} color="#2563eb" /> {asg.title}
+                              </div>
+                            ))}
+                            {unitExams.map(ex => (
+                              <div key={ex.id} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", backgroundColor: "#fef3c7", borderRadius: "8px", fontSize: "0.8rem", color: "#92400e", fontWeight: "600" }}>
+                                <Award size={13} color="#d97706" /> {ex.title} (Examen)
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", backgroundColor: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       {!unit.is_closed ? (
                         <>
-                          <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" disabled={isPerfect || isOver} onClick={() => { setActiveUnitId(unit.id); setShowActivityModal(true); }} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
+                          <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" onClick={() => openAddActivityModal(unit.id)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
                           <ExpandingButton icon={Edit3} label="Calificar" variant="primary" disabled={unitActs.length === 0} onClick={() => handleOpenCapture(unit)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
                         </>
                       ) : (

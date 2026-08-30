@@ -2,16 +2,17 @@
 
 import { ArrowLeft, FileSpreadsheet } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
-import type { Unit, Activity, Student, GradeRow } from "./types";
+import type { Unit, Activity, Student, GradeRow, GradesMap } from "./types";
 
 export default function FinalGradesView({
-  loading, units, activities, students, allGrades, setCurrentView, handleExportToSheets,
+  loading, units, activities, students, allGrades, grades, setCurrentView, handleExportToSheets,
 }: {
   loading: boolean;
   units: Unit[];
   activities: Activity[];
   students: Student[];
   allGrades: GradeRow[];
+  grades?: GradesMap;
   setCurrentView: (v: 'units' | 'capture' | 'final' | 'sabana') => void;
   handleExportToSheets: () => void;
 }) {
@@ -64,7 +65,10 @@ export default function FinalGradesView({
                       let uAvg = 0;
                       activities.filter(a => a.unit_id === u.id).forEach(act => {
                         const gradeRec = allGrades.find(g => g.student_id === s.id && g.activity_id === act.id);
-                        uAvg += ((gradeRec?.score || 0) * (act.weight_percentage / 100));
+                        const score = (grades && grades[`${s.id}_${act.id}`] !== undefined)
+                          ? Number(grades[`${s.id}_${act.id}`])
+                          : (gradeRec?.score || 0);
+                        uAvg += (score * (act.weight_percentage / 100));
                       });
                       sumAverages += uAvg;
                       return (

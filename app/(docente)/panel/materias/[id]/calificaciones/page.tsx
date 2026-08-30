@@ -43,6 +43,7 @@ export default function ConfiguracionCalificaciones() {
           setShowActivityModal={c.setShowActivityModal}
           handleOpenCapture={c.handleOpenCapture}
           handleDeleteActivity={c.handleDeleteActivity}
+          handleResetUnitCriteria={c.handleResetUnitCriteria}
         />
       )}
 
@@ -69,6 +70,7 @@ export default function ConfiguracionCalificaciones() {
           activities={c.activities}
           students={c.students}
           allGrades={c.allGrades}
+          grades={c.grades}
           setCurrentView={c.setCurrentView}
           handleExportToSheets={c.handleExportToSheets}
         />

@@ -77,21 +77,33 @@ Deno.serve(async (req: Request) => {
     let finalCriteriaId = criteria_id || null
     if (!finalCriteriaId && unit_id) {
       try {
-        const { data: act } = await serviceClient
+        const { data: existingActs } = await serviceClient
           .from("activities")
-          .select("id")
+          .select("id, name")
           .eq("unit_id", unit_id)
-          .limit(1)
-          .maybeSingle()
-        if (act?.id) {
-          finalCriteriaId = act.id
+
+        if (existingActs && existingActs.length > 0) {
+          const actCrit = existingActs.find((a: { id: string; name: string }) =>
+            a.name.toLowerCase().includes("activ") ||
+            a.name.toLowerCase().includes("tarea") ||
+            a.name.toLowerCase().includes("práct") ||
+            a.name.toLowerCase().includes("pract")
+          ) || existingActs[0]
+          finalCriteriaId = actCrit.id
         } else {
-          const { data: newAct } = await serviceClient
+          // Inicializar los 3 pilares estándar de la unidad: Asistencia (10%) + Actividades (50%) + Evaluaciones (40%) = 100%
+          const standardCriteria = [
+            { unit_id, name: "Asistencia", weight_percentage: 10 },
+            { unit_id, name: "Actividades", weight_percentage: 50 },
+            { unit_id, name: "Evaluaciones", weight_percentage: 40 },
+          ]
+          const { data: createdActs } = await serviceClient
             .from("activities")
-            .insert([{ unit_id, name: title || "Actividad", weight_percentage: 100 }])
-            .select("id")
-            .maybeSingle()
-          if (newAct?.id) finalCriteriaId = newAct.id
+            .insert(standardCriteria)
+            .select("id, name")
+
+          const actCrit = createdActs?.find((c: { id: string; name: string }) => c.name.toLowerCase().includes("activ")) || createdActs?.[0]
+          if (actCrit?.id) finalCriteriaId = actCrit.id
         }
       } catch (critErr) {
         console.warn("[CREATE_ASSIGNMENT_HUB] Error resolviendo criteria_id:", critErr)

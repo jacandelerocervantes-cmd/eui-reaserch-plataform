@@ -3,7 +3,7 @@
 import {
   BookOpen, PlusCircle, Target, Edit3, AlertTriangle,
   CheckCircle2, Trash2, Lock, FileSpreadsheet,
-  GraduationCap, ChevronDown, ChevronUp
+  GraduationCap, ChevronDown, ChevronUp, RotateCcw
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import type { Unit, Activity } from "./types";
@@ -12,6 +12,7 @@ export default function UnitsView({
   units, activities, loading, collapsedUnits, setCollapsedUnits,
   getUnitTotalWeight, openNewUnitModal, handleOpenSabana, handleOpenFinalGrades,
   setActiveUnitId, setShowActivityModal, handleOpenCapture, handleDeleteActivity,
+  handleResetUnitCriteria,
 }: {
   units: Unit[];
   activities: Activity[];
@@ -26,6 +27,7 @@ export default function UnitsView({
   setShowActivityModal: (v: boolean) => void;
   handleOpenCapture: (unit: Unit) => void;
   handleDeleteActivity: (id: string) => void;
+  handleResetUnitCriteria: (unitId: string) => void;
 }) {
   return (
     <>
@@ -150,15 +152,20 @@ export default function UnitsView({
                       }
                     </div>
 
-                    <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", backgroundColor: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", backgroundColor: "white", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                       {!unit.is_closed ? (
                         <>
-                          <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" disabled={isPerfect || isOver} onClick={() => { setActiveUnitId(unit.id); setShowActivityModal(true); }} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
-                          <ExpandingButton icon={Edit3} label="Calificar" variant="primary" disabled={unitActs.length === 0} onClick={() => handleOpenCapture(unit)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            <ExpandingButton icon={PlusCircle} label="Añadir Criterio" variant="secondary" disabled={isPerfect || isOver} onClick={() => { setActiveUnitId(unit.id); setShowActivityModal(true); }} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
+                            {(!isPerfect || unitActs.length !== 3) && (
+                              <ExpandingButton icon={RotateCcw} label="Estándar 10/50/40" variant="secondary" onClick={() => handleResetUnitCriteria(unit.id)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
+                            )}
+                          </div>
+                          <ExpandingButton icon={Edit3} label="Calificar" variant="primary" disabled={unitActs.length === 0} onClick={() => handleOpenCapture(unit)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
                         </>
                       ) : (
                         <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
-                          <ExpandingButton icon={BookOpen} label="Ver Calificaciones" variant="secondary" onClick={() => handleOpenCapture(unit)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
+                          <ExpandingButton icon={BookOpen} label="Ver Calificaciones" variant="secondary" onClick={() => handleOpenCapture(unit)} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
                         </div>
                       )}
                     </div>

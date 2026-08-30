@@ -132,8 +132,19 @@ export function useCalificaciones(courseId: string) {
   // Nunca pisa una nota que el docente ya guardó a mano para ese alumno.
   const autoFillStandardCriteria = async (unit: Unit, unitActs: Activity[], gradesMap: GradesMap) => {
     const attendanceCrit = unitActs.find(a => a.name.toLowerCase().includes("asist"));
-    const activitiesCrit = unitActs.find(a => a.name.toLowerCase().includes("activ"));
-    const examCrit        = unitActs.find(a => a.name.toLowerCase().includes("eval") || a.name.toLowerCase().includes("examen"));
+    const activitiesCrit = unitActs.find(a =>
+      a.name.toLowerCase().includes("activ") ||
+      a.name.toLowerCase().includes("tarea") ||
+      a.name.toLowerCase().includes("práct") ||
+      a.name.toLowerCase().includes("pract") ||
+      a.name.toLowerCase().includes("trabaj")
+    );
+    const examCrit = unitActs.find(a =>
+      a.name.toLowerCase().includes("eval") ||
+      a.name.toLowerCase().includes("examen") ||
+      a.name.toLowerCase().includes("cuest") ||
+      a.name.toLowerCase().includes("test")
+    );
 
     if (attendanceCrit) {
       const { data: att } = await supabase.from("validated_attendances").select("student_id, status").eq("course_id", courseId);
@@ -141,7 +152,7 @@ export function useCalificaciones(courseId: string) {
       ((att ?? []) as AttendanceRow[]).forEach((r) => { sums[r.student_id] = (sums[r.student_id] || 0) + r.status; counts[r.student_id] = (counts[r.student_id] || 0) + 1; });
       students.forEach(s => {
         const key = `${s.id}_${attendanceCrit.id}`;
-        if (gradesMap[key] === undefined && counts[s.id]) {
+        if ((gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") && counts[s.id]) {
           gradesMap[key] = ((sums[s.id] / counts[s.id]) * 100).toFixed(0);
         }
       });
@@ -159,7 +170,9 @@ export function useCalificaciones(courseId: string) {
         });
         Object.entries(byStudent).forEach(([studentId, scores]) => {
           const key = `${studentId}_${activitiesCrit.id}`;
-          if (gradesMap[key] === undefined) gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          if (gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") {
+            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          }
         });
       }
     }
@@ -176,7 +189,9 @@ export function useCalificaciones(courseId: string) {
         });
         Object.entries(byStudent).forEach(([studentId, scores]) => {
           const key = `${studentId}_${examCrit.id}`;
-          if (gradesMap[key] === undefined) gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          if (gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") {
+            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+          }
         });
       }
     }
@@ -240,7 +255,7 @@ export function useCalificaciones(courseId: string) {
     });
 
     setGrades(newGrades);
-    alert("✨ Asistencia sincronizada. Recuerda darle a 'Guardar Todo'.");
+    alert("✨ Asistencia sincronizada. Recuerda darle a 'Guardar'.");
   };
 
   const handleToggleCloseUnit = async (targetUnit?: Unit) => {
@@ -260,6 +275,25 @@ export function useCalificaciones(courseId: string) {
     }
   };
 
+  const handleResetUnitCriteria = async (unitId: string) => {
+    if (!confirm("¿Deseas restablecer los criterios de esta unidad a la ponderación estándar (Asistencia 10% + Actividades 50% + Evaluaciones 40% = 100%)?")) return;
+    try {
+      await supabase.from("activities").delete().eq("unit_id", unitId);
+      const standard = [
+        { unit_id: unitId, name: "Asistencia", weight_percentage: 10 },
+        { unit_id: unitId, name: "Actividades", weight_percentage: 50 },
+        { unit_id: unitId, name: "Evaluaciones", weight_percentage: 40 },
+      ];
+      const { error } = await supabase.from("activities").insert(standard);
+      if (error) throw error;
+      await fetchData();
+      alert("✅ Criterios restablecidos al estándar institucional (10% + 50% + 40% = 100%).");
+    } catch (err) {
+      console.error("Error al restablecer criterios:", err);
+      alert("Error al restablecer criterios de la unidad.");
+    }
+  };
+
   const handleOpenFinalGrades = async () => {
     setCurrentView('final');
     setLoading(true);
@@ -267,6 +301,15 @@ export function useCalificaciones(courseId: string) {
     const actIds = activities.filter(a => unitIds.includes(a.unit_id)).map(a => a.id);
     const { data: gr } = await supabase.from("grades").select("*").in("activity_id", actIds);
     setAllGrades(gr || []);
+
+    const gradesMap: GradesMap = {};
+    (gr as GradeRow[] | null)?.forEach((g) => { gradesMap[`${g.student_id}_${g.activity_id}`] = g.score; });
+
+    // Precarga automática en vivo por cada unidad
+    for (const unit of units) {
+      await autoFillStandardCriteria(unit, activities.filter(a => a.unit_id === unit.id), gradesMap);
+    }
+    setGrades(gradesMap);
     setLoading(false);
   };
 
@@ -389,6 +432,7 @@ export function useCalificaciones(courseId: string) {
     handleAddActivity,
     handleDeleteActivity,
     handleOpenCapture,
+    handleResetUnitCriteria,
     handleSaveGrades,
     handleMagicAttendance,
     handleToggleCloseUnit,

@@ -156,10 +156,14 @@ export default function CaptureView({
               {unitAssignments.length > 0 ? (
                 unitAssignments.map(asg => {
                   const asgW = assignmentWeights[asg.id] ?? defaultAsgnWeight;
+                  const percentOfPillar = activWeight > 0 ? ((asgW / activWeight) * 100).toFixed(0) : "0";
                   return (
                     <th key={asg.id} style={{ padding: "12px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "1px solid #dbeafe", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{asg.title}</div>
-                      <div style={{ color: "#3b82f6", fontSize: "0.75rem", fontWeight: "700" }}>{asgW.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}</div>
+                      <div style={{ color: "#3b82f6", fontSize: "0.75rem", fontWeight: "700" }}>
+                        {asgW.toFixed(1)} {viewMode === 'percent' ? '%' : 'pts'}
+                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({percentOfPillar}% de act.)</span>
+                      </div>
                     </th>
                   );
                 })

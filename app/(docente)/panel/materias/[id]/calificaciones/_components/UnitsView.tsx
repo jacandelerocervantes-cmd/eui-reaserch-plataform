@@ -265,21 +265,30 @@ function UnitCard({
                     <span>Desglose por actividad:</span>
                     <span>Suma: {sumAsgnWeights} / {activWeight} {mode === 'percent' ? '%' : 'pts'}</span>
                   </div>
-                  {unitAssignments.map(asgn => (
-                    <div key={asgn.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                      <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>{asgn.title}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        <input
-                          type="number" min="0" max="100"
-                          disabled={unit.is_closed}
-                          value={localAsgnWeights[asgn.id] ?? defaultAsgnWeight}
-                          onChange={(e) => setLocalAsgnWeights({ ...localAsgnWeights, [asgn.id]: Number(e.target.value) })}
-                          style={{ width: "45px", padding: "4px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.8rem", backgroundColor: "white" }}
-                        />
-                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{mode === 'percent' ? '%' : 'pts'}</span>
+                  {unitAssignments.map(asgn => {
+                    const currentPts = localAsgnWeights[asgn.id] ?? defaultAsgnWeight;
+                    const percentOfPillar = activWeight > 0 ? ((currentPts / activWeight) * 100).toFixed(0) : "0";
+                    return (
+                      <div key={asgn.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                        <div>
+                          <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>{asgn.title}</span>
+                          <span style={{ fontSize: "0.7rem", color: "#64748b", marginLeft: "6px", fontWeight: "500" }}>
+                            ({percentOfPillar}% del pilar)
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <input
+                            type="number" min="0" max="100"
+                            disabled={unit.is_closed}
+                            value={currentPts}
+                            onChange={(e) => setLocalAsgnWeights({ ...localAsgnWeights, [asgn.id]: Number(e.target.value) })}
+                            style={{ width: "45px", padding: "4px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.8rem", backgroundColor: "white" }}
+                          />
+                          <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{mode === 'percent' ? '%' : 'pts'}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

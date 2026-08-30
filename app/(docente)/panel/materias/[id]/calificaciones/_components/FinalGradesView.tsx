@@ -170,11 +170,11 @@ export default function FinalGradesView({
                     {unitGradesData.map((ug, idx) => (
                       <Fragment key={units[idx].id}>
                         <td style={{ padding: "10px", textAlign: "center", borderRight: "1px solid #f1f5f9", fontWeight: "600", color: ug.uOrd >= 70 ? "#1e293b" : "#ef4444", backgroundColor: ug.uOrd < 70 ? "#fef2f2" : "transparent" }}>
-                          {ug.uOrd.toFixed(1)}
+                          {ug.uOrd.toFixed(2)}
                         </td>
                         <td style={{ padding: "6px", textAlign: "center", borderRight: "1px solid #e2e8f0" }}>
                           <input
-                            type="number" min="0" max="100" placeholder="-"
+                            type="number" min="0" max="100" step="0.01" placeholder="-"
                             value={ug.recVal}
                             onChange={(e) => setGrades && setGrades({ ...localGrades, [ug.recKey]: e.target.value })}
                             style={{ ...inputStyle, borderColor: ug.recVal ? "#f59e0b" : "#cbd5e1", backgroundColor: ug.recVal ? "#fffbeb" : "white" }}
@@ -184,12 +184,12 @@ export default function FinalGradesView({
                     ))}
 
                     <td style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #e2e8f0", fontWeight: "700", color: promOrdinario >= 70 ? "#1e293b" : "#ef4444", backgroundColor: "#f8fafc" }}>
-                      {promOrdinario.toFixed(1)}
+                      {promOrdinario.toFixed(2)}
                     </td>
 
                     <td style={{ padding: "6px", textAlign: "center", borderRight: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
                       <input
-                        type="number" min="0" max="100" placeholder="-"
+                        type="number" min="0" max="100" step="0.01" placeholder="-"
                         value={globalExamVal}
                         onChange={(e) => setGrades && setGrades({ ...localGrades, [globalExamKey]: e.target.value })}
                         style={{ ...inputStyle, borderColor: globalExamVal ? "#3b82f6" : "#cbd5e1", backgroundColor: globalExamVal ? "#eff6ff" : "white" }}
@@ -198,7 +198,7 @@ export default function FinalGradesView({
 
                     <td style={{ padding: "6px", textAlign: "center", borderRight: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
                       <input
-                        type="number" min="0" max="100" placeholder="-"
+                        type="number" min="0" max="100" step="0.01" placeholder="-"
                         value={finalRecVal}
                         onChange={(e) => setGrades && setGrades({ ...localGrades, [finalRecKey]: e.target.value })}
                         style={{ ...inputStyle, borderColor: finalRecVal ? "#b45309" : "#cbd5e1", backgroundColor: finalRecVal ? "#fffbeb" : "white" }}
@@ -206,7 +206,7 @@ export default function FinalGradesView({
                     </td>
 
                     <td style={{ padding: "12px", textAlign: "center", fontWeight: "900", fontSize: "1.15rem", borderRight: "1px solid #e2e8f0", color: isApproved ? "#10b981" : "#ef4444", backgroundColor: "#f8fafc" }}>
-                      {finalScore.toFixed(1)}
+                      {finalScore.toFixed(2)}
                     </td>
 
                     <td style={{ padding: "12px", textAlign: "center", backgroundColor: "#f8fafc" }}>

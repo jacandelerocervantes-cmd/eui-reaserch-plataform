@@ -101,15 +101,18 @@ function UnitConfigModal({
   };
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 1000,
-      backgroundColor: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
-    }}>
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        backgroundColor: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(5px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
+      }}
+    >
       <div style={{
         backgroundColor: "white", borderRadius: "20px", width: "100%", maxWidth: "680px",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-        display: "flex", flexDirection: "column", overflow: "hidden"
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.3)",
+        display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "90vh"
       }}>
         {/* Modal Header */}
         <div style={{
@@ -120,20 +123,20 @@ function UnitConfigModal({
             <Sliders size={22} color="#1B396A" />
             <div>
               <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.2rem", fontWeight: "900" }}>
-                Configuración: Unidad {unit.unit_number}
+                Configurar Unidad {unit.unit_number}
               </h3>
               <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                Nombre, sesiones del programa y ponderación de criterios (Total = 100 pts)
+                Ponderación, sesiones y criterios de evaluación (Total = 100 pts)
               </span>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: "4px" }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: "6px" }}>
             <X size={20} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", maxHeight: "75vh", overflowY: "auto" }}>
+        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto" }}>
           {/* Datos básicos de la unidad */}
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: "240px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -158,7 +161,7 @@ function UnitConfigModal({
             </div>
           </div>
 
-          {/* Barra de control y estado */}
+          {/* Barra de control y switch Puntos / Porcentaje */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
             <div style={{
               padding: "4px 12px", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "800",
@@ -168,11 +171,12 @@ function UnitConfigModal({
               display: "inline-flex", alignItems: "center", gap: "6px"
             }}>
               {isPerfect ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-              Total: {totalMacro.toFixed(0)} {mode === 'percent' ? '%' : 'pts'}
+              Total: {totalMacro.toFixed(0)} {mode === 'percent' ? '%' : 'pts'} {isPerfect ? "(100%)" : "(debe sumar 100)"}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "2px", backgroundColor: "#f1f5f9", padding: "3px", borderRadius: "8px" }}>
               <button
+                type="button"
                 onClick={() => setMode('points')}
                 style={{
                   padding: "4px 12px", fontSize: "0.75rem", fontWeight: "700", border: "none",
@@ -185,6 +189,7 @@ function UnitConfigModal({
                 Puntos (pts)
               </button>
               <button
+                type="button"
                 onClick={() => setMode('percent')}
                 style={{
                   padding: "4px 12px", fontSize: "0.75rem", fontWeight: "700", border: "none",
@@ -248,15 +253,17 @@ function UnitConfigModal({
                         : `Suma: ${activWeight > 0 ? ((sumAsgnPts / activWeight) * 100).toFixed(0) : 0}% / 100%`}
                     </span>
                   </div>
-                  {unitAssignments.map(asg => {
+                  {unitAssignments.map((asg, idx) => {
                     const currentPts = asgnWeights[asg.id] ?? defaultAsgnW;
                     const relPercent = activWeight > 0 ? Number(((currentPts / activWeight) * 100).toFixed(1)) : 0;
 
                     return (
                       <div key={asg.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "white", padding: "6px 10px", borderRadius: "6px", border: "1px solid #dbeafe" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "60%" }}>
-                          <span style={{ fontSize: "0.78rem", color: "#1e293b", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{asg.title}</span>
-                          <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "600" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "65%" }}>
+                          <span style={{ fontSize: "0.78rem", color: "#1e293b", fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            A{idx + 1}: {asg.title}
+                          </span>
+                          <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "600", flexShrink: 0 }}>
                             {mode === 'points'
                               ? `(${relPercent.toFixed(0)}% del pilar)`
                               : `(${currentPts.toFixed(1)} pts)`}
@@ -320,9 +327,32 @@ function UnitConfigModal({
           padding: "16px 24px", borderTop: "1px solid #e2e8f0",
           display: "flex", justifyContent: "flex-end", gap: "10px", backgroundColor: "#f8fafc"
         }}>
-          <ExpandingButton icon={X} label="Cancelar" onClick={onClose} variant="default" size={40} radius={10} gap={8} padding="0 14px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1",
+              backgroundColor: "white", color: "#64748b", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer"
+            }}
+          >
+            Cancelar
+          </button>
           {!unit.is_closed && (
-            <ExpandingButton icon={Save} label={saving ? "Guardando..." : "Guardar Cambios"} onClick={handleSave} disabled={saving || !title.trim()} variant="primary" size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !title.trim()}
+              style={{
+                padding: "10px 20px", borderRadius: "10px", border: "none",
+                backgroundColor: saving || !title.trim() ? "#cbd5e1" : "#1B396A",
+                color: "white", fontWeight: 800, fontSize: "0.85rem",
+                cursor: saving || !title.trim() ? "not-allowed" : "pointer",
+                display: "inline-flex", alignItems: "center", gap: "6px"
+              }}
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? "Guardando..." : "Guardar Cambios"}
+            </button>
           )}
         </div>
       </div>
@@ -432,34 +462,44 @@ function UnidadesListInner({ resource, courseId, onReload }: { resource: Promise
                   {/* Resumen de Ponderación */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "auto", paddingTop: "12px" }}>
                     <span style={{ fontSize: "0.75rem", color: "#1e40af", backgroundColor: "#eff6ff", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-                      Asistencia: {assist}%
+                      Asistencia: {assist} pts
                     </span>
                     <span style={{ fontSize: "0.75rem", color: "#166534", backgroundColor: "#f0fdf4", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-                      Actividades: {activ}% ({unitAsgns.length} tareas)
+                      Actividades: {activ} pts ({unitAsgns.length} tareas)
                     </span>
                     <span style={{ fontSize: "0.75rem", color: "#92400e", backgroundColor: "#fffbeb", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-                      Evaluaciones: {evalw}% ({unitExams.length} exámenes)
+                      Evaluaciones: {evalw} pts ({unitExams.length} exámenes)
                     </span>
                   </div>
                 </div>
 
-                <div style={{ borderTop: "1px solid #f1f5f9", padding: "16px 20px", display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fafbfc" }}>
-                  <ExpandingButton
-                    icon={Sliders}
-                    label="Configurar Unidad"
+                <div style={{ borderTop: "1px solid #f1f5f9", padding: "14px 20px", display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fafbfc" }}>
+                  <button
+                    type="button"
                     onClick={() => setModalUnit(unit)}
-                    variant="primary"
-                    size={42} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.85rem" durationMs={300}
-                  />
+                    style={{
+                      padding: "10px 18px", borderRadius: "10px", border: "none",
+                      backgroundColor: "#1B396A", color: "white", fontWeight: 800, fontSize: "0.85rem",
+                      cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px",
+                      transition: "transform 0.2s"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                  >
+                    <Sliders size={16} /> Configurar Unidad
+                  </button>
                   {!unit.is_closed && (
-                    <ExpandingButton
-                      icon={Trash2}
-                      label="Eliminar"
+                    <button
+                      type="button"
                       onClick={() => v.handleDelete(unit.id, unit.unit_number)}
-                      variant="danger"
-                      size={42} radius={10} gap={8} padding="0 12px" fontWeight={600} fontSize="0.85rem" durationMs={300}
-                      colors={{ bg: "white", hoverBg: "#ef4444", text: "#ef4444", hoverText: "white", border: "#cbd5e1" }}
-                    />
+                      style={{
+                        padding: "10px 14px", borderRadius: "10px", border: "1px solid #fee2e2",
+                        backgroundColor: "white", color: "#ef4444", fontWeight: 700, fontSize: "0.85rem",
+                        cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px"
+                      }}
+                    >
+                      <Trash2 size={16} /> Eliminar
+                    </button>
                   )}
                 </div>
               </div>

@@ -273,7 +273,7 @@ export function useCalificaciones(courseId: string) {
       students.forEach(s => {
         const key = `${s.id}_${attendanceCrit.id}`;
         if ((gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") && counts[s.id]) {
-          gradesMap[key] = ((sums[s.id] / counts[s.id]) * 100).toFixed(0);
+          gradesMap[key] = ((sums[s.id] / counts[s.id]) * 100).toFixed(2);
         }
       });
     }
@@ -291,7 +291,7 @@ export function useCalificaciones(courseId: string) {
         Object.entries(byStudent).forEach(([studentId, scores]) => {
           const key = `${studentId}_${activitiesCrit.id}`;
           if (gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") {
-            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
           }
         });
       }
@@ -310,7 +310,7 @@ export function useCalificaciones(courseId: string) {
         Object.entries(byStudent).forEach(([studentId, scores]) => {
           const key = `${studentId}_${examCrit.id}`;
           if (gradesMap[key] === undefined || gradesMap[key] === null || gradesMap[key] === "") {
-            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+            gradesMap[key] = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
           }
         });
       }
@@ -327,7 +327,9 @@ export function useCalificaciones(courseId: string) {
     const { data: gr } = await supabase.from("grades").select("*").in("activity_id", unitActIds);
 
     const gradesMap: GradesMap = {};
-    (gr as GradeRow[] | null)?.forEach((g) => { gradesMap[`${g.student_id}_${g.activity_id}`] = g.score; });
+    (gr as GradeRow[] | null)?.forEach((g) => {
+      gradesMap[`${g.student_id}_${g.activity_id}`] = typeof g.score === "number" ? g.score.toFixed(2) : String(g.score);
+    });
 
     // Cargar notas individuales de actividades / tareas de la unidad
     const { data: assignmentsData } = await supabase.from("assignments").select("id, title").eq("unit_id", unit.id);
@@ -337,7 +339,7 @@ export function useCalificaciones(courseId: string) {
       (subs ?? []).forEach((s: { student_id: string; assignment_id: string; final_score: number | null; ai_score: number | null; status: string }) => {
         const score = s.final_score ?? (s.status === 'ai_draft' || s.status === 'draft' ? s.ai_score : null);
         if (score != null) {
-          gradesMap[`${s.student_id}_asgn_${s.assignment_id}`] = score;
+          gradesMap[`${s.student_id}_asgn_${s.assignment_id}`] = Number(score).toFixed(2);
         }
       });
     }
@@ -350,7 +352,7 @@ export function useCalificaciones(courseId: string) {
       (responses ?? []).forEach((r: { student_id: string; exam_id: string; final_score: number | null; score_ia: number | null }) => {
         const score = r.final_score ?? r.score_ia;
         if (score != null) {
-          gradesMap[`${r.student_id}_exam_${r.exam_id}`] = score;
+          gradesMap[`${r.student_id}_exam_${r.exam_id}`] = Number(score).toFixed(2);
         }
       });
     }

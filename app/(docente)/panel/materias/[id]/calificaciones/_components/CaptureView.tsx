@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Lock, Unlock, Wand2, Save } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
@@ -27,8 +26,6 @@ export default function CaptureView({
   handleToggleCloseUnit: (unit?: Unit) => void;
   inputStyle: (locked: boolean) => CSSProperties;
 }) {
-  const [viewMode, setViewMode] = useState<'percent' | 'points'>('points');
-
   // Filtrar actividades y tareas de la unidad seleccionada
   const unitActs = activities.filter(a => a.unit_id === selectedUnit.id);
   const unitAssignments = assignments.filter(a => a.unit_id === selectedUnit.id);
@@ -63,57 +60,21 @@ export default function CaptureView({
         <div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "6px" }}>
             <span style={{ fontSize: "0.8rem", color: "#1e40af", backgroundColor: "#eff6ff", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-              Asistencia: {assistWeight}%
+              Asistencia: {assistWeight} pts
             </span>
             <span style={{ fontSize: "0.8rem", color: "#166534", backgroundColor: "#f0fdf4", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-              Actividades: {activWeight}% ({unitAssignments.length} tareas)
+              Actividades: {activWeight} pts ({unitAssignments.length} tareas)
             </span>
             <span style={{ fontSize: "0.8rem", color: "#92400e", backgroundColor: "#fffbeb", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
-              Evaluaciones: {evalWeight}% ({unitExams.length} exámenes)
+              Evaluaciones: {evalWeight} pts ({unitExams.length} exámenes)
             </span>
           </div>
           <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
-            Las calificaciones se ponderan en automático con base en la rúbrica configurada en el módulo de Unidades.
+            Captura las notas de los alumnos (0–100); los puntos de la unidad se calculan en automático a dos decimales.
           </div>
         </div>
 
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          {/* Switch de modo de vista */}
-          <div style={{ display: "flex", alignItems: "center", gap: "2px", backgroundColor: "#e2e8f0", padding: "2px", borderRadius: "8px" }}>
-            <button
-              onClick={() => setViewMode('points')}
-              style={{
-                padding: "4px 10px",
-                fontSize: "0.75rem",
-                fontWeight: "700",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                backgroundColor: viewMode === 'points' ? "#ffffff" : "transparent",
-                color: viewMode === 'points' ? "#1B396A" : "#64748b",
-                boxShadow: viewMode === 'points' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
-              }}
-            >
-              Puntos (pts)
-            </button>
-            <button
-              onClick={() => setViewMode('percent')}
-              style={{
-                padding: "4px 10px",
-                fontSize: "0.75rem",
-                fontWeight: "700",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                backgroundColor: viewMode === 'percent' ? "#ffffff" : "transparent",
-                color: viewMode === 'percent' ? "#1B396A" : "#64748b",
-                boxShadow: viewMode === 'percent' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
-              }}
-            >
-              Porcentaje (%)
-            </button>
-          </div>
-
           {!selectedUnit.is_closed && (
             <>
               <ExpandingButton icon={Wand2} label="Magia: Asistencia" onClick={handleMagicAttendance} variant="magic" size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
@@ -149,7 +110,7 @@ export default function CaptureView({
               {/* Asistencia */}
               <th style={{ padding: "12px 14px", textAlign: "center", color: "#1B396A", backgroundColor: "#f1f5f9", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700" }}>
                 <div>Asistencia</div>
-                <div style={{ color: "#64748b", fontSize: "0.75rem" }}>{assistWeight} {viewMode === 'percent' ? '%' : 'pts'}</div>
+                <div style={{ color: "#64748b", fontSize: "0.75rem" }}>{assistWeight} pts</div>
               </th>
 
               {/* Actividades */}
@@ -161,15 +122,7 @@ export default function CaptureView({
                     <th key={asg.id} style={{ padding: "12px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "1px solid #dbeafe", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{asg.title}</div>
                       <div style={{ color: "#3b82f6", fontSize: "0.75rem", fontWeight: "700" }}>
-                        {viewMode === 'points' ? (
-                          <>
-                            {asgW} pts <span style={{ fontWeight: "600", color: "#64748b" }}>({relP}% de act.)</span>
-                          </>
-                        ) : (
-                          <>
-                            {relP}% <span style={{ fontWeight: "600", color: "#64748b" }}>({asgW} pts)</span>
-                          </>
-                        )}
+                        {asgW} pts <span style={{ fontWeight: "600", color: "#64748b" }}>({relP}% act.)</span>
                       </div>
                     </th>
                   );
@@ -177,7 +130,7 @@ export default function CaptureView({
               ) : (
                 <th style={{ padding: "12px 14px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700" }}>
                   <div>Actividades</div>
-                  <div style={{ color: "#3b82f6", fontSize: "0.75rem" }}>{activWeight} {viewMode === 'percent' ? '%' : 'pts'}</div>
+                  <div style={{ color: "#3b82f6", fontSize: "0.75rem" }}>{activWeight} pts</div>
                 </th>
               )}
 
@@ -190,8 +143,7 @@ export default function CaptureView({
                     <th key={ex.id} style={{ padding: "12px 12px", textAlign: "center", color: "#92400e", backgroundColor: "#fffbeb", borderRight: "1px solid #fef3c7", fontSize: "0.8rem" }}>
                       <div style={{ fontWeight: "700" }}>{ex.title}</div>
                       <div style={{ color: "#d97706", fontSize: "0.75rem", fontWeight: "700" }}>
-                        {exW} {viewMode === 'percent' ? '%' : 'pts'}
-                        <span style={{ fontWeight: "500", color: "#64748b", marginLeft: "4px" }}>({relP}% de eval.)</span>
+                        {exW} pts <span style={{ fontWeight: "600", color: "#64748b" }}>({relP}% eval.)</span>
                       </div>
                     </th>
                   );
@@ -199,12 +151,12 @@ export default function CaptureView({
               ) : (
                 <th style={{ padding: "12px 14px", textAlign: "center", color: "#92400e", backgroundColor: "#fffbeb", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700" }}>
                   <div>Evaluaciones</div>
-                  <div style={{ color: "#d97706", fontSize: "0.75rem" }}>{evalWeight} {viewMode === 'percent' ? '%' : 'pts'}</div>
+                  <div style={{ color: "#d97706", fontSize: "0.75rem" }}>{evalWeight} pts</div>
                 </th>
               )}
 
               <th style={{ padding: "14px 16px", color: "#1B396A", fontSize: "0.85rem", textAlign: "center", backgroundColor: "#f8fafc", fontWeight: "800" }}>
-                Total (100 {viewMode === 'percent' ? '%' : 'pts'})
+                Total (100 pts)
               </th>
             </tr>
           </thead>
@@ -266,7 +218,7 @@ export default function CaptureView({
                         style={inputStyle(selectedUnit.is_closed)}
                       />
                       <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "2px", fontWeight: "600" }}>
-                        +{assistPoints.toFixed(1)} pts
+                        +{assistPoints.toFixed(2)} pts
                       </div>
                     </td>
 
@@ -287,7 +239,7 @@ export default function CaptureView({
                               style={inputStyle(selectedUnit.is_closed)}
                             />
                             <div style={{ fontSize: "0.7rem", color: "#2563eb", marginTop: "2px", fontWeight: "600" }}>
-                              +{pts.toFixed(1)} pts
+                              +{pts.toFixed(2)} pts
                             </div>
                           </td>
                         );
@@ -321,7 +273,7 @@ export default function CaptureView({
                               style={inputStyle(selectedUnit.is_closed)}
                             />
                             <div style={{ fontSize: "0.7rem", color: "#b45309", marginTop: "2px", fontWeight: "600" }}>
-                              +{pts.toFixed(1)} pts
+                              +{pts.toFixed(2)} pts
                             </div>
                           </td>
                         );
@@ -341,7 +293,7 @@ export default function CaptureView({
                     {/* Total Unidad */}
                     <td style={{ padding: "10px 16px", textAlign: "center", backgroundColor: totalUnidad >= 70 ? "#f0fdf4" : "#fef2f2" }}>
                       <span style={{ fontWeight: "800", fontSize: "1.05rem", color: totalUnidad >= 70 ? "#166534" : "#b91c1c" }}>
-                        {totalUnidad.toFixed(1)}
+                        {totalUnidad.toFixed(2)}
                       </span>
                     </td>
                   </tr>

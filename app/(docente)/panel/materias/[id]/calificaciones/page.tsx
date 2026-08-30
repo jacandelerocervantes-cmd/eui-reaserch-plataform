@@ -48,7 +48,7 @@ export default function CalificacionesPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px", borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 4px 0" }}>
-            Calificaciones y Seguimiento
+            Ponderación de Unidad y Calificaciones
           </h1>
           <p style={{ color: "#64748b", margin: 0, fontSize: "0.9rem", fontWeight: "500" }}>
             Captura operativa de notas por unidad y acta final con recuperaciones.

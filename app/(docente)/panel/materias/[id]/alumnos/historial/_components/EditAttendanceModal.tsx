@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, X, AlertTriangle, Trash2, Paperclip, Loader2, AlertCircle } from "lucide-react";
+import { Check, X, AlertTriangle, Paperclip, Loader2, AlertCircle } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import { validateFileContent } from "@/lib/fileValidation";
 import type { CourseUnit, SelectedRecord } from "./types";
 
 export default function EditAttendanceModal({
   selectedRecord, setSelectedRecord, selectedUnitData, setShowEditModal,
-  fileToUpload, setFileToUpload, handleDeleteRecord, handleUpdate, isUpdating,
+  fileToUpload, setFileToUpload, handleUpdate, isUpdating,
 }: {
   selectedRecord: SelectedRecord;
   setSelectedRecord: (r: SelectedRecord) => void;
@@ -16,7 +16,7 @@ export default function EditAttendanceModal({
   setShowEditModal: (v: boolean) => void;
   fileToUpload: File | null;
   setFileToUpload: (f: File | null) => void;
-  handleDeleteRecord: () => void;
+  handleDeleteRecord?: () => void;
   handleUpdate: () => void;
   isUpdating: boolean;
 }) {
@@ -89,18 +89,15 @@ export default function EditAttendanceModal({
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: selectedRecord.exists ? "space-between" : "flex-end", marginTop: "22px" }}>
-          {selectedRecord.exists && (
-            <ExpandingButton
-              icon={Trash2}
-              label="Eliminar"
-              onClick={handleDeleteRecord}
-              variant="danger"
-              disabled={isUpdating}
-              size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300}
-              colors={{ bg: "white", hoverBg: "#ef4444", text: "#ef4444", hoverText: "white", border: "#cbd5e1" }}
-            />
-          )}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "22px" }}>
+          <ExpandingButton
+            icon={X}
+            label="Cancelar"
+            onClick={() => { setShowEditModal(false); setFileToUpload(null); }}
+            variant="default"
+            size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300}
+            colors={{ hoverText: "#64748b" }}
+          />
           <ExpandingButton
             icon={isUpdating ? Loader2 : Check}
             label={isUpdating ? "Guardando..." : "Guardar"}

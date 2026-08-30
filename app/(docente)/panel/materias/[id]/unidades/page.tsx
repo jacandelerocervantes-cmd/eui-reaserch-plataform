@@ -2,7 +2,10 @@
 
 import { Suspense, useState } from "react";
 import { useParams } from "next/navigation";
-import { Plus, Trash2, Edit3, X, Lock, Loader2, BookOpen, Save, CheckCircle2, AlertTriangle, Sliders } from "lucide-react";
+import {
+  Plus, Trash2, X, Lock, Loader2, BookOpen, Save,
+  CheckCircle2, AlertTriangle, Sliders, Calendar
+} from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import {
   useUnidades, useUnidadesLista,
@@ -15,8 +18,9 @@ export default function UnidadesPage() {
 
   return (
     <Suspense fallback={
-      <div style={{ textAlign: "center", padding: "60px" }}>
-        <Loader2 size={32} color="#1B396A" />
+      <div style={{ height: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+        <Loader2 className="animate-spin" size={40} color="#1B396A" />
+        <p style={{ color: "#64748b", fontWeight: "700" }}>Cargando unidades de aprendizaje...</p>
       </div>
     }>
       <UnidadesListInner resource={resource} courseId={courseId} onReload={onReload} />
@@ -24,24 +28,32 @@ export default function UnidadesPage() {
   );
 }
 
-function UnitWeightingModal({
+function UnitConfigModal({
   unit,
   activities,
   assignments,
   exams,
   onClose,
-  onSavePillars,
-  onSaveAsgnWeight,
+  onSaveFull,
 }: {
   unit: CourseUnit;
   activities: UnitActivity[];
   assignments: UnitAssignment[];
   exams: UnitExam[];
   onClose: () => void;
-  onSavePillars: (unitId: string, assist: number, activ: number, evalw: number) => Promise<void>;
-  onSaveAsgnWeight: (asgnId: string, weight: number) => Promise<void>;
+  onSaveFull: (
+    unitId: string,
+    title: string,
+    totalSessions: number,
+    assistWeight: number,
+    activWeight: number,
+    evalWeight: number,
+    asgnWeights: Record<string, number>
+  ) => Promise<void>;
 }) {
   const [mode, setMode] = useState<'percent' | 'points'>('points');
+  const [title, setTitle] = useState(unit.title);
+  const [totalSessions, setTotalSessions] = useState(unit.total_sessions);
 
   const unitActs = activities.filter(a => a.unit_id === unit.id);
   const unitAssignments = assignments.filter(a => a.unit_id === unit.id);
@@ -70,14 +82,18 @@ function UnitWeightingModal({
 
   const [saving, setSaving] = useState(false);
   const handleSave = async () => {
+    if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSavePillars(unit.id, Number(assistWeight), Number(activWeight), Number(evalWeight));
-      for (const asg of unitAssignments) {
-        if (asgnWeights[asg.id] !== undefined) {
-          await onSaveAsgnWeight(asg.id, Number(asgnWeights[asg.id]));
-        }
-      }
+      await onSaveFull(
+        unit.id,
+        title.trim(),
+        Number(totalSessions),
+        Number(assistWeight),
+        Number(activWeight),
+        Number(evalWeight),
+        asgnWeights
+      );
       onClose();
     } finally {
       setSaving(false);
@@ -91,23 +107,23 @@ function UnitWeightingModal({
       display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
     }}>
       <div style={{
-        backgroundColor: "white", borderRadius: "16px", width: "100%", maxWidth: "680px",
-        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-        display: "flex", flexDirection: "column", overflow: "hidden", animation: "fadeIn 0.15s ease-out"
+        backgroundColor: "white", borderRadius: "20px", width: "100%", maxWidth: "680px",
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+        display: "flex", flexDirection: "column", overflow: "hidden"
       }}>
         {/* Modal Header */}
         <div style={{
-          padding: "18px 24px", borderBottom: "1px solid #e2e8f0",
+          padding: "20px 24px", borderBottom: "1px solid #e2e8f0",
           display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Sliders size={20} color="#1B396A" />
+            <Sliders size={22} color="#1B396A" />
             <div>
-              <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.1rem", fontWeight: "800" }}>
-                Ponderación: Unidad {unit.unit_number} — {unit.title}
+              <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.2rem", fontWeight: "900" }}>
+                Configuración: Unidad {unit.unit_number}
               </h3>
-              <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                Define el peso de cada criterio de evaluación para esta unidad (Suma = 100 pts / 100%)
+              <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                Nombre, sesiones del programa y ponderación de criterios (Total = 100 pts)
               </span>
             </div>
           </div>
@@ -117,18 +133,42 @@ function UnitWeightingModal({
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "18px", maxHeight: "75vh", overflowY: "auto" }}>
+        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px", maxHeight: "75vh", overflowY: "auto" }}>
+          {/* Datos básicos de la unidad */}
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: "240px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1B396A" }}>Título de la Unidad</label>
+              <input
+                value={title}
+                disabled={unit.is_closed}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ej. Introducción y Fundamentos"
+                style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none", fontWeight: "600" }}
+              />
+            </div>
+            <div style={{ width: "120px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1B396A" }}>Sesiones</label>
+              <input
+                type="number" min="1" max="50"
+                disabled={unit.is_closed}
+                value={totalSessions}
+                onChange={(e) => setTotalSessions(Number(e.target.value))}
+                style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9rem", textAlign: "center", outline: "none", fontWeight: "700" }}
+              />
+            </div>
+          </div>
+
           {/* Barra de control y estado */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
             <div style={{
-              padding: "4px 10px", borderRadius: "8px", fontSize: "0.8rem", fontWeight: "700",
+              padding: "4px 12px", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "800",
               backgroundColor: isPerfect ? "#f0fdf4" : "#fffbeb",
               color: isPerfect ? "#166534" : "#92400e",
               border: `1px solid ${isPerfect ? "#bbf7d0" : "#fde68a"}`,
               display: "inline-flex", alignItems: "center", gap: "6px"
             }}>
-              {isPerfect ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-              Total de la Unidad: {totalMacro} {mode === 'percent' ? '%' : 'pts'}
+              {isPerfect ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+              Total: {totalMacro.toFixed(0)} {mode === 'percent' ? '%' : 'pts'}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "2px", backgroundColor: "#f1f5f9", padding: "3px", borderRadius: "8px" }}>
@@ -282,7 +322,7 @@ function UnitWeightingModal({
         }}>
           <ExpandingButton icon={X} label="Cancelar" onClick={onClose} variant="default" size={40} radius={10} gap={8} padding="0 14px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />
           {!unit.is_closed && (
-            <ExpandingButton icon={Save} label={saving ? "Guardando..." : "Guardar Ponderación"} onClick={handleSave} disabled={saving} variant="primary" size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
+            <ExpandingButton icon={Save} label={saving ? "Guardando..." : "Guardar Cambios"} onClick={handleSave} disabled={saving || !title.trim()} variant="primary" size={40} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
           )}
         </div>
       </div>
@@ -295,156 +335,148 @@ function UnidadesListInner({ resource, courseId, onReload }: { resource: Promise
   const [modalUnit, setModalUnit] = useState<CourseUnit | null>(null);
 
   return (
-    <div style={{ padding: "40px", maxWidth: "800px", margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "2rem" }}>
+    <div style={{ padding: "40px", maxWidth: "1300px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "32px" }}>
+      {/* Header Institucional Unificado */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "800", margin: 0 }}>Unidades de Aprendizaje</h1>
-          <p style={{ color: "#64748b", fontSize: "0.9rem", margin: "4px 0 0" }}>
+          <h1 style={{ color: "#1B396A", fontSize: "2.8rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>
+            Unidades de Aprendizaje
+          </h1>
+          <p style={{ color: "#64748b", fontSize: "1.1rem", fontWeight: "500", marginTop: "4px" }}>
             {v.activeUnit
               ? `Unidad activa: ${v.activeUnit.unit_number} — ${v.activeUnit.title}`
-              : v.units.length > 0 ? "Todas las unidades están cerradas" : "Sin unidades configuradas"}
+              : v.units.length > 0 ? "Todas las unidades están cerradas" : "Configura las unidades del programa, sesiones y ponderaciones"}
           </p>
         </div>
-        <ExpandingButton icon={Plus} label="Agregar Unidad" onClick={() => v.setIsAdding(true)} disabled={v.isAdding || v.saving} size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} />
+        <ExpandingButton icon={Plus} label="Agregar Unidad" onClick={() => v.setIsAdding(true)} disabled={v.isAdding || v.saving} variant="primary" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {v.units.map((unit: CourseUnit) => (
-          <div key={unit.id} style={{
-            backgroundColor: "white", borderRadius: "16px", padding: "20px 24px",
-            border: `2px solid ${v.activeUnit?.id === unit.id ? "#1B396A" : "#e2e8f0"}`,
-            display: "flex", alignItems: "center", gap: "16px",
-            transition: "border-color 0.2s"
-          }}>
-            <div style={{
-              width: "44px", height: "44px", borderRadius: "12px", flexShrink: 0,
-              backgroundColor: unit.is_closed ? "#f1f5f9" : "#1B396A",
-              color: unit.is_closed ? "#94a3b8" : "white",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: "900", fontSize: "1.1rem"
-            }}>
-              {unit.is_closed ? <Lock size={16} /> : unit.unit_number}
+      {/* Formulario para Agregar Unidad Nueva */}
+      {v.isAdding && (
+        <div style={{ backgroundColor: "#f8fafc", borderRadius: "20px", padding: "24px", border: "2px dashed #cbd5e1", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <h3 style={{ margin: 0, color: "#1B396A", fontSize: "1.1rem", fontWeight: "800" }}>
+            Nueva Unidad {v.units.length + 1}
+          </h3>
+          <div style={{ display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              placeholder={`Ej. Unidad ${v.units.length + 1}: Métodos cualitativos`}
+              value={v.newUnit.title}
+              onChange={(e) => v.setNewUnit({ ...v.newUnit, title: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && v.handleAdd()}
+              style={{ flex: 1, minWidth: "240px", padding: "12px 16px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.95rem", fontFamily: "inherit", fontWeight: "600", outline: "none" }}
+              autoFocus
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <input
+                type="number" min="1" max="50"
+                value={v.newUnit.total_sessions}
+                onChange={(e) => v.setNewUnit({ ...v.newUnit, total_sessions: Number(e.target.value) })}
+                style={{ width: "70px", padding: "12px", borderRadius: "10px", border: "1px solid #cbd5e1", textAlign: "center", fontFamily: "inherit", fontWeight: "700", outline: "none" }}
+              />
+              <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: "600" }}>sesiones</span>
             </div>
+            <ExpandingButton icon={v.saving ? Loader2 : Save} label="Guardar Unidad" onClick={v.handleAdd} disabled={v.saving || !v.newUnit.title.trim()} variant="primary" size={44} radius={10} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
+            <ExpandingButton icon={X} label="Cancelar" onClick={() => { v.setIsAdding(false); v.setNewUnit({ title: "", total_sessions: 8 }); }} variant="default" size={44} radius={10} gap={10} padding="0 16px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />
+          </div>
+        </div>
+      )}
 
-            {v.editingId === unit.id ? (
-              <div style={{ flex: 1, display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <input
-                  value={v.editValues.title}
-                  onChange={(e) => v.setEditValues({ ...v.editValues, title: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && v.handleEdit(unit.id)}
-                  style={{ flex: 1, minWidth: "160px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #1B396A", fontWeight: "600", outline: "none", fontFamily: "inherit" }}
-                  autoFocus
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <input
-                    type="number" min="1" max="30"
-                    value={v.editValues.total_sessions}
-                    onChange={(e) => v.setEditValues({ ...v.editValues, total_sessions: Number(e.target.value) })}
-                    style={{ width: "60px", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", textAlign: "center", fontFamily: "inherit" }}
-                  />
-                  <span style={{ fontSize: "0.75rem", color: "#64748b" }}>ses.</span>
-                </div>
-                <ExpandingButton icon={Save} label="Guardar" onClick={() => v.handleEdit(unit.id)} disabled={v.saving} size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} />
-                <ExpandingButton icon={X} label="Cancelar" onClick={() => v.setEditingId(null)} variant="default" size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />
-              </div>
-            ) : (
-              <>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: "700", color: unit.is_closed ? "#94a3b8" : "#1e293b", fontSize: "0.95rem" }}>
-                      {unit.title}
+      {/* Grid de Unidades */}
+      {v.units.length === 0 && !v.isAdding ? (
+        <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
+          <BookOpen size={48} color="#cbd5e1" style={{ margin: "0 auto 16px", display: "block" }} />
+          <h3 style={{ color: "#1B396A", fontSize: "1.2rem", fontWeight: "800", margin: "0 0 6px" }}>Sin unidades configuradas</h3>
+          <p style={{ color: "#64748b", fontSize: "0.95rem", margin: 0 }}>Agrega las unidades del programa para estructurar sesiones, actividades y ponderaciones.</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "24px" }}>
+          {v.units.map((unit: CourseUnit) => {
+            const unitActs = v.activities.filter(a => a.unit_id === unit.id);
+            const unitAsgns = v.assignments.filter(a => a.unit_id === unit.id);
+            const unitExams = v.exams.filter(e => e.unit_id === unit.id);
+
+            const assist = unitActs.find(a => a.name.toLowerCase().includes("asist"))?.weight_percentage ?? 10;
+            const activ = unitActs.find(a => a.name.toLowerCase().includes("activ") || a.name.toLowerCase().includes("tarea"))?.weight_percentage ?? 40;
+            const evalw = unitActs.find(a => a.name.toLowerCase().includes("eval") || a.name.toLowerCase().includes("examen"))?.weight_percentage ?? 50;
+
+            const isActive = v.activeUnit?.id === unit.id;
+
+            return (
+              <div
+                key={unit.id}
+                style={{
+                  backgroundColor: "white", borderRadius: "20px", border: `1px solid ${isActive ? "#1B396A" : "#e2e8f0"}`,
+                  boxShadow: isActive ? "0 10px 15px -3px rgba(27, 57, 106, 0.08)" : "0 4px 6px -1px rgba(0,0,0,0.05)",
+                  display: "flex", flexDirection: "column", overflow: "hidden"
+                }}
+              >
+                <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <span style={{
+                      fontSize: "0.75rem", fontWeight: "800",
+                      color: unit.is_closed ? "#64748b" : (isActive ? "#1d4ed8" : "#1B396A"),
+                      backgroundColor: unit.is_closed ? "#f1f5f9" : (isActive ? "#dbeafe" : "#f0f7ff"),
+                      padding: "4px 10px", borderRadius: "8px", textTransform: "uppercase"
+                    }}>
+                      Unidad {unit.unit_number} {isActive && "· ACTIVA"} {unit.is_closed && "· CERRADA"}
                     </span>
-                    {v.activeUnit?.id === unit.id && (
-                      <span style={{ fontSize: "0.68rem", backgroundColor: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: "6px", fontWeight: "700" }}>
-                        ACTIVA
-                      </span>
-                    )}
-                    {unit.is_closed && (
-                      <span style={{ fontSize: "0.68rem", backgroundColor: "#f1f5f9", color: "#64748b", padding: "2px 8px", borderRadius: "6px", fontWeight: "700" }}>
-                        CERRADA
-                      </span>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b", fontSize: "0.8rem", fontWeight: "600" }}>
+                      <Calendar size={13} /> {unit.total_sessions} sesiones
+                    </div>
                   </div>
-                  <div style={{ fontSize: "0.78rem", color: "#94a3b8", marginTop: "3px" }}>
-                    {unit.total_sessions} sesiones contempladas
-                    {unit.closed_at && ` · Cerrada el ${new Date(unit.closed_at).toLocaleDateString("es-MX")}`}
+
+                  <h3 style={{ margin: "0 0 10px 0", color: "#1B396A", fontSize: "1.2rem", fontWeight: "800", lineHeight: "1.3" }}>
+                    {unit.title}
+                  </h3>
+
+                  {/* Resumen de Ponderación */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "auto", paddingTop: "12px" }}>
+                    <span style={{ fontSize: "0.75rem", color: "#1e40af", backgroundColor: "#eff6ff", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
+                      Asistencia: {assist}%
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "#166534", backgroundColor: "#f0fdf4", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
+                      Actividades: {activ}% ({unitAsgns.length} tareas)
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "#92400e", backgroundColor: "#fffbeb", padding: "3px 8px", borderRadius: "6px", fontWeight: "700" }}>
+                      Evaluaciones: {evalw}% ({unitExams.length} exámenes)
+                    </span>
                   </div>
                 </div>
 
-                {!unit.is_closed && (
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <div style={{ borderTop: "1px solid #f1f5f9", padding: "16px 20px", display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fafbfc" }}>
+                  <ExpandingButton
+                    icon={Sliders}
+                    label="Configurar Unidad"
+                    onClick={() => setModalUnit(unit)}
+                    variant="primary"
+                    size={42} radius={10} gap={8} padding="0 14px" fontWeight={700} fontSize="0.85rem" durationMs={300}
+                  />
+                  {!unit.is_closed && (
                     <ExpandingButton
-                      icon={Sliders}
-                      label="Ponderación"
-                      onClick={() => setModalUnit(unit)}
-                      variant="secondary"
-                      size={40} radius={10} gap={8} padding="0 12px" fontWeight={600} durationMs={300}
-                    />
-                    <ExpandingButton
-                      icon={Edit3} label="Editar"
-                      onClick={() => { v.setEditingId(unit.id); v.setEditValues({ title: unit.title, total_sessions: unit.total_sessions }); }}
-                      variant="default"
-                      size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300}
-                      colors={{ hoverText: "#64748b" }}
-                    />
-                    <ExpandingButton
-                      icon={Trash2} label="Eliminar"
+                      icon={Trash2}
+                      label="Eliminar"
                       onClick={() => v.handleDelete(unit.id, unit.unit_number)}
                       variant="danger"
-                      size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300}
+                      size={42} radius={10} gap={8} padding="0 12px" fontWeight={600} fontSize="0.85rem" durationMs={300}
                       colors={{ bg: "white", hoverBg: "#ef4444", text: "#ef4444", hoverText: "white", border: "#cbd5e1" }}
                     />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ))}
-
-        {v.isAdding && (
-          <div style={{ backgroundColor: "#f8fafc", borderRadius: "16px", padding: "20px 24px", border: "2px dashed #cbd5e1" }}>
-            <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                placeholder={`Ej. Unidad ${v.units.length + 1}: Métodos cualitativos`}
-                value={v.newUnit.title}
-                onChange={(e) => v.setNewUnit({ ...v.newUnit, title: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && v.handleAdd()}
-                style={{ flex: 1, minWidth: "200px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9rem", fontFamily: "inherit" }}
-                autoFocus
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <input
-                  type="number" min="1" max="30"
-                  value={v.newUnit.total_sessions}
-                  onChange={(e) => v.setNewUnit({ ...v.newUnit, total_sessions: Number(e.target.value) })}
-                  style={{ width: "64px", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", textAlign: "center", fontFamily: "inherit" }}
-                />
-                <span style={{ fontSize: "0.75rem", color: "#64748b", whiteSpace: "nowrap" }}>sesiones</span>
+                  )}
+                </div>
               </div>
-              <ExpandingButton icon={v.saving ? Loader2 : Save} label="Agregar" onClick={v.handleAdd} disabled={v.saving || !v.newUnit.title.trim()} size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} />
-              <ExpandingButton icon={X} label="Cancelar" onClick={() => { v.setIsAdding(false); v.setNewUnit({ title: "", total_sessions: 8 }); }} variant="default" size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
 
-        {v.units.length === 0 && !v.isAdding && (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
-            <BookOpen size={48} style={{ opacity: 0.2, margin: "0 auto 16px", display: "block" }} />
-            <p style={{ fontWeight: "700", margin: "0 0 6px" }}>Sin unidades configuradas</p>
-            <p style={{ fontSize: "0.85rem", margin: 0 }}>Agrega las unidades del programa para configurar sus ponderaciones y sesiones.</p>
-          </div>
-        )}
-      </div>
-
+      {/* Modal Integral de Unidad */}
       {modalUnit && (
-        <UnitWeightingModal
+        <UnitConfigModal
           unit={modalUnit}
           activities={v.activities}
           assignments={v.assignments}
           exams={v.exams}
           onClose={() => setModalUnit(null)}
-          onSavePillars={v.handleUpdateUnitPillars}
-          onSaveAsgnWeight={v.handleUpdateAssignmentWeight}
+          onSaveFull={v.handleUpdateUnitFull}
         />
       )}
     </div>

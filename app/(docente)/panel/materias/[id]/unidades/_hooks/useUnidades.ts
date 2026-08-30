@@ -163,6 +163,47 @@ export function useUnidadesLista(resource: Promise<UnitsResourceData>, courseId:
     onReload();
   };
 
+  const handleUpdateUnitFull = async (
+    unitId: string,
+    title: string,
+    totalSessions: number,
+    assistWeight: number,
+    activWeight: number,
+    evalWeight: number,
+    asgnWeights: Record<string, number>
+  ) => {
+    setSaving(true);
+    try {
+      await supabase.from("course_units")
+        .update({ title: title.trim(), total_sessions: totalSessions })
+        .eq("id", unitId);
+
+      const unitActs = activities.filter(a => a.unit_id === unitId);
+      const assistAct = unitActs.find(a => a.name.toLowerCase().includes("asist"));
+      const activAct = unitActs.find(a => a.name.toLowerCase().includes("activ") || a.name.toLowerCase().includes("tarea"));
+      const evalAct = unitActs.find(a => a.name.toLowerCase().includes("eval") || a.name.toLowerCase().includes("examen"));
+
+      const upserts = [
+        { id: assistAct?.id, unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight },
+        { id: activAct?.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight },
+        { id: evalAct?.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight },
+      ];
+      await supabase.from("activities").upsert(upserts);
+
+      for (const [asgnId, weight] of Object.entries(asgnWeights)) {
+        const asg = assignments.find(a => a.id === asgnId);
+        const currentRubric = asg?.rubric_data || {};
+        await supabase.from("assignments").update({
+          rubric_data: { ...currentRubric, weight_percentage: weight }
+        }).eq("id", asgnId);
+      }
+
+      onReload();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const activeUnit = units.find((u: CourseUnit) => !u.is_closed);
 
   return {
@@ -181,5 +222,6 @@ export function useUnidadesLista(resource: Promise<UnitsResourceData>, courseId:
     handleDelete,
     handleUpdateUnitPillars,
     handleUpdateAssignmentWeight,
+    handleUpdateUnitFull,
   };
 }

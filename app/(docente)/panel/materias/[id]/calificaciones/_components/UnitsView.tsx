@@ -3,8 +3,8 @@
 import { useState } from "react";
 import {
   BookOpen, PlusCircle, Target, Edit3, AlertTriangle,
-  CheckCircle2, Trash2, Lock, FileSpreadsheet,
-  GraduationCap, ChevronDown, ChevronUp, Pencil, FileText, Award, Save
+  CheckCircle2, Lock, FileSpreadsheet,
+  GraduationCap, ChevronDown, ChevronRight, Save, SlidersHorizontal
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import type { Unit, Activity, Assignment, Exam } from "./types";
@@ -40,6 +40,7 @@ function UnitCard({
     a.name.toLowerCase().includes("cuest")
   );
 
+  const [mode, setMode] = useState<'percent' | 'points'>('percent');
   const [assistWeight, setAssistWeight] = useState<number>(assistAct?.weight_percentage ?? 10);
   const [activWeight, setActivWeight] = useState<number>(activAct?.weight_percentage ?? 50);
   const [evalWeight, setEvalWeight] = useState<number>(evalAct?.weight_percentage ?? 40);
@@ -78,71 +79,153 @@ function UnitCard({
     <div
       style={{
         backgroundColor: "white",
-        borderRadius: "16px",
+        borderRadius: "14px",
         border: `1px solid ${unit.is_closed ? "#cbd5e1" : "#e2e8f0"}`,
         overflow: "hidden",
-        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
-        opacity: unit.is_closed ? 0.85 : 1,
+        boxShadow: "0 2px 4px rgba(0,0,0,0.03)",
+        opacity: unit.is_closed ? 0.9 : 1,
         display: "flex",
         flexDirection: "column",
-        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease"
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-6px)";
-        e.currentTarget.style.boxShadow = "0 15px 30px -5px rgba(0,0,0,0.1)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.05)";
+        transition: "box-shadow 0.2s ease, border-color 0.2s ease"
       }}
     >
+      {/* Header Compacto (Siempre Visible) */}
       <div
-        onClick={onToggleCollapse}
         style={{
-          cursor: "pointer",
-          padding: "18px 20px",
-          backgroundColor: unit.is_closed ? "#f1f5f9" : "#f8fafc",
+          padding: "16px 20px",
+          backgroundColor: unit.is_closed ? "#f8fafc" : "#ffffff",
           borderBottom: isCollapsed ? "none" : "1px solid #e2e8f0",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          transition: "background-color 0.2s"
+          gap: "12px",
+          cursor: "pointer",
         }}
-        onMouseOver={(e) => e.currentTarget.style.backgroundColor = unit.is_closed ? "#e2e8f0" : "#f1f5f9"}
-        onMouseOut={(e) => e.currentTarget.style.backgroundColor = unit.is_closed ? "#f1f5f9" : "#f8fafc"}
+        onClick={onToggleCollapse}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ color: "#94a3b8", display: "flex", alignItems: "center" }}>
-            {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+          <div style={{ color: "#64748b", display: "flex", alignItems: "center" }}>
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
           </div>
           <div>
-            <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px" }}>
-              {unit.is_closed && <Lock size={12} />} Unidad {unit.unit_number} {unit.is_closed && "(Cerrada)"}
-            </span>
-            <h3 style={{ margin: "4px 0 0 0", color: "#1B396A", fontSize: "1.2rem", fontWeight: "800" }}>{unit.name}</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>
+                Unidad {unit.unit_number} {unit.is_closed && "(Cerrada)"}
+              </span>
+              {unit.is_closed && <Lock size={13} color="#94a3b8" />}
+            </div>
+            <h3 style={{ margin: "2px 0 0 0", color: "#1B396A", fontSize: "1.05rem", fontWeight: "700" }}>
+              {unit.name}
+            </h3>
           </div>
         </div>
 
-        {!unit.is_closed && (
-          <div style={{ padding: "6px 12px", borderRadius: "20px", fontSize: "0.85rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px", backgroundColor: isPerfect ? "#ecfdf5" : "#fffbeb", color: isPerfect ? "#10b981" : "#f59e0b" }}>
-            {isPerfect ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />} Total: {totalMacro}%
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div
+            style={{
+              padding: "4px 10px",
+              borderRadius: "6px",
+              fontSize: "0.8rem",
+              fontWeight: "700",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              backgroundColor: isPerfect ? "#f0fdf4" : "#fffbeb",
+              color: isPerfect ? "#166534" : "#92400e",
+              border: `1px solid ${isPerfect ? "#bbf7d0" : "#fde68a"}`
+            }}
+          >
+            {isPerfect ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {totalMacro} {mode === 'percent' ? '%' : 'pts'}
           </div>
-        )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCapture(unit);
+            }}
+            style={{
+              backgroundColor: "#1B396A",
+              color: "white",
+              border: "none",
+              padding: "6px 14px",
+              borderRadius: "8px",
+              fontSize: "0.8rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#244b8a"}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#1B396A"}
+          >
+            <Edit3 size={14} /> Calificar
+          </button>
+        </div>
       </div>
 
-      {!isCollapsed && (
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Pilares Macro */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div style={{ fontSize: "0.75rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase" }}>
-              Ponderación Macro de la Unidad (Suma = 100%)
-            </div>
+      {/* Resumen Rápido cuando está Colapsado */}
+      {isCollapsed && (
+        <div style={{ padding: "10px 20px", backgroundColor: "#f8fafc", borderTop: "1px solid #f1f5f9", display: "flex", gap: "16px", fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
+          <span>Asistencia: {assistWeight}%</span>
+          <span>•</span>
+          <span>Actividades: {activWeight}% ({unitAssignments.length} tareas)</span>
+          <span>•</span>
+          <span>Evaluaciones: {evalWeight}% ({unitExams.length} exámenes)</span>
+        </div>
+      )}
 
+      {/* Detalle Expandido */}
+      {!isCollapsed && (
+        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px", backgroundColor: "#fafafa" }}>
+          {/* Barra de Control de Modo */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
+              Ponderación de la Unidad
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", backgroundColor: "#e2e8f0", padding: "2px", borderRadius: "8px" }}>
+              <button
+                onClick={() => setMode('percent')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "0.75rem",
+                  fontWeight: "700",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  backgroundColor: mode === 'percent' ? "#ffffff" : "transparent",
+                  color: mode === 'percent' ? "#1B396A" : "#64748b",
+                  boxShadow: mode === 'percent' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+                }}
+              >
+                Porcentaje (%)
+              </button>
+              <button
+                onClick={() => setMode('points')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "0.75rem",
+                  fontWeight: "700",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  backgroundColor: mode === 'points' ? "#ffffff" : "transparent",
+                  color: mode === 'points' ? "#1B396A" : "#64748b",
+                  boxShadow: mode === 'points' ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+                }}
+              >
+                Puntos (pts)
+              </button>
+            </div>
+          </div>
+
+          {/* Pilares Macro */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {/* Asistencia */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", backgroundColor: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", backgroundColor: "white", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <div>
-                <div style={{ color: "#1B396A", fontWeight: "700", fontSize: "0.9rem" }}>🎓 Asistencia</div>
-                <div style={{ color: "#64748b", fontSize: "0.75rem" }}>Ponderación de pases de lista</div>
+                <div style={{ color: "#1B396A", fontWeight: "700", fontSize: "0.85rem" }}>Asistencia</div>
+                <div style={{ color: "#64748b", fontSize: "0.75rem" }}>Pases de lista de la unidad</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <input
@@ -150,18 +233,18 @@ function UnitCard({
                   disabled={unit.is_closed}
                   value={assistWeight}
                   onChange={(e) => setAssistWeight(Number(e.target.value))}
-                  style={{ width: "60px", padding: "6px", borderRadius: "8px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "800", color: "#1B396A", outline: "none" }}
+                  style={{ width: "55px", padding: "5px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", color: "#1B396A", outline: "none", fontSize: "0.85rem" }}
                 />
-                <span style={{ fontWeight: "700", color: "#64748b" }}>%</span>
+                <span style={{ fontWeight: "700", color: "#64748b", fontSize: "0.8rem" }}>{mode === 'percent' ? '%' : 'pts'}</span>
               </div>
             </div>
 
             {/* Actividades */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px 14px", backgroundColor: "#eff6ff", borderRadius: "10px", border: "1px solid #bfdbfe" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px 14px", backgroundColor: "white", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ color: "#1e40af", fontWeight: "700", fontSize: "0.9rem" }}>📝 Actividades y Tareas</div>
-                  <div style={{ color: "#3b82f6", fontSize: "0.75rem" }}>{unitAssignments.length} actividades creadas</div>
+                  <div style={{ color: "#1B396A", fontWeight: "700", fontSize: "0.85rem" }}>Actividades y Tareas</div>
+                  <div style={{ color: "#64748b", fontSize: "0.75rem" }}>{unitAssignments.length} actividades vinculadas</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <input
@@ -169,21 +252,21 @@ function UnitCard({
                     disabled={unit.is_closed}
                     value={activWeight}
                     onChange={(e) => setActivWeight(Number(e.target.value))}
-                    style={{ width: "60px", padding: "6px", borderRadius: "8px", border: "1px solid #93c5fd", textAlign: "center", fontWeight: "800", color: "#1e40af", outline: "none", backgroundColor: "white" }}
+                    style={{ width: "55px", padding: "5px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", color: "#1B396A", outline: "none", fontSize: "0.85rem" }}
                   />
-                  <span style={{ fontWeight: "700", color: "#1e40af" }}>%</span>
+                  <span style={{ fontWeight: "700", color: "#64748b", fontSize: "0.8rem" }}>{mode === 'percent' ? '%' : 'pts'}</span>
                 </div>
               </div>
 
-              {/* Desglose de actividades individuales */}
+              {/* Desglose individual de actividades */}
               {unitAssignments.length > 0 && (
-                <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px dashed #bfdbfe", paddingTop: "8px" }}>
-                  <div style={{ fontSize: "0.7rem", color: "#1e40af", fontWeight: "700", display: "flex", justifyContent: "space-between" }}>
+                <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid #f1f5f9", paddingTop: "8px" }}>
+                  <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "700", display: "flex", justifyContent: "space-between" }}>
                     <span>Desglose por actividad:</span>
-                    <span>Suma: {sumAsgnWeights}% / {activWeight}%</span>
+                    <span>Suma: {sumAsgnWeights} / {activWeight} {mode === 'percent' ? '%' : 'pts'}</span>
                   </div>
                   {unitAssignments.map(asgn => (
-                    <div key={asgn.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "white", padding: "6px 10px", borderRadius: "6px", border: "1px solid #dbeafe" }}>
+                    <div key={asgn.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
                       <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>{asgn.title}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                         <input
@@ -191,9 +274,9 @@ function UnitCard({
                           disabled={unit.is_closed}
                           value={localAsgnWeights[asgn.id] ?? defaultAsgnWeight}
                           onChange={(e) => setLocalAsgnWeights({ ...localAsgnWeights, [asgn.id]: Number(e.target.value) })}
-                          style={{ width: "45px", padding: "4px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.8rem" }}
+                          style={{ width: "45px", padding: "4px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.8rem", backgroundColor: "white" }}
                         />
-                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>%</span>
+                        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{mode === 'percent' ? '%' : 'pts'}</span>
                       </div>
                     </div>
                   ))}
@@ -202,11 +285,11 @@ function UnitCard({
             </div>
 
             {/* Evaluaciones */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px 14px", backgroundColor: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px 14px", backgroundColor: "white", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ color: "#92400e", fontWeight: "700", fontSize: "0.9rem" }}>📋 Evaluaciones / Exámenes</div>
-                  <div style={{ color: "#d97706", fontSize: "0.75rem" }}>{unitExams.length} exámenes creados</div>
+                  <div style={{ color: "#1B396A", fontWeight: "700", fontSize: "0.85rem" }}>Evaluaciones / Exámenes</div>
+                  <div style={{ color: "#64748b", fontSize: "0.75rem" }}>{unitExams.length} exámenes vinculados</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <input
@@ -214,18 +297,18 @@ function UnitCard({
                     disabled={unit.is_closed}
                     value={evalWeight}
                     onChange={(e) => setEvalWeight(Number(e.target.value))}
-                    style={{ width: "60px", padding: "6px", borderRadius: "8px", border: "1px solid #fcd34d", textAlign: "center", fontWeight: "800", color: "#92400e", outline: "none", backgroundColor: "white" }}
+                    style={{ width: "55px", padding: "5px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", color: "#1B396A", outline: "none", fontSize: "0.85rem" }}
                   />
-                  <span style={{ fontWeight: "700", color: "#92400e" }}>%</span>
+                  <span style={{ fontWeight: "700", color: "#64748b", fontSize: "0.8rem" }}>{mode === 'percent' ? '%' : 'pts'}</span>
                 </div>
               </div>
 
               {unitExams.length > 0 && (
-                <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px dashed #fde68a", paddingTop: "8px" }}>
+                <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid #f1f5f9", paddingTop: "8px" }}>
                   {unitExams.map(ex => (
-                    <div key={ex.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "white", padding: "6px 10px", borderRadius: "6px", border: "1px solid #fef3c7" }}>
+                    <div key={ex.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
                       <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>{ex.title}</span>
-                      <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "#92400e" }}>{evalWeight}%</span>
+                      <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1B396A" }}>{evalWeight} {mode === 'percent' ? '%' : 'pts'}</span>
                     </div>
                   ))}
                 </div>
@@ -233,7 +316,7 @@ function UnitCard({
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "4px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
             {!unit.is_closed ? (
               <ExpandingButton icon={Save} label={isSaving ? "Guardando..." : "Guardar Ponderación"} onClick={handleSave} variant="secondary" size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
             ) : <div />}
@@ -299,7 +382,7 @@ export default function UnitsView({
             const unitActs = activities.filter(a => a.unit_id === unit.id);
             const unitAssignments = assignments.filter(a => a.unit_id === unit.id);
             const unitExams = exams.filter(e => e.unit_id === unit.id);
-            const isCollapsed = collapsedUnits[unit.id];
+            const isCollapsed = collapsedUnits[unit.id] ?? true;
 
             return (
               <UnitCard
@@ -310,7 +393,7 @@ export default function UnitsView({
                 unitExams={unitExams}
                 assignmentWeights={assignmentWeights}
                 isCollapsed={isCollapsed}
-                onToggleCollapse={() => setCollapsedUnits(prev => ({ ...prev, [unit.id]: !prev[unit.id] }))}
+                onToggleCollapse={() => setCollapsedUnits(prev => ({ ...prev, [unit.id]: !(prev[unit.id] ?? true) }))}
                 onUpdatePillars={handleUpdateUnitPillars}
                 onUpdateAssignmentWeight={handleUpdateAssignmentWeight}
                 onOpenCapture={handleOpenCapture}

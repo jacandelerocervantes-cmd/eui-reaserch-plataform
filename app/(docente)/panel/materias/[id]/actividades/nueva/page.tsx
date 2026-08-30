@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { X, Loader2, Gamepad2, Save, RotateCcw } from "lucide-react";
+import { X, Loader2, Save, RotateCcw } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import ActivityFormLeftColumn from "./_components/ActivityFormLeftColumn";
 import ActivityFormRightColumn from "./_components/ActivityFormRightColumn";

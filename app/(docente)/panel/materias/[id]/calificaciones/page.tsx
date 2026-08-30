@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { RotateCcw, FileSpreadsheet, GraduationCap, Users, BookOpen } from "lucide-react";
+import { RotateCcw, GraduationCap, Users, BookOpen } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import CaptureView from "./_components/CaptureView";
 import FinalGradesView from "./_components/FinalGradesView";
@@ -17,23 +17,20 @@ export default function CalificacionesPage() {
   const [activeTab, setActiveTab] = useState<'units' | 'final'>('units');
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
 
-  // Seleccionar la primera unidad por defecto si no hay seleccionada
-  useEffect(() => {
-    if (c.units.length > 0 && !selectedUnitId) {
-      const active = c.units.find(u => !u.is_closed) || c.units[0];
-      setSelectedUnitId(active.id);
-      c.handleOpenCapture(active);
-    }
+  const currentUnit = useMemo(() => {
+    if (!c.units || c.units.length === 0) return null;
+    return c.units.find(u => u.id === selectedUnitId) || c.units.find(u => !u.is_closed) || c.units[0];
   }, [c.units, selectedUnitId]);
 
-  const currentUnit = c.units.find(u => u.id === selectedUnitId) || c.units[0];
+  const handleOpenCapture = c.handleOpenCapture;
+  useEffect(() => {
+    if (currentUnit) {
+      handleOpenCapture(currentUnit);
+    }
+  }, [currentUnit, handleOpenCapture]);
 
   const handleSelectUnit = (unitId: string) => {
     setSelectedUnitId(unitId);
-    const u = c.units.find(unit => unit.id === unitId);
-    if (u) {
-      c.handleOpenCapture(u);
-    }
   };
 
   if (c.error) {

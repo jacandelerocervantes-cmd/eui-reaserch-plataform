@@ -6,7 +6,7 @@ import { Plus, Trash2, Edit3, X, Lock, Loader2, BookOpen, Save, CheckCircle2, Al
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import {
   useUnidades, useUnidadesLista,
-  type CourseUnit, type UnitActivity, type UnitAssignment, type UnitExam
+  type CourseUnit, type UnitActivity, type UnitAssignment, type UnitExam, type UnitsResourceData
 } from "./_hooks/useUnidades";
 
 export default function UnidadesPage() {
@@ -290,7 +290,7 @@ function UnitWeightingModal({
   );
 }
 
-function UnidadesListInner({ resource, courseId, onReload }: { resource: Promise<any>; courseId: string; onReload: () => void }) {
+function UnidadesListInner({ resource, courseId, onReload }: { resource: Promise<UnitsResourceData>; courseId: string; onReload: () => void }) {
   const v = useUnidadesLista(resource, courseId, onReload);
   const [modalUnit, setModalUnit] = useState<CourseUnit | null>(null);
 

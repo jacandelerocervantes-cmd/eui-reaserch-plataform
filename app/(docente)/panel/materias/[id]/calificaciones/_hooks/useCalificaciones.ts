@@ -43,6 +43,8 @@ export function useCalificaciones(courseId: string) {
   const [isSaving, setIsSaving] = useState(false);
   const [allGrades, setAllGrades] = useState<GradeRow[]>([]);
   const [lockedUnits, setLockedUnits] = useState<{ [key: string]: boolean }>({});
+  const [assignmentWeights, setAssignmentWeights] = useState<Record<string, number>>({});
+  const [examWeights, setExamWeights] = useState<Record<string, number>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -61,8 +63,17 @@ export function useCalificaciones(courseId: string) {
       const { data: actsData } = await supabase.from("activities").select("*, course_units!inner(course_id)").eq("course_units.course_id", courseId);
       if (actsData) setActivities(actsData);
 
-      const { data: asgData } = await supabase.from("assignments").select("id, unit_id, title, submission_type").eq("course_id", courseId);
-      if (asgData) setAssignments(asgData);
+      const { data: asgData } = await supabase.from("assignments").select("id, unit_id, title, submission_type, rubric_data").eq("course_id", courseId);
+      if (asgData) {
+        setAssignments(asgData);
+        const weights: Record<string, number> = {};
+        (asgData as (Assignment & { rubric_data?: { weight_percentage?: number } })[]).forEach(a => {
+          if (a.rubric_data && typeof a.rubric_data.weight_percentage === "number") {
+            weights[a.id] = a.rubric_data.weight_percentage;
+          }
+        });
+        setAssignmentWeights(weights);
+      }
 
       const { data: exData } = await supabase.from("exams").select("id, unit_id, title").eq("course_id", courseId);
       if (exData) setExams(exData);
@@ -83,7 +94,11 @@ export function useCalificaciones(courseId: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
-  const getUnitTotalWeight = (unitId: string) => activities.filter(a => a.unit_id === unitId).reduce((sum, act) => sum + act.weight_percentage, 0);
+  const getUnitTotalWeight = (unitId: string) => {
+    const unitActs = activities.filter(a => a.unit_id === unitId);
+    if (unitActs.length === 0) return 100;
+    return unitActs.reduce((sum, act) => sum + act.weight_percentage, 0);
+  };
 
   const openNewUnitModal = () => {
     setNewUnitName("");
@@ -114,6 +129,65 @@ export function useCalificaciones(courseId: string) {
       setShowUnitModal(false);
       fetchData();
     } catch { alert("Error creando unidad"); }
+  };
+
+  const handleUpdateUnitPillars = async (unitId: string, assistWeight: number, activWeight: number, evalWeight: number) => {
+    try {
+      const unitActs = activities.filter(a => a.unit_id === unitId);
+      const assistAct = unitActs.find(a => a.name.toLowerCase().includes("asist"));
+      const activAct = unitActs.find(a =>
+        a.name.toLowerCase().includes("activ") ||
+        a.name.toLowerCase().includes("tarea") ||
+        a.name.toLowerCase().includes("práct") ||
+        a.name.toLowerCase().includes("pract") ||
+        a.name.toLowerCase().includes("trabaj")
+      );
+      const evalAct = unitActs.find(a =>
+        a.name.toLowerCase().includes("eval") ||
+        a.name.toLowerCase().includes("examen") ||
+        a.name.toLowerCase().includes("cuest")
+      );
+
+      const upserts: { id?: string; unit_id: string; name: string; weight_percentage: number }[] = [];
+
+      if (assistAct) upserts.push({ id: assistAct.id, unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
+      else upserts.push({ unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
+
+      if (activAct) upserts.push({ id: activAct.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
+      else upserts.push({ unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
+
+      if (evalAct) upserts.push({ id: evalAct.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
+      else upserts.push({ unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
+
+      // Si había otros criterios legacy (ej. "TERMINOLOGIA BASICA AGRONOMICA"), borrarlos para dejar los 3 pilares limpios
+      const otherActs = unitActs.filter(a => a.id !== assistAct?.id && a.id !== activAct?.id && a.id !== evalAct?.id);
+      if (otherActs.length > 0) {
+        await supabase.from("activities").delete().in("id", otherActs.map(a => a.id));
+      }
+
+      await supabase.from("activities").upsert(upserts);
+      await fetchData();
+      alert("✅ Ponderación de la unidad guardada exitosamente.");
+    } catch (err) {
+      console.error(err);
+      alert("Error guardando ponderación de la unidad.");
+    }
+  };
+
+  const handleUpdateAssignmentWeight = async (asgnId: string, weight: number) => {
+    setAssignmentWeights(prev => ({ ...prev, [asgnId]: weight }));
+    try {
+      const asgn = assignments.find(a => a.id === asgnId);
+      const currentRubric = (asgn?.rubric_data as Record<string, unknown>) || {};
+      const newRubric = { ...currentRubric, weight_percentage: weight };
+      await supabase.from("assignments").update({ rubric_data: newRubric }).eq("id", asgnId);
+    } catch (err) {
+      console.error("Error guardando peso de actividad:", err);
+    }
+  };
+
+  const handleUpdateExamWeight = (examId: string, weight: number) => {
+    setExamWeights(prev => ({ ...prev, [examId]: weight }));
   };
 
   const openAddActivityModal = (unitId: string) => {
@@ -511,6 +585,10 @@ export function useCalificaciones(courseId: string) {
     openNewUnitModal,
     openAddActivityModal,
     openEditActivityModal,
+    assignmentWeights, examWeights,
+    handleUpdateUnitPillars,
+    handleUpdateAssignmentWeight,
+    handleUpdateExamWeight,
     handleAddUnit,
     handleAddActivity,
     handleDeleteActivity,

@@ -37,14 +37,13 @@ export default function ConfiguracionCalificaciones() {
           loading={c.loading}
           collapsedUnits={c.collapsedUnits}
           setCollapsedUnits={c.setCollapsedUnits}
-          getUnitTotalWeight={c.getUnitTotalWeight}
           openNewUnitModal={c.openNewUnitModal}
           handleOpenSabana={c.handleOpenSabana}
           handleOpenFinalGrades={c.handleOpenFinalGrades}
-          openAddActivityModal={c.openAddActivityModal}
-          openEditActivityModal={c.openEditActivityModal}
+          handleUpdateUnitPillars={c.handleUpdateUnitPillars}
+          handleUpdateAssignmentWeight={c.handleUpdateAssignmentWeight}
           handleOpenCapture={c.handleOpenCapture}
-          handleDeleteActivity={c.handleDeleteActivity}
+          assignmentWeights={c.assignmentWeights}
         />
       )}
 
@@ -54,6 +53,8 @@ export default function ConfiguracionCalificaciones() {
           activities={c.activities}
           assignments={c.assignments}
           exams={c.exams}
+          assignmentWeights={c.assignmentWeights}
+          examWeights={c.examWeights}
           students={c.students}
           grades={c.grades}
           setGrades={c.setGrades}

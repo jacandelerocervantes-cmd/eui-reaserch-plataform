@@ -160,6 +160,7 @@ const ExamCard = ({ exam, courseId }: { exam: ExamWithResponse; courseId: string
 };
 
 function EvaluacionesContent({ resource, courseId, onRetry }: { resource: Promise<FetchResult>; courseId: string; onRetry: () => void }) {
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const result = use(resource);
 
   if (result.kind === "redirect") return (
@@ -176,9 +177,6 @@ function EvaluacionesContent({ resource, courseId, onRetry }: { resource: Promis
   );
 
   const { units, exams } = result;
-  const initialUnitId = units.length > 0 ? units[0].id : '';
-  const [selectedUnitId, setSelectedUnitId] = useState(initialUnitId);
-
   const activeUnitId = selectedUnitId || (units.length > 0 ? units[0].id : '');
   const selectedUnit = units.find(u => u.id === activeUnitId);
   const unitExams = activeUnitId ? exams.filter(e => e.unit_id === activeUnitId) : exams;

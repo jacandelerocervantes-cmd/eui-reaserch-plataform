@@ -4,7 +4,7 @@ import { use, useState, useMemo, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import {
-  GraduationCap, Loader2, BookOpen, RotateCcw,
+  Loader2, BookOpen, RotateCcw,
   CalendarCheck, FileText, Award
 } from 'lucide-react';
 import ExpandingButton from "@/components/ui/ExpandingButton";

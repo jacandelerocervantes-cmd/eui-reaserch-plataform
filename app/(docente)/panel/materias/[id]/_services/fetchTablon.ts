@@ -36,7 +36,7 @@ export async function fetchTablon(courseId: string, _reloadKey: number): Promise
 
   const { data: materiaData } = await supabase
     .from("courses")
-    .select("id, title, allow_student_comments")
+    .select("id, title")
     .eq("id", courseId)
     .maybeSingle();
 
@@ -47,11 +47,29 @@ export async function fetchTablon(courseId: string, _reloadKey: number): Promise
   // El Tablón combina avisos (course_announcements), actividades (assignments)
   // y exámenes (exams) en una sola línea de tiempo — no solo avisos manuales.
   try {
-    const { data: avisosData, error } = await supabase.functions.invoke('sync-tablon', {
-      method: 'POST',
-      body: { action: 'fetchPosts', payload: { course_id: courseId } }
-    });
-    anuncios = !error && avisosData?.success ? avisosData.data : [];
+    try {
+      const { data: avisosData, error } = await supabase.functions.invoke('sync-tablon', {
+        method: 'POST',
+        body: { action: 'fetchPosts', payload: { course_id: courseId } }
+      });
+      if (!error && avisosData?.success) {
+        anuncios = avisosData.data;
+      } else {
+        const { data: directAvisos } = await supabase
+          .from('course_announcements')
+          .select('id, title, content, created_at, author_id')
+          .eq('course_id', courseId)
+          .order('created_at', { ascending: false });
+        anuncios = directAvisos ?? [];
+      }
+    } catch {
+      const { data: directAvisos } = await supabase
+        .from('course_announcements')
+        .select('id, title, content, created_at, author_id')
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false });
+      anuncios = directAvisos ?? [];
+    }
 
     const { data: unitsData } = await supabase
       .from('course_units').select('id').eq('course_id', courseId);

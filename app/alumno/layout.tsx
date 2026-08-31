@@ -45,15 +45,18 @@ export default async function AlumnoLayout({ children }: { children: React.React
   if (!enrollment) redirect('/alumno/login?error=sin_materia')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <AlumnoSidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
-        <Header />
-        <main style={{ flex: 1, padding: '30px 40px', width: '100%', maxWidth: '1400px', margin: '0 auto', boxSizing: 'border-box' }}>
-          {children}
-        </main>
-        <Footer />
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <Header />
+      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+        <AlumnoSidebar />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
+          <main style={{ flex: 1, padding: '30px 40px', width: '100%', maxWidth: '1400px', margin: '0 auto', boxSizing: 'border-box' }}>
+            {children}
+          </main>
+          <Footer />
+        </div>
       </div>
     </div>
   )
 }
+

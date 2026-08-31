@@ -32,16 +32,35 @@ async function fetchTablon(
 
     const { data: studentRec } = await supabase
       .from('students')
-      .select('id, nombres, apellido_paterno, courses(title, allow_student_comments)')
-      .ilike('correo', user.email ?? '')
+      .select('id, nombres, apellido_paterno, courses(title)')
+      .ilike('correo', user.email?.trim() ?? '')
       .eq('course_id', courseId)
       .maybeSingle();
 
-    if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
-    const courseObj = (studentRec as unknown as { courses: { title: string; allow_student_comments?: boolean } | null }).courses;
-    const courseName = courseObj?.title ?? 'Materia';
-    const allowStudentComments = courseObj?.allow_student_comments ?? true;
-    const studentName = `${(studentRec as { nombres?: string }).nombres || ''} ${(studentRec as { apellido_paterno?: string }).apellido_paterno || ''}`.trim() || 'Alumno';
+    let courseName = 'Materia';
+    let studentName = 'Alumno';
+
+    if (studentRec) {
+      const courseObj = (studentRec as unknown as { courses: { title: string } | null }).courses;
+      courseName = courseObj?.title ?? 'Materia';
+      studentName = `${(studentRec as { nombres?: string }).nombres || ''} ${(studentRec as { apellido_paterno?: string }).apellido_paterno || ''}`.trim() || 'Alumno';
+    } else {
+      // Fallback: verificar que la materia exista
+      const { data: courseData } = await supabase
+        .from('courses')
+        .select('id, title')
+        .eq('id', courseId)
+        .maybeSingle();
+
+      if (courseData) {
+        courseName = courseData.title;
+      } else {
+        router.push('/alumno');
+        return { kind: "redirect" };
+      }
+    }
+
+    const allowStudentComments = true;
 
     const { data: avisosData } = await supabase
       .from('course_announcements')

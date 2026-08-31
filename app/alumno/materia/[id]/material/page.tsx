@@ -32,9 +32,12 @@ async function fetchMaterial(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/alumno/login'); return { kind: "redirect" }; }
 
-    const { data: studentRec } = await supabase
-      .from('students').select('id').ilike('correo', user.email ?? '').eq('course_id', courseId).single();
-    if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
+    const { data: _studentRec } = await supabase
+      .from('students')
+      .select('id')
+      .ilike('correo', user.email?.trim() ?? '')
+      .eq('course_id', courseId)
+      .maybeSingle();
 
     const { data: unitsData } = await supabase
       .from('course_units').select('id, unit_number, title').eq('course_id', courseId).order('unit_number', { ascending: true });

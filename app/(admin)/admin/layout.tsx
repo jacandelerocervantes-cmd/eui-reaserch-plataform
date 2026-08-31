@@ -31,16 +31,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!profile || profile.role !== 'admin') redirect('/login')
 
   return (
-    <div style={{ display: 'flex', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <AdminSidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
-        <Header />
-        <main style={{ flex: 1, position: 'relative', width: '100%', padding: '2.5rem' }}>
-          {children}
-        </main>
-        <Footer />
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <Header />
+      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+        <AdminSidebar />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
+          <main style={{ flex: 1, position: 'relative', width: '100%', padding: '2.5rem' }}>
+            {children}
+          </main>
+          <Footer />
+        </div>
       </div>
     </div>
   )
 }
+
 

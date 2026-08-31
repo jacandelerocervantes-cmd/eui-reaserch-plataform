@@ -42,8 +42,11 @@ async function fetchActividades(
     if (!user) { router.push('/alumno/login'); return { kind: "redirect" }; }
 
     const { data: studentRec } = await supabase
-      .from('students').select('id').ilike('correo', user.email ?? '').eq('course_id', courseId).single();
-    if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
+      .from('students')
+      .select('id')
+      .ilike('correo', user.email?.trim() ?? '')
+      .eq('course_id', courseId)
+      .maybeSingle();
 
     const { data: unitsData } = await supabase
       .from('course_units').select('id, unit_number, title').eq('course_id', courseId).order('unit_number', { ascending: true });
@@ -54,9 +57,13 @@ async function fetchActividades(
       .eq('course_id', courseId)
       .order('soft_deadline', { ascending: true });
 
-    const { data: subsData } = await supabase
-      .from('submissions').select('id, assignment_id, status, file_path').eq('student_id', studentRec.id);
-    const subMap = new Map(((subsData ?? []) as SubmissionInfo[]).map((s) => [s.assignment_id, s]));
+    let subsData: SubmissionInfo[] = [];
+    if (studentRec?.id) {
+      const { data } = await supabase
+        .from('submissions').select('id, assignment_id, status, file_path').eq('student_id', studentRec.id);
+      subsData = (data ?? []) as SubmissionInfo[];
+    }
+    const subMap = new Map(subsData.map((s) => [s.assignment_id, s]));
 
     type AssignmentBase = Omit<AssignmentWithSubmission, 'submission'>;
     const assignments: AssignmentWithSubmission[] = ((assignmentData ?? []) as AssignmentBase[]).map((a) => ({ ...a, submission: subMap.get(a.id) ?? null }));

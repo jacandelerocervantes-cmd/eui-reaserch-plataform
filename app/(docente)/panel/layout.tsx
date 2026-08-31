@@ -33,16 +33,19 @@ export default async function DocenteLayout({ children }: { children: React.Reac
   if (!profile || profile.role !== 'docente') redirect('/inicio')
 
   return (
-    <div style={{ display: 'flex', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
-        <Header />
-        <main style={{ flex: 1, position: 'relative', width: '100%' }}>
-          {children}
-        </main>
-        <Footer />
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <Header />
+      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
+          <main style={{ flex: 1, position: 'relative', width: '100%' }}>
+            {children}
+          </main>
+          <Footer />
+        </div>
       </div>
     </div>
   )
 }
+
 

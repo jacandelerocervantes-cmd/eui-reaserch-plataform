@@ -25,21 +25,28 @@ async function fetchAsistencia(
     if (!user) { router.push('/alumno/login'); return { kind: "redirect" }; }
 
     const { data: studentRec } = await supabase
-      .from("students").select("id").ilike("correo", user.email ?? "").eq("course_id", courseId).single();
-    if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
+      .from("students")
+      .select("id")
+      .ilike("correo", user.email?.trim() ?? "")
+      .eq("course_id", courseId)
+      .maybeSingle();
 
     const { data: unitsData } = await supabase
       .from("course_units").select("id, unit_number, title, is_closed").eq("course_id", courseId).order("unit_number");
 
-    const { data: attData } = await supabase
-      .from("validated_attendances")
-      .select("session_date, session_number, unit_number, status")
-      .eq("course_id", courseId)
-      .eq("student_id", studentRec.id)
-      .order("session_date")
-      .order("session_number");
+    let attData: AttendanceRecord[] = [];
+    if (studentRec?.id) {
+      const { data } = await supabase
+        .from("validated_attendances")
+        .select("session_date, session_number, unit_number, status")
+        .eq("course_id", courseId)
+        .eq("student_id", studentRec.id)
+        .order("session_date")
+        .order("session_number");
+      attData = (data ?? []) as AttendanceRecord[];
+    }
 
-    return { kind: "ok", units: unitsData ?? [], attendance: attData ?? [] };
+    return { kind: "ok", units: unitsData ?? [], attendance: attData };
   } catch (err) {
     console.error('Error cargando asistencia:', err);
     return { kind: "error", message: 'No se pudo cargar tu asistencia de esta materia.' };

@@ -16,7 +16,7 @@ function TablonContent({ resource, courseId, onReload }: { resource: Promise<Fet
 
   return (
     <div className={styles.container}>
-      <div className={styles.heroBanner} style={{ backgroundColor: '#1B396A', position: 'relative' }}>
+      <div className={styles.heroBanner}>
         <div className={styles.bannerContent}>
           <h1>{t.materia?.title || "Cargando..."}</h1>
           <p>ID: {courseId?.toString().substring(0, 8)}</p>

@@ -1,11 +1,11 @@
 import { CheckCircle2, AlertCircle, Cloud, ExternalLink } from 'lucide-react';
-import { typeMeta, type Assignment } from '../_services/fetchAssignment';
+import { typeMeta, type Assignment, type Submission } from '../_services/fetchAssignment';
 
 export function WorkspaceZone({
-  assignment, confirmed, onConfirm,
-}: { assignment: Assignment; confirmed: boolean; onConfirm: (v: boolean) => void }) {
+  assignment, submission, confirmed, onConfirm,
+}: { assignment: Assignment; submission?: Submission | null; confirmed: boolean; onConfirm: (v: boolean) => void }) {
   const meta = typeMeta(assignment.submission_type);
-  const url = assignment.workspace_url;
+  const url = submission?.content_url || assignment.workspace_url;
 
   return (
     <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm space-y-4">
@@ -19,8 +19,8 @@ export function WorkspaceZone({
             <div className="flex items-center gap-3">
               <div style={{ color: meta.color }}>{meta.icon}</div>
               <div>
-                <div className="font-black text-slate-800">{meta.label} del Docente</div>
-                <div className="text-xs text-slate-500 font-medium">Puedes editar este documento directamente</div>
+                <div className="font-black text-slate-800">{meta.label} de la Actividad</div>
+                <div className="text-xs text-slate-500 font-medium">Puedes editar y colaborar en este documento directamente</div>
               </div>
             </div>
             <a
@@ -44,7 +44,7 @@ export function WorkspaceZone({
             />
             <div>
               <div className="font-bold text-slate-800">He completado mi trabajo en el documento</div>
-              <div className="text-xs text-slate-500 font-medium">El docente podrá ver el historial de ediciones del Doc.</div>
+              <div className="text-xs text-slate-500 font-medium">El docente podrá ver el historial de ediciones del documento en Google Drive.</div>
             </div>
             {confirmed && <CheckCircle2 className="text-emerald-500 ml-auto flex-shrink-0" size={22} />}
           </label>
@@ -52,9 +52,10 @@ export function WorkspaceZone({
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-[16px] p-4 text-amber-700 font-medium text-sm flex items-center gap-2">
           <AlertCircle size={16} className="flex-shrink-0" />
-          El docente aún no ha generado el entorno en Drive. Consulta con tu profesor.
+          El entorno de trabajo colaborativo se está generando en Google Drive. Consulta con tu profesor o intenta en unos momentos.
         </div>
       )}
     </div>
   );
 }
+

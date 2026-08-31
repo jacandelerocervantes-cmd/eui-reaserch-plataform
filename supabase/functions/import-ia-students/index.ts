@@ -142,7 +142,7 @@ serve(async (req: Request) => {
   );
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60_000); // 60s para PDFs multipágina
+  const timeout = setTimeout(() => controller.abort(), 120_000); // 120s para PDFs multipágina con varios grupos
 
   try {
     const contentType = req.headers.get("content-type") || "";

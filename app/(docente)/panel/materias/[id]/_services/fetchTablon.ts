@@ -14,7 +14,11 @@ export type FeedItem =
   | { tipo: 'actividad'; id: string; title: string; deadline: string | null; created_at: string }
   | { tipo: 'examen'; id: string; title: string; status: string; created_at: string };
 
-export type Materia = { id: string; title: string };
+export type Materia = {
+  id: string;
+  title: string;
+  allow_student_comments?: boolean;
+};
 
 export type FetchResult = {
   materia: Materia | null;
@@ -32,9 +36,9 @@ export async function fetchTablon(courseId: string, _reloadKey: number): Promise
 
   const { data: materiaData } = await supabase
     .from("courses")
-    .select("*")
+    .select("id, title, allow_student_comments")
     .eq("id", courseId)
-    .single();
+    .maybeSingle();
 
   let anuncios: Aviso[] = [];
   let feedItems: FeedItem[] = [];

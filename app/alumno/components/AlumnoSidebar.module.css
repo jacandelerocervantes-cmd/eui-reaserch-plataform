@@ -1,10 +1,10 @@
 .sidebar {
   width: 80px;
-  background: var(--bg-surface);
+  background: #ffffff;
   position: fixed;
-  top: 80px;
+  top: 90px;
   left: 0;
-  height: calc(100vh - 100px);
+  height: calc(100vh - 90px);
   display: flex;
   flex-direction: column;
   z-index: 1000;
@@ -41,7 +41,7 @@
   align-items: center;
   padding-bottom: 1.5rem;
   z-index: 10;
-  background: var(--bg-surface);
+  background: #ffffff;
 }
 
 .separator {
@@ -71,8 +71,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--tecnm-blue);
-  background: var(--bg-app);
+  color: #1B396A;
+  background: #f8fafc;
   border-radius: 14px;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
@@ -82,8 +82,8 @@
 .label {
   position: absolute;
   left: 70px;
-  background: var(--tecnm-blue);
-  color: var(--bg-surface);
+  background: #1B396A;
+  color: white;
   padding: 0.5rem 1rem;
   border-radius: 8px;
   font-size: 0.8rem;
@@ -103,13 +103,9 @@
 }
 
 .itemWrapper:hover .icon {
-  background: var(--tecnm-blue) !important;
-  color: var(--bg-surface) !important;
+  background: #1B396A !important;
+  color: white !important;
   transform: scale(1.1);
   box-shadow: 0 8px 15px rgba(27, 57, 106, 0.2);
 }
 
-.itemWrapperActive .icon {
-  background: var(--tecnm-blue);
-  color: var(--bg-surface);
-}

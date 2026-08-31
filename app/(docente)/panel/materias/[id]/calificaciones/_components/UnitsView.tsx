@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BookOpen, PlusCircle, Target, Edit3, AlertTriangle,
+  BookOpen, PlusCircle, Edit3, AlertTriangle,
   CheckCircle2, Lock, FileSpreadsheet, GraduationCap
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
@@ -143,12 +143,9 @@ export default function UnitsView({
 }) {
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: "0 0 8px 0" }}>Configuración de Evaluación</h1>
-          <p style={{ color: "#64748b", margin: 0, fontWeight: "500", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Target size={18} /> Ponderación Macro (Asistencia + Actividades + Evaluaciones = 100%) y Desglose Individual
-          </p>
+          <h1 style={{ color: "#1B396A", fontSize: "2rem", fontWeight: "800", margin: 0 }}>Ponderación de Unidades</h1>
         </div>
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -159,12 +156,11 @@ export default function UnitsView({
       </div>
 
       {loading ? (
-        <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>Cargando rúbricas y ponderaciones...</div>
+        <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>Cargando unidades...</div>
       ) : units.length === 0 ? (
         <div style={{ backgroundColor: "white", padding: "60px 20px", borderRadius: "16px", border: "1px dashed #cbd5e1", textAlign: "center" }}>
           <BookOpen size={48} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-          <h3 style={{ color: "#1B396A", margin: "0 0 8px 0", fontSize: "1.2rem" }}>Aún no hay unidades</h3>
-          <p style={{ color: "#64748b", margin: "0 0 20px 0", fontSize: "0.95rem" }}>Comienza creando tu Unidad 1 para configurar las ponderaciones.</p>
+          <h3 style={{ color: "#1B396A", margin: "0 0 16px 0", fontSize: "1.2rem" }}>Aún no hay unidades</h3>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <ExpandingButton icon={PlusCircle} label="Crear Primera Unidad" onClick={openNewUnitModal} variant="primary" size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />
           </div>

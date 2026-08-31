@@ -14,8 +14,7 @@ export default function PanelPage() {
       <main className={styles.mainContent}>
         <header className={styles.pageHeader}>
           <div className={styles.titleGroup}>
-            <h2 className={styles.pageTitle}>Panel de Gestión</h2>
-            <p className={styles.pageSubtitle}>Administra tus asignaturas y entornos virtuales.</p>
+            <h2 className={styles.pageTitle}>Mis Asignaturas</h2>
           </div>
         </header>
 

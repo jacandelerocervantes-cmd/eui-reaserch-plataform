@@ -177,7 +177,6 @@ function ResultadosContent({ resource, courseId, examId, onRetry }: { resource: 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "900", margin: 0 }}>Resultados: {examData?.title}</h1>
-          <p style={{ color: "#64748b", margin: 0 }}>Análisis detallado de rendimiento y retroalimentación IA.</p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <ExpandingButton icon={Download} label="Actualizar Sábana" onClick={handleExport} loading={isExporting} variant="secondary" size={44} smallSize={36} radius={10} gap={8} padding="0 12px" fontWeight={700} durationMs={300} />

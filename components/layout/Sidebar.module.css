@@ -2,9 +2,9 @@
   width: 80px;
   background: #ffffff;
   position: fixed;
-  top: 80px;
+  top: 90px;
   left: 0;
-  height: calc(100vh - 100px);
+  height: calc(100vh - 90px);
   display: flex;
   flex-direction: column;
   z-index: 1000;

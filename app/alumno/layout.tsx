@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import AlumnoSidebar from './components/AlumnoSidebar'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 
 export default async function AlumnoLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -43,11 +45,15 @@ export default async function AlumnoLayout({ children }: { children: React.React
   if (!enrollment) redirect('/alumno/login?error=sin_materia')
 
   return (
-    <div style={{ display: 'flex', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <AlumnoSidebar />
-      <main style={{ flex: 1, marginLeft: '80px', width: 'calc(100% - 80px)', position: 'relative', padding: '40px' }}>
-        {children}
-      </main>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
+        <Header />
+        <main style={{ flex: 1, padding: '30px 40px', width: '100%', maxWidth: '1400px', margin: '0 auto', boxSizing: 'border-box' }}>
+          {children}
+        </main>
+        <Footer />
+      </div>
     </div>
   )
 }

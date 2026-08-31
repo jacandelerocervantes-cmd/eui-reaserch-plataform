@@ -167,14 +167,12 @@ function DriveContent({ resource, courseId, onRetry }: { resource: ReturnType<ty
       {!selectedUnitId ? (
         <div style={{ textAlign: "center", padding: "60px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
           <BookOpen size={40} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-          <h3 style={{ color: "#1B396A", margin: 0 }}>Selecciona una unidad arriba</h3>
-          <p style={{ color: "#64748b" }}>Para consultar o subir material didáctico a la bóveda.</p>
+          <h3 style={{ color: "#1B396A", margin: 0 }}>Selecciona una unidad</h3>
         </div>
       ) : units.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
           <AlertCircle size={40} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-          <h3 style={{ color: "#1B396A", margin: 0 }}>No se encontraron unidades</h3>
-          <p style={{ color: "#64748b" }}>Carga las unidades en la configuración de la materia para empezar.</p>
+          <h3 style={{ color: "#1B396A", margin: 0 }}>Sin unidades</h3>
         </div>
       ) : (
         <div>

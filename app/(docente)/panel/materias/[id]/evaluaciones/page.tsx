@@ -86,10 +86,9 @@ function EvaluacionesContent({ resource, courseId, onRetry }: { resource: Return
 
   return (
     <div style={{ padding: "40px", maxWidth: "1300px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "32px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "2.8rem", fontWeight: "950", margin: 0, letterSpacing: "-0.02em" }}>Evaluaciones</h1>
-          <p style={{ color: "#64748b", fontSize: "1.1rem", fontWeight: "500", marginTop: "4px" }}>Generación y control de exámenes por IA</p>
         </div>
         <ExpandingButton icon={Plus} label="Crear Examen" onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/nuevo`)} variant="primary" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
       </div>
@@ -106,14 +105,12 @@ function EvaluacionesContent({ resource, courseId, onRetry }: { resource: Return
       {!selectedUnitId ? (
         <div style={{ textAlign: "center", padding: "60px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
           <BookOpen size={40} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-          <h3 style={{ color: "#1B396A", margin: 0 }}>Selecciona una unidad arriba</h3>
-          <p style={{ color: "#64748b" }}>Para ver sus evaluaciones.</p>
+          <h3 style={{ color: "#1B396A", margin: 0 }}>Selecciona una unidad</h3>
         </div>
       ) : units.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
           <AlertCircle size={40} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-          <h3 style={{ color: "#1B396A", margin: 0 }}>No se encontraron unidades</h3>
-          <p style={{ color: "#64748b" }}>Carga las unidades en la configuración de la materia para empezar.</p>
+          <h3 style={{ color: "#1B396A", margin: 0 }}>Sin unidades</h3>
         </div>
       ) : (
         <div>

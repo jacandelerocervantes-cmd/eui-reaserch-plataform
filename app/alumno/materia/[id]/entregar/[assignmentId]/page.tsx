@@ -246,7 +246,7 @@ function EntregarContent({
         <>
           {/* Sección de entrega según tipo estándar */}
           {(subType === 'workspace') && (
-            <WorkspaceZone assignment={assignment} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
+            <WorkspaceZone assignment={assignment} submission={existing} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
           )}
 
           {(subType === 'file') && (
@@ -261,7 +261,7 @@ function EntregarContent({
                   <span className="w-5 h-5 bg-[#1B396A] text-white rounded-full flex items-center justify-center text-[10px]">1</span>
                   Trabajo en Google Workspace
                 </div>
-                <WorkspaceZone assignment={assignment} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
+                <WorkspaceZone assignment={assignment} submission={existing} confirmed={wsConfirmed} onConfirm={setWsConfirmed} />
               </div>
 
               {/* Paso 2: Archivo adicional */}

@@ -415,8 +415,7 @@ function UnidadesListInner({ resource, courseId, onReload }: { resource: Promise
       {v.units.length === 0 && !v.isAdding ? (
         <div style={{ textAlign: "center", padding: "80px 20px", backgroundColor: "#f8fafc", borderRadius: "24px", border: "2px dashed #e2e8f0" }}>
           <BookOpen size={48} color="#cbd5e1" style={{ margin: "0 auto 16px", display: "block" }} />
-          <h3 style={{ color: "#1B396A", fontSize: "1.2rem", fontWeight: "800", margin: "0 0 6px" }}>Sin unidades configuradas</h3>
-          <p style={{ color: "#64748b", fontSize: "0.95rem", margin: 0 }}>Agrega las unidades del programa para estructurar sesiones, actividades y ponderaciones.</p>
+          <h3 style={{ color: "#1B396A", fontSize: "1.2rem", fontWeight: "800", margin: 0 }}>Sin unidades configuradas</h3>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "24px" }}>

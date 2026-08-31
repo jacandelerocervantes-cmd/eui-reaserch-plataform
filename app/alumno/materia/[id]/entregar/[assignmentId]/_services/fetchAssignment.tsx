@@ -63,7 +63,7 @@ export async function fetchAssignment(
       .select('id')
       .ilike('correo', user.email ?? '')
       .eq('course_id', courseId)
-      .single();
+      .maybeSingle();
 
     if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
 
@@ -71,7 +71,7 @@ export async function fetchAssignment(
       .from('assignments')
       .select('id, title, description, soft_deadline, hard_deadline, submission_type, rubric_data, late_penalty_percent, workspace_url')
       .eq('id', assignmentId)
-      .single();
+      .maybeSingle();
 
     if (!asgn) { router.push(`/alumno/materia/${courseId}`); return { kind: "redirect" }; }
 
@@ -82,21 +82,48 @@ export async function fetchAssignment(
       .eq('student_id', studentRec.id)
       .maybeSingle();
 
-    let initialForumText = '';
-    let initialWsConfirmed = false;
-    if (sub) {
-      if (sub.content_url && !sub.content_url.startsWith('http')) {
-        // content_url contiene texto de foro
-        initialForumText = sub.content_url;
-      }
-      if (sub.content_url && sub.content_url.startsWith('http')) {
-        initialWsConfirmed = sub.status === 'submitted';
+    let resolvedContentUrl = sub?.content_url ?? null;
+    if (!resolvedContentUrl) {
+      // Intentar buscar en assignment_teams si la actividad es por equipos
+      const { data: teamMember } = await supabase
+        .from('assignment_team_members')
+        .select('team_id, assignment_teams(workspace_url)')
+        .eq('student_id', studentRec.id)
+        .limit(1)
+        .maybeSingle();
+      if (teamMember) {
+        resolvedContentUrl = (teamMember as unknown as { assignment_teams: { workspace_url: string | null } | null })?.assignment_teams?.workspace_url ?? null;
       }
     }
 
-    return { kind: "ok", studentId: studentRec.id, assignment: asgn as Assignment, existing: (sub as Submission | null) ?? null, initialForumText, initialWsConfirmed };
+    const effectiveExisting: Submission | null = sub
+      ? { ...sub, content_url: resolvedContentUrl }
+      : resolvedContentUrl
+        ? { id: '', status: 'draft', file_path: null, content_url: resolvedContentUrl, submitted_at: null, version_number: 1 }
+        : null;
+
+    let initialForumText = '';
+    let initialWsConfirmed = false;
+    if (effectiveExisting) {
+      if (effectiveExisting.content_url && !effectiveExisting.content_url.startsWith('http')) {
+        initialForumText = effectiveExisting.content_url;
+      }
+      if (effectiveExisting.content_url && effectiveExisting.content_url.startsWith('http')) {
+        initialWsConfirmed = effectiveExisting.status === 'submitted';
+      }
+    }
+
+    return {
+      kind: "ok",
+      studentId: studentRec.id,
+      assignment: asgn as Assignment,
+      existing: effectiveExisting,
+      initialForumText,
+      initialWsConfirmed
+    };
   } catch (err) {
     console.error('Error cargando la actividad:', err);
     return { kind: "error", message: 'No se pudo cargar esta actividad. Intenta de nuevo.' };
   }
 }
+

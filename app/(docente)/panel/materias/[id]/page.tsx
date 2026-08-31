@@ -31,6 +31,48 @@ function TablonContent({ resource, courseId, onReload }: { resource: Promise<Fet
               <li><Clock size={16} color="#64748b" /> <span>{t.anuncios.length} Avisos publicados</span></li>
             </ul>
           </div>
+
+          <div className={styles.widget}>
+            <h3>Ajustes del Tablón</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', fontSize: '0.85rem' }}>
+              <span style={{ fontWeight: 600, color: '#334155' }}>Comentarios</span>
+              <button
+                type="button"
+                onClick={t.handleToggleAllowComments}
+                disabled={t.isTogglingComments}
+                style={{
+                  position: 'relative',
+                  width: '42px',
+                  height: '22px',
+                  borderRadius: '11px',
+                  border: 'none',
+                  backgroundColor: t.allowComments ? '#10b981' : '#cbd5e1',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={t.allowComments ? 'Los alumnos pueden comentar en los avisos' : 'Comentarios deshabilitados para alumnos'}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: 'white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    transform: t.allowComments ? 'translateX(20px)' : 'translateX(0px)',
+                    transition: 'transform 0.2s',
+                  }}
+                />
+              </button>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: t.allowComments ? '#10b981' : '#64748b', fontWeight: 700, display: 'block', marginTop: '2px' }}>
+              {t.allowComments ? '● Alumnos pueden comentar' : '○ Comentarios deshabilitados'}
+            </span>
+          </div>
         </aside>
 
         <main className={styles.feed}>

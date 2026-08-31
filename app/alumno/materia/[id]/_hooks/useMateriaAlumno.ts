@@ -15,7 +15,7 @@ export type FeedItem =
   | { tipo: 'examen'; id: string; title: string; status: string; created_at: string };
 
 export type FetchResult =
-  | { kind: "ok"; courseName: string; avisos: Aviso[]; feedItems: FeedItem[] }
+  | { kind: "ok"; courseName: string; avisos: Aviso[]; feedItems: FeedItem[]; allowStudentComments: boolean; studentName: string }
   | { kind: "error"; message: string }
   | { kind: "redirect" };
 
@@ -32,13 +32,16 @@ async function fetchTablon(
 
     const { data: studentRec } = await supabase
       .from('students')
-      .select('id, courses(title)')
+      .select('id, nombres, apellido_paterno, courses(title, allow_student_comments)')
       .ilike('correo', user.email ?? '')
       .eq('course_id', courseId)
-      .single();
+      .maybeSingle();
 
     if (!studentRec) { router.push('/alumno'); return { kind: "redirect" }; }
-    const courseName = (studentRec as { courses: { title: string } | null }).courses?.title ?? 'Materia';
+    const courseObj = (studentRec as unknown as { courses: { title: string; allow_student_comments?: boolean } | null }).courses;
+    const courseName = courseObj?.title ?? 'Materia';
+    const allowStudentComments = courseObj?.allow_student_comments ?? true;
+    const studentName = `${(studentRec as { nombres?: string }).nombres || ''} ${(studentRec as { apellido_paterno?: string }).apellido_paterno || ''}`.trim() || 'Alumno';
 
     const { data: avisosData } = await supabase
       .from('course_announcements')
@@ -70,7 +73,7 @@ async function fetchTablon(
       ...examenes.map((e): FeedItem => ({ tipo: 'examen', id: e.id, title: e.title, status: e.status, created_at: e.created_at })),
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return { kind: "ok", courseName, avisos: avisosList, feedItems: combined };
+    return { kind: "ok", courseName, avisos: avisosList, feedItems: combined, allowStudentComments, studentName };
   } catch (err) {
     console.error('Error cargando el tablón:', err);
     return { kind: "error", message: 'No se pudo cargar el tablón de esta materia.' };

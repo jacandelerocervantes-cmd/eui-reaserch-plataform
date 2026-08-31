@@ -17,6 +17,22 @@ export function useTablon({ resource, courseId, onReload }: UseTablonArgs) {
 
   const { materia, anuncios, feedItems, feedError, userProfile } = result;
 
+  const [allowComments, setAllowComments] = useState<boolean>(materia?.allow_student_comments ?? true);
+  const [isTogglingComments, setIsTogglingComments] = useState(false);
+
+  const handleToggleAllowComments = async () => {
+    const nextVal = !allowComments;
+    setAllowComments(nextVal);
+    setIsTogglingComments(true);
+    try {
+      await supabase.from("courses").update({ allow_student_comments: nextVal }).eq("id", courseId);
+    } catch (e) {
+      console.warn("Could not persist allow_student_comments:", e);
+    } finally {
+      setIsTogglingComments(false);
+    }
+  };
+
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPost.titulo || !newPost.contenido || !userProfile) return;
@@ -61,5 +77,7 @@ export function useTablon({ resource, courseId, onReload }: UseTablonArgs) {
     showCompose, setShowCompose,
     handlePublish,
     userNameDisplay, userInitial,
+    allowComments, isTogglingComments, handleToggleAllowComments,
   };
 }
+

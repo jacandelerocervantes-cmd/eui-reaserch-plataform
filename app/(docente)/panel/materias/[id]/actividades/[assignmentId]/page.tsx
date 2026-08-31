@@ -239,7 +239,6 @@ function DashboardEntregasContent({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "2.8rem", fontWeight: "950", margin: 0, letterSpacing: "-0.03em" }}>Control de Entregas</h1>
-          <p style={{ color: "#64748b", fontSize: "1.1rem", fontWeight: "500", marginTop: "4px" }}>Auditoría de evidencias para esta actividad</p>
         </div>
       </div>
 

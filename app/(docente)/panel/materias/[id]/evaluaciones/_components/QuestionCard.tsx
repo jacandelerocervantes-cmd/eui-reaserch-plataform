@@ -79,13 +79,12 @@ export const QuestionCard = ({ question: q, index: idx, onUpdate, onDelete }: {
                 style={{ padding: "10px 14px", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none", fontSize: "0.9rem" }} />
             ))}
           </div>
-          <p style={{ gridColumn: "1 / -1", fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>El orden de cada columna define la pareja correcta (concepto 1 ↔ definición 1, etc.). La IA puede generar esto directamente desde el prompt o el archivo.</p>
         </div>
       )}
 
       {q.type === 'short_answer' && (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
-          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>Respuestas aceptadas (cualquiera de estas cuenta como correcta):</p>
+          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>Respuestas aceptadas:</p>
           {(q.options ?? [""]).map((opt: string, oi: number) => (
             <div key={oi} style={{ display: "flex", gap: "6px" }}>
               <input value={opt} placeholder={`Respuesta aceptada ${oi + 1}`}
@@ -102,7 +101,7 @@ export const QuestionCard = ({ question: q, index: idx, onUpdate, onDelete }: {
 
       {q.type === 'fill_blank' && (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
-          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>Escribe el enunciado arriba usando &quot;___&quot; para cada espacio, y aquí la respuesta correcta de cada uno, en orden:</p>
+          <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: 0 }}>Respuestas por espacio:</p>
           {(q.options ?? [""]).map((opt: string, oi: number) => (
             <div key={oi} style={{ display: "flex", gap: "6px" }}>
               <input value={opt} placeholder={`Espacio ${oi + 1}`}

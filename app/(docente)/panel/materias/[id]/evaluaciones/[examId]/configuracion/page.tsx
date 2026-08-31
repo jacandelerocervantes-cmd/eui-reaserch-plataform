@@ -105,7 +105,6 @@ export default function ConfiguracionExamenPage() {
                   </a>
                 )}
                 <ExpandingButton icon={Sparkles} label="Regenerar Formulario" loadingLabel="Generando..." variant="ai" small onClick={e.handlePublishForm} loading={e.isPublishingForm} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} />
-                <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>Regenerar crea un Form nuevo; el anterior queda huérfano en tu Drive (no se borra solo).</p>
               </div>
             ) : (
               <ExpandingButton icon={Sparkles} label="Generar Google Form" loadingLabel="Generando..." variant="ai" onClick={e.handlePublishForm} loading={e.isPublishingForm} disabled={e.questions.length === 0} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />

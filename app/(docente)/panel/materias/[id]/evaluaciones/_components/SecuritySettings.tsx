@@ -14,19 +14,13 @@ export const SecuritySettings = ({
   <>
     <div>
       <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>Orden Aleatorio Anti-Copia</label>
-      <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", cursor: "pointer" }}>
-        <input type="checkbox" checked={randomizeQuestions} onChange={(e) => setRandomizeQuestions(e.target.checked)} style={{ marginTop: "3px" }} />
-        <span>
-          <span style={{ display: "block", fontSize: "0.9rem", color: "#334155", fontWeight: "600" }}>Mezclar el ORDEN DE LAS PREGUNTAS por alumno</span>
-          <span style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8" }}>Ej: a un alumno le toca la pregunta 5 primero; a otro, la pregunta 1.</span>
-        </span>
+      <label style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", cursor: "pointer" }}>
+        <input type="checkbox" checked={randomizeQuestions} onChange={(e) => setRandomizeQuestions(e.target.checked)} />
+        <span style={{ fontSize: "0.9rem", color: "#334155", fontWeight: "600" }}>Aleatorizar orden de preguntas</span>
       </label>
-      <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", cursor: "pointer" }}>
-        <input type="checkbox" checked={randomizeOptions} onChange={(e) => setRandomizeOptions(e.target.checked)} style={{ marginTop: "3px" }} />
-        <span>
-          <span style={{ display: "block", fontSize: "0.9rem", color: "#334155", fontWeight: "600" }}>Mezclar el ORDEN DE LAS OPCIONES dentro de cada pregunta</span>
-          <span style={{ display: "block", fontSize: "0.78rem", color: "#94a3b8" }}>Ej: en opción múltiple, la respuesta correcta no siempre aparece como la &quot;A&quot;.</span>
-        </span>
+      <label style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", cursor: "pointer" }}>
+        <input type="checkbox" checked={randomizeOptions} onChange={(e) => setRandomizeOptions(e.target.checked)} />
+        <span style={{ fontSize: "0.9rem", color: "#334155", fontWeight: "600" }}>Aleatorizar orden de opciones</span>
       </label>
     </div>
 

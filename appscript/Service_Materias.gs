@@ -46,6 +46,15 @@ function crearEntornoMateria(payload) {
   sabanaSheet.appendRow(["MATRÍCULA", "ALUMNO"]);
   sabanaSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#1B396A").setFontColor("white");
 
+  // Compartir la carpeta de la materia con el docente si se recibió su email
+  if (payload.teacherEmail) {
+    try {
+      courseFolder.addEditor(payload.teacherEmail);
+    } catch (e) {
+      Logger.log('No se pudo compartir la carpeta con ' + payload.teacherEmail + ': ' + e.toString());
+    }
+  }
+
   return {
     drive_folder_id:                courseFolder.getId(),
     google_sheet_id:                sheetAsistencia.getId(),

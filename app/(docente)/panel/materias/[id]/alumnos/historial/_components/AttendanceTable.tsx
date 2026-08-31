@@ -15,8 +15,7 @@ export default function AttendanceTable({
   if (uniqueDates.length === 0) {
     return (
       <div style={{ padding: "60px 0", textAlign: "center", color: "#94a3b8" }}>
-        <p style={{ fontSize: "1rem", fontWeight: "600", margin: "0 0 4px" }}>Sin registros para esta unidad</p>
-        <p style={{ fontSize: "0.85rem", margin: 0 }}>Realiza pases de lista y quedarán reflejados aquí.</p>
+        <p style={{ fontSize: "1rem", fontWeight: "600", margin: 0 }}>Sin registros para esta unidad</p>
       </div>
     );
   }

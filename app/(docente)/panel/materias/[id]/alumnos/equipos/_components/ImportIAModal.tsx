@@ -25,8 +25,7 @@ export default function ImportIAModal({
           <Sparkles size={16} /> MOTOR GEMINI 2.5 FLASH
         </div>
 
-        <h2 className={styles.modalTitle} style={{ marginBottom: "8px" }}>Importación Inteligente de Equipos</h2>
-        <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: "24px" }}>Sube una lista en PDF, Excel o imagen con la agrupación de equipos y sus integrantes.</p>
+        <h2 className={styles.modalTitle} style={{ marginBottom: "20px" }}>Importación Inteligente de Equipos</h2>
 
         {importError && (
           <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "8px", marginBottom: "20px", fontSize: "0.9rem", textAlign: "left", display: "flex", alignItems: "flex-start", gap: "8px", border: "1px solid #f87171" }}>

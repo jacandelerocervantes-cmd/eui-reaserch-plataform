@@ -71,7 +71,6 @@ export default function NuevaActividad() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "20px", borderBottom: "1px solid #e2e8f0" }}>
         <div>
           <h1 style={{ color: "#1B396A", fontSize: "2.2rem", fontWeight: "900", margin: "0", letterSpacing: "-0.02em" }}>Nueva Actividad</h1>
-          <p style={{ color: "#64748b", fontSize: "0.95rem", fontWeight: "600", marginTop: "4px", margin: 0 }}>Configura los parámetros y la rúbrica de Certeza AIA</p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

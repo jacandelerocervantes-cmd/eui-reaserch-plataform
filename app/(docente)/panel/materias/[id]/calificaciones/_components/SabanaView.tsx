@@ -32,7 +32,6 @@ export default function SabanaView({
             <ArrowLeft size={16} /> Volver a Unidades
           </button>
           <h1 style={{ color: "#1B396A", fontSize: "2.2rem", fontWeight: "900", margin: 0 }}>Sábana de Calificaciones</h1>
-          <p style={{ color: "#64748b", margin: "5px 0 0" }}>Suma automática de criterios y exportación de actas.</p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <ExpandingButton icon={Save} label={isSaving ? "Guardando..." : "Guardar Cambios"} onClick={handleSaveGrades} variant="primary" disabled={isSaving} size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} fontSize="0.9rem" durationMs={300} shadow="hover" />

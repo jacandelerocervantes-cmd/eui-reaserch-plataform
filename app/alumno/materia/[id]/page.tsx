@@ -26,14 +26,14 @@ function TablonContent({ resource, courseId, onRetry }: { resource: Promise<Fetc
     </div>
   );
 
-  const { courseName, avisos, feedItems } = result;
+  const { courseName, avisos, feedItems, allowStudentComments } = result;
 
   return (
     <div className={styles.container}>
       <div className={styles.heroBanner}>
         <div className={styles.bannerContent}>
           <h1>{courseName}</h1>
-          <p>Tablón de avisos</p>
+          <p>Tablón de avisos y novedades</p>
         </div>
       </div>
 
@@ -44,6 +44,13 @@ function TablonContent({ resource, courseId, onRetry }: { resource: Promise<Fetc
             <ul className={styles.taskList}>
               <li><Clock size={16} color="#64748b" /> <span>{avisos.length} Avisos publicados</span></li>
             </ul>
+          </div>
+
+          <div className={styles.widget}>
+            <h3>Interacción</h3>
+            <span style={{ fontSize: '0.78rem', color: allowStudentComments ? '#10b981' : '#64748b', fontWeight: 700, display: 'block', marginTop: '4px' }}>
+              {allowStudentComments ? '● Comentarios de clase habilitados' : '○ Comentarios deshabilitados'}
+            </span>
           </div>
         </aside>
 
@@ -80,7 +87,7 @@ function TablonContent({ resource, courseId, onRetry }: { resource: Promise<Fetc
                       </div>
                       <div className={styles.authorMeta}>
                         <span className={styles.author}>{meta ? meta.label : 'Docente'}</span>
-                        <span className={styles.date}>{new Date(item.created_at).toLocaleDateString()}</span>
+                        <span className={styles.date}>{new Date(item.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span>
                       </div>
                     </div>
                     {item.tipo === 'examen' && (
@@ -91,9 +98,18 @@ function TablonContent({ resource, courseId, onRetry }: { resource: Promise<Fetc
                   </div>
                   <div className={styles.postBody}>
                     <h4 className={styles.postTitle}>{item.title}</h4>
-                    {item.tipo === 'aviso' && <p>{item.content}</p>}
+                    {item.tipo === 'aviso' && (
+                      <div>
+                        <p style={{ color: '#334155', lineHeight: 1.5, margin: 0 }}>{item.content}</p>
+                        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: allowStudentComments ? '#2563eb' : '#94a3b8' }}>
+                            {allowStudentComments ? '💬 Comentarios de clase activos' : '🔒 Comentarios deshabilitados'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     {item.tipo === 'actividad' && (
-                      <p style={{ color: '#64748b' }}>
+                      <p style={{ color: '#64748b', margin: 0 }}>
                         {item.deadline ? `Fecha límite: ${new Date(item.deadline).toLocaleDateString('es-MX', { dateStyle: 'long' })}` : 'Sin fecha límite definida.'}
                       </p>
                     )}

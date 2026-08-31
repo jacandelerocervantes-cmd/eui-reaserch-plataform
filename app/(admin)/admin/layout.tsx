@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import AdminSidebar from './components/AdminSidebar'
+import Header from '@/components/layout/Header'
+import Footer from '@/components/layout/Footer'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -29,11 +31,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!profile || profile.role !== 'admin') redirect('/login')
 
   return (
-    <div className="flex h-screen bg-[#f8fafc]">
+    <div style={{ display: 'flex', width: '100%', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       <AdminSidebar />
-      <main className="flex-1 overflow-y-auto p-10">
-        {children}
-      </main>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: '80px', minWidth: 0 }}>
+        <Header />
+        <main style={{ flex: 1, position: 'relative', width: '100%', padding: '2.5rem' }}>
+          {children}
+        </main>
+        <Footer />
+      </div>
     </div>
   )
 }
+

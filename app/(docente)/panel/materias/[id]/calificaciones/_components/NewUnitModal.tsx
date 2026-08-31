@@ -22,11 +22,10 @@ export default function NewUnitModal({
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.4)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(8px)" }}>
       <div style={{ backgroundColor: "white", borderRadius: "24px", width: "100%", maxWidth: "550px", padding: "32px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h2 style={{ color: "#1B396A", margin: 0, fontSize: "1.4rem", fontWeight: "800" }}>Nueva Unidad</h2>
           <button onClick={() => setShowUnitModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}><X size={24} /></button>
         </div>
-        <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: "20px" }}>Define el nombre de la unidad y los criterios generales con los que evaluarás (ej. Proyecto 100%, o Asistencia 10% y Tareas 90%).</p>
 
         <form onSubmit={handleAddUnit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div>

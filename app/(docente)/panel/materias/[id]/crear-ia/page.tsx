@@ -48,17 +48,14 @@ export default function PaginaCreacionIA() {
 
       {/* HEADER */}
       <header style={{ borderBottom: '2px solid #f1f5f9', paddingBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '12px' }}>
             <Sparkles size={22} color="#1B396A" />
           </div>
           <h1 style={{ color: '#1B396A', fontSize: '2rem', fontWeight: '950', margin: 0, letterSpacing: '-0.02em' }}>
-            Master Copilot · Modo Detallado
+            Copiloto de Creación
           </h1>
         </div>
-        <p style={{ color: '#64748b', fontSize: '0.95rem', fontWeight: '500', margin: 0 }}>
-          Da una instrucción, revisa la propuesta y pide ajustes las veces que necesites — nada se crea en Drive ni en la base de datos hasta que confirmes.
-        </p>
       </header>
 
       {/* PANEL DE DIRECTIVA */}

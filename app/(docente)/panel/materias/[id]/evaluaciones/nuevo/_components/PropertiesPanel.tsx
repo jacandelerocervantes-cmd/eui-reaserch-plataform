@@ -85,11 +85,6 @@ export default function PropertiesPanel({
               style={{ flex: 1, padding: "12px", borderRadius: "10px", border: "none", fontSize: "0.75rem", fontWeight: "900", cursor: "pointer", backgroundColor: deployment === "google_forms" ? "white" : "transparent", transition: "0.3s", boxShadow: deployment === "google_forms" ? "0 4px 6px rgba(0,0,0,0.05)" : "none", color: deployment === "google_forms" ? "#1B396A" : "#64748b" }}
             >GOOGLE FORMS</button>
           </div>
-          {deployment === "google_forms" && (
-            <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "8px 0 0", backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "8px" }}>
-              Al publicar se genera un Google Form real; cada entrega se sincroniza sola de vuelta aquí para calificarse igual que un examen interno. Importante: Forms no tiene el monitoreo anti-copia/cambio de pestaña del modo Interno — úsalo cuando esa vigilancia no sea crítica.
-            </p>
-          )}
         </div>
 
         <SecuritySettings

@@ -57,7 +57,7 @@ serve(async (req: Request) => {
     if (!APPS_SCRIPT_URL) throw new Error("APPS_SCRIPT_URL no configurado en Supabase Secrets.");
     if (!MASTER_FOLDER_ID) throw new Error("MASTER_FOLDER_ID no configurado en Supabase Secrets.");
 
-    // ── 4. Obtener nombre del docente para subcarpeta en Drive ───────────
+    // ── 4. Obtener nombre y email del docente para subcarpeta en Drive ───────────
     const { data: profile } = await serviceClient
       .from("profiles")
       .select("first_name, last_name")
@@ -66,6 +66,10 @@ serve(async (req: Request) => {
 
     const teacherName = [profile?.last_name, profile?.first_name]
       .filter(Boolean).join(" ") || "Docente";
+
+    // Obtener email del docente desde auth.users para compartir la carpeta en Drive
+    const { data: authUser } = await serviceClient.auth.admin.getUserById(userId);
+    const teacherEmail = authUser?.user?.email ?? null;
 
     // ── 5. Llamar a Google Apps Script con timeout ────────────────────────
     const controller = new AbortController();
@@ -84,6 +88,7 @@ serve(async (req: Request) => {
             clave: clave ?? "SIN-CLAVE",
             parentFolderId: MASTER_FOLDER_ID,
             teacherName,
+            teacherEmail,
           },
         }),
         signal: controller.signal,

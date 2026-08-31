@@ -109,10 +109,7 @@ export default function CalificacionesPage() {
           {c.units.length === 0 ? (
             <div style={{ backgroundColor: "white", padding: "60px 20px", borderRadius: "16px", border: "1px dashed #cbd5e1", textAlign: "center" }}>
               <BookOpen size={48} color="#cbd5e1" style={{ marginBottom: "16px" }} />
-              <h3 style={{ color: "#1B396A", margin: "0 0 8px 0", fontSize: "1.2rem" }}>No hay unidades creadas</h3>
-              <p style={{ color: "#64748b", margin: "0 0 20px 0", fontSize: "0.95rem" }}>
-                Las unidades y sus ponderaciones se configuran en el módulo de Unidades.
-              </p>
+              <h3 style={{ color: "#1B396A", margin: "0 0 16px 0", fontSize: "1.2rem" }}>No hay unidades creadas</h3>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <ExpandingButton
                   icon={BookOpen}

@@ -70,7 +70,7 @@ export default function CrearMaterialPage() {
               <Plus size={18} /> Agregar diapositiva manual
             </button>
             {m.slides.length === 0 && (
-              <p style={{ color: "#94a3b8", textAlign: "center", padding: "40px 0" }}>Sin diapositivas todavía. Pídele a la IA que genere la presentación arriba.</p>
+              <p style={{ color: "#94a3b8", textAlign: "center", padding: "40px 0", margin: 0, fontWeight: "600" }}>Sin diapositivas</p>
             )}
           </div>
         )}
@@ -87,7 +87,7 @@ export default function CrearMaterialPage() {
               <Plus size={18} /> Agregar criterio manual
             </button>
             {m.criterios.length === 0 && (
-              <p style={{ color: "#94a3b8", textAlign: "center", padding: "40px 0" }}>Sin criterios todavía. Pídele a la IA que genere la rúbrica arriba.</p>
+              <p style={{ color: "#94a3b8", textAlign: "center", padding: "40px 0", margin: 0, fontWeight: "600" }}>Sin criterios</p>
             )}
           </div>
         )}

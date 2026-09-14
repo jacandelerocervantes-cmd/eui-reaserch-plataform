@@ -1,0 +1,17 @@
+# Ignorar carpetas que no son necesarias para el bundle de Next.js
+appscript/
+node_modules
+
+# Secretos y env files — el archivo original se llamaba "vercelignore" (sin
+# punto) y por eso Vercel nunca lo leía como ignore file; ninguna de estas
+# reglas estaba aplicándose. Nombres sin punto inicial porque así están en
+# disco en este proyecto (ver env.local vs .env.local).
+env.local
+.env.local
+env.example
+*.env
+.env*
+
+# Supabase local temp
+.temp/
+supabase/.temp/

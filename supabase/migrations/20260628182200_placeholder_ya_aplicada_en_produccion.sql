@@ -1,0 +1,11 @@
+-- PLACEHOLDER: esta migración (20260628182200) ya está aplicada en la base
+-- de producción (EUI-Core-2026, ref inhauwsdbgtiofxxpggp) desde antes de que
+-- esta copia local del repositorio existiera. El contenido SQL original no
+-- se recuperó -- este archivo está vacío A PROPÓSITO, solo para que
+-- `supabase migration repair --status applied` tenga un archivo local con
+-- este timestamp contra el cual sincronizar el historial de migraciones.
+--
+-- NO correr este archivo contra ninguna base -- no hace nada. Si en algún
+-- momento se necesita saber qué cambió realmente en esta migración, hay que
+-- reconstruirlo comparando el esquema actual de producción (`supabase db
+-- dump`) contra el esquema esperado por las migraciones que sí se conocen.

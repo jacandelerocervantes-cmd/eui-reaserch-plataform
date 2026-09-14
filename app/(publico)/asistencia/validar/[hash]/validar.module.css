@@ -1,0 +1,195 @@
+/* Contenedor principal que envuelve Header, Main y Footer */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); /* */
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* Tarjeta: Réplica exacta del Login */
+.card {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.cardHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.iconHeader {
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 800; /* */
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #64748b; /* */
+  font-size: 0.875rem;
+}
+
+/* Badge de Materia */
+.materiaBadge {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.badgeText {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* */
+}
+
+/* Input: Réplica exacta del Login */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  text-align: center;
+  font-weight: 600;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6; /* */
+}
+
+/* Error inline dentro del formulario — no reemplaza la tarjeta, solo se
+   suma arriba del input. Mismo tono de "error" que el resto de la app. */
+.inlineError {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.gpsHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+/* Botón: Réplica exacta del Login */
+.loginButton {
+  background: #1e293b;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+  font-size: 1rem;
+}
+
+.loginButton:hover {
+  opacity: 0.9;
+}
+
+.loginButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Estados de carga y resultados */
+.statusSection, .resultBox {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  animation: spin 1s linear infinite;
+  color: #1e293b;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.resultTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-top: 1rem;
+  color: #1e293b;
+}
+
+.resultText {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+/* Nombre del alumno en la pantalla de éxito (antes: style inline) */
+.studentName {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #1e293b;
+  margin-top: 1rem;
+}
+
+/* Aviso "ya puedes cerrar" (antes: style inline) */
+.closeHint {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.closeHintText {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.retryButton {
+  margin-top: 1.5rem;
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}

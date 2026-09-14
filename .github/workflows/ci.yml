@@ -1,0 +1,49 @@
+name: CI
+
+# Trunk-based: cualquier rama que abra PR contra main pasa este gate.
+# main es la única rama larga — no hay "develop" ni ramas de release.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eui-reaserch-plataform-main
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: eui-reaserch-plataform-main/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Auditoría de dependencias (falla en alta/crítica)
+        run: npm audit --audit-level=high
+
+      - name: Chequeo de tipos
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitarios
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

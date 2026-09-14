@@ -1,0 +1,312 @@
+"use client";
+
+import { Lock, Unlock, Wand2, Save } from "lucide-react";
+import ExpandingButton from "@/components/ui/ExpandingButton";
+import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
+import type { CSSProperties } from "react";
+
+export default function CaptureView({
+  selectedUnit, activities, assignments = [], exams = [],
+  assignmentWeights = {}, examWeights = {},
+  students, grades, setGrades, isSaving,
+  handleMagicAttendance, handleSaveGrades, handleToggleCloseUnit, inputStyle,
+}: {
+  selectedUnit: Unit;
+  activities: Activity[];
+  assignments?: Assignment[];
+  exams?: Exam[];
+  assignmentWeights?: Record<string, number>;
+  examWeights?: Record<string, number>;
+  students: Student[];
+  grades: GradesMap;
+  setGrades: (g: GradesMap) => void;
+  isSaving: boolean;
+  handleMagicAttendance: () => void;
+  handleSaveGrades: () => Promise<void>;
+  handleToggleCloseUnit: (unit?: Unit) => void;
+  inputStyle: (locked: boolean) => CSSProperties;
+}) {
+  // Filtrar actividades y tareas de la unidad seleccionada
+  const unitActs = activities.filter(a => a.unit_id === selectedUnit.id);
+  const unitAssignments = assignments.filter(a => a.unit_id === selectedUnit.id);
+  const unitExams = exams.filter(e => e.unit_id === selectedUnit.id);
+
+  // Pilares Macro de la BD
+  const assistAct = unitActs.find(a => a.name.toLowerCase().includes("asist"));
+  const activAct = unitActs.find(a =>
+    a.name.toLowerCase().includes("activ") ||
+    a.name.toLowerCase().includes("tarea") ||
+    a.name.toLowerCase().includes("práct") ||
+    a.name.toLowerCase().includes("pract") ||
+    a.name.toLowerCase().includes("trabaj")
+  );
+  const evalAct = unitActs.find(a =>
+    a.name.toLowerCase().includes("eval") ||
+    a.name.toLowerCase().includes("examen") ||
+    a.name.toLowerCase().includes("cuest")
+  );
+
+  const assistWeight = assistAct?.weight_percentage ?? 10;
+  const activWeight = activAct?.weight_percentage ?? 40;
+  const evalWeight = evalAct?.weight_percentage ?? 50;
+
+  const defaultAsgnW = unitAssignments.length > 0 ? (activWeight / unitAssignments.length) : activWeight;
+  const defaultExamW = unitExams.length > 0 ? (evalWeight / unitExams.length) : evalWeight;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Barra de Acciones Limpia (Sin Texto Redundante) */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "0.85rem", fontWeight: "900", color: "#1B396A", backgroundColor: "#f0f7ff", padding: "6px 12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
+            Unidad {selectedUnit.unit_number}: {selectedUnit.name}
+          </span>
+          <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: "700" }}>
+            (100 pts)
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          {!selectedUnit.is_closed && (
+            <>
+              <ExpandingButton icon={Wand2} label="Magia Asistencia" onClick={handleMagicAttendance} variant="magic" size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
+              <ExpandingButton icon={Save} label={isSaving ? "Guardando..." : "Guardar Notas"} onClick={handleSaveGrades} variant="success" disabled={isSaving} size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
+            </>
+          )}
+          <ExpandingButton
+            icon={selectedUnit.is_closed ? Unlock : Lock}
+            label={selectedUnit.is_closed ? "Reabrir Unidad" : "Cerrar Unidad"}
+            onClick={() => handleToggleCloseUnit(selectedUnit)}
+            variant={selectedUnit.is_closed ? "secondary" : "warning"}
+            size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover"
+            colors={selectedUnit.is_closed ? undefined : { bg: "white", hoverBg: "#f59e0b", text: "#f59e0b", hoverText: "white", border: "#cbd5e1" }}
+          />
+        </div>
+      </div>
+
+      {selectedUnit.is_closed && (
+        <div style={{ backgroundColor: "#fef3c7", border: "1px solid #f59e0b", color: "#b45309", padding: "10px 14px", borderRadius: "10px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", fontSize: "0.85rem" }}>
+          <Lock size={16} /> Esta unidad está cerrada. Las calificaciones son de solo lectura.
+        </div>
+      )}
+
+      {/* TABLA DE CAPTURA COMPACTA CON ENCABEZADOS CORTOS Y TOOLTIPS */}
+      <div style={{ backgroundColor: "white", borderRadius: "16px", border: "1px solid #e2e8f0", overflowX: "auto", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "750px" }}>
+          <thead>
+            <tr style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #cbd5e1" }}>
+              <th style={{ padding: "12px 16px", color: "#1B396A", fontSize: "0.85rem", textAlign: "left", position: "sticky", left: 0, backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", zIndex: 10 }}>
+                Alumno / Matrícula
+              </th>
+
+              {/* Asistencia */}
+              <th style={{ padding: "10px 12px", textAlign: "center", color: "#1B396A", backgroundColor: "#f1f5f9", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700", width: "90px" }}>
+                <div>Asist.</div>
+                <div style={{ color: "#64748b", fontSize: "0.72rem", fontWeight: "700" }}>{assistWeight.toFixed(2)} pts</div>
+              </th>
+
+              {/* Actividades: A1, A2, A3... */}
+              {unitAssignments.length > 0 ? (
+                unitAssignments.map((asg, idx) => {
+                  const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
+                  const relP = activWeight > 0 ? ((asgW / activWeight) * 100).toFixed(0) : "0";
+                  return (
+                    <th
+                      key={asg.id}
+                      title={`Tarea ${idx + 1}: ${asg.title} (${asgW.toFixed(2)} pts / ${relP}% de actividades)`}
+                      style={{ padding: "10px 8px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "1px solid #dbeafe", fontSize: "0.8rem", width: "85px", cursor: "help" }}
+                    >
+                      <div style={{ fontWeight: "800" }}>A{idx + 1}</div>
+                      <div style={{ color: "#3b82f6", fontSize: "0.72rem", fontWeight: "700" }}>
+                        {asgW.toFixed(2)} pts
+                      </div>
+                    </th>
+                  );
+                })
+              ) : (
+                <th style={{ padding: "10px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#eff6ff", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700", width: "90px" }}>
+                  <div>Actividades</div>
+                  <div style={{ color: "#3b82f6", fontSize: "0.72rem", fontWeight: "700" }}>{activWeight.toFixed(2)} pts</div>
+                </th>
+              )}
+
+              {/* Evaluaciones: E1, E2... */}
+              {unitExams.length > 0 ? (
+                unitExams.map((ex, idx) => {
+                  const exW = examWeights[ex.id] ?? defaultExamW;
+                  const relP = evalWeight > 0 ? ((exW / evalWeight) * 100).toFixed(0) : "0";
+                  return (
+                    <th
+                      key={ex.id}
+                      title={`Examen ${idx + 1}: ${ex.title} (${exW.toFixed(2)} pts / ${relP}% de evaluaciones)`}
+                      style={{ padding: "10px 8px", textAlign: "center", color: "#92400e", backgroundColor: "#fffbeb", borderRight: "1px solid #fef3c7", fontSize: "0.8rem", width: "85px", cursor: "help" }}
+                    >
+                      <div style={{ fontWeight: "800" }}>E{idx + 1}</div>
+                      <div style={{ color: "#d97706", fontSize: "0.72rem", fontWeight: "700" }}>
+                        {exW.toFixed(2)} pts
+                      </div>
+                    </th>
+                  );
+                })
+              ) : (
+                <th style={{ padding: "10px 12px", textAlign: "center", color: "#92400e", backgroundColor: "#fffbeb", borderRight: "2px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "700", width: "90px" }}>
+                  <div>Evaluaciones</div>
+                  <div style={{ color: "#d97706", fontSize: "0.72rem", fontWeight: "700" }}>{evalWeight.toFixed(2)} pts</div>
+                </th>
+              )}
+
+              <th style={{ padding: "12px 14px", color: "#1B396A", fontSize: "0.85rem", textAlign: "center", backgroundColor: "#f8fafc", fontWeight: "900", width: "100px" }}>
+                Total U{selectedUnit.unit_number}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.length === 0 ? (
+              <tr><td colSpan={10} style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>No hay alumnos registrados en esta materia.</td></tr>
+            ) : (
+              students.map(s => {
+                const nombreCompleto = `${s.apellido_paterno} ${s.apellido_materno || ""} ${s.nombres}`.trim();
+
+                // 1. Cálculo Asistencia
+                const assistKey = assistAct ? `${s.id}_${assistAct.id}` : `${s.id}_asist_${selectedUnit.id}`;
+                const assistScore = Number(grades[assistKey] || 0);
+                const assistPoints = (assistScore * (assistWeight / 100));
+
+                // 2. Cálculo Actividades
+                let activPoints = 0;
+                if (unitAssignments.length > 0) {
+                  unitAssignments.forEach(asg => {
+                    const score = Number(grades[`${s.id}_asgn_${asg.id}`] || 0);
+                    const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
+                    activPoints += (score * (asgW / 100));
+                  });
+                } else if (activAct) {
+                  const score = Number(grades[`${s.id}_${activAct.id}`] || 0);
+                  activPoints = (score * (activWeight / 100));
+                }
+
+                // 3. Cálculo Evaluaciones
+                let evalPoints = 0;
+                if (unitExams.length > 0) {
+                  unitExams.forEach(ex => {
+                    const score = Number(grades[`${s.id}_exam_${ex.id}`] || 0);
+                    const exW = examWeights[ex.id] ?? defaultExamW;
+                    evalPoints += (score * (exW / 100));
+                  });
+                } else if (evalAct) {
+                  const score = Number(grades[`${s.id}_${evalAct.id}`] || 0);
+                  evalPoints = (score * (evalWeight / 100));
+                }
+
+                const totalUnidad = assistPoints + activPoints + evalPoints;
+
+                return (
+                  <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    {/* Alumno */}
+                    <td style={{ padding: "8px 16px", position: "sticky", left: 0, backgroundColor: "white", borderRight: "1px solid #e2e8f0", zIndex: 5 }}>
+                      <div style={{ color: "#1e293b", fontWeight: "700", fontSize: "0.85rem" }}>{nombreCompleto}</div>
+                      <div style={{ color: "#94a3b8", fontSize: "0.72rem", fontFamily: "monospace" }}>{s.matricula}</div>
+                    </td>
+
+                    {/* Input Asistencia */}
+                    <td style={{ padding: "6px 8px", textAlign: "center", borderRight: "2px solid #cbd5e1", backgroundColor: "#fafafa" }}>
+                      <input
+                        type="number" min="0" max="100" step="0.01"
+                        value={grades[assistKey] !== undefined ? grades[assistKey] : ""}
+                        onChange={(e) => setGrades({ ...grades, [assistKey]: e.target.value })}
+                        disabled={selectedUnit.is_closed}
+                        style={inputStyle(selectedUnit.is_closed)}
+                      />
+                      <div style={{ fontSize: "0.68rem", color: "#64748b", marginTop: "2px", fontWeight: "700" }}>
+                        +{assistPoints.toFixed(2)}
+                      </div>
+                    </td>
+
+                    {/* Inputs Actividades */}
+                    {unitAssignments.length > 0 ? (
+                      unitAssignments.map(asg => {
+                        const key = `${s.id}_asgn_${asg.id}`;
+                        const score = Number(grades[key] || 0);
+                        const asgW = assignmentWeights[asg.id] ?? defaultAsgnW;
+                        const pts = (score * (asgW / 100));
+                        return (
+                          <td key={asg.id} style={{ padding: "6px 6px", textAlign: "center", borderRight: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
+                            <input
+                              type="number" min="0" max="100" step="0.01" placeholder="0"
+                              value={grades[key] !== undefined ? grades[key] : ""}
+                              onChange={(e) => setGrades({ ...grades, [key]: e.target.value })}
+                              disabled={selectedUnit.is_closed}
+                              style={inputStyle(selectedUnit.is_closed)}
+                            />
+                            <div style={{ fontSize: "0.68rem", color: "#2563eb", marginTop: "2px", fontWeight: "700" }}>
+                              +{pts.toFixed(2)}
+                            </div>
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td style={{ padding: "6px 8px", textAlign: "center", borderRight: "2px solid #cbd5e1", backgroundColor: "#f8fafc" }}>
+                        <input
+                          type="number" min="0" max="100" step="0.01"
+                          value={activAct && grades[`${s.id}_${activAct.id}`] !== undefined ? grades[`${s.id}_${activAct.id}`] : ""}
+                          onChange={(e) => activAct && setGrades({ ...grades, [`${s.id}_${activAct.id}`]: e.target.value })}
+                          disabled={selectedUnit.is_closed}
+                          style={inputStyle(selectedUnit.is_closed)}
+                        />
+                        <div style={{ fontSize: "0.68rem", color: "#2563eb", marginTop: "2px", fontWeight: "700" }}>
+                          +{activPoints.toFixed(2)}
+                        </div>
+                      </td>
+                    )}
+
+                    {/* Inputs Evaluaciones */}
+                    {unitExams.length > 0 ? (
+                      unitExams.map(ex => {
+                        const key = `${s.id}_exam_${ex.id}`;
+                        const score = Number(grades[key] || 0);
+                        const exW = examWeights[ex.id] ?? defaultExamW;
+                        const pts = (score * (exW / 100));
+                        return (
+                          <td key={ex.id} style={{ padding: "6px 6px", textAlign: "center", borderRight: "1px solid #fef3c7", backgroundColor: "#fffdfa" }}>
+                            <input
+                              type="number" min="0" max="100" step="0.01" placeholder="0"
+                              value={grades[key] !== undefined ? grades[key] : ""}
+                              onChange={(e) => setGrades({ ...grades, [key]: e.target.value })}
+                              disabled={selectedUnit.is_closed}
+                              style={inputStyle(selectedUnit.is_closed)}
+                            />
+                            <div style={{ fontSize: "0.68rem", color: "#d97706", marginTop: "2px", fontWeight: "700" }}>
+                              +{pts.toFixed(2)}
+                            </div>
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td style={{ padding: "6px 8px", textAlign: "center", borderRight: "2px solid #cbd5e1", backgroundColor: "#fffdfa" }}>
+                        <input
+                          type="number" min="0" max="100" step="0.01"
+                          value={evalAct && grades[`${s.id}_${evalAct.id}`] !== undefined ? grades[`${s.id}_${evalAct.id}`] : ""}
+                          onChange={(e) => evalAct && setGrades({ ...grades, [`${s.id}_${evalAct.id}`]: e.target.value })}
+                          disabled={selectedUnit.is_closed}
+                          style={inputStyle(selectedUnit.is_closed)}
+                        />
+                        <div style={{ fontSize: "0.68rem", color: "#d97706", marginTop: "2px", fontWeight: "700" }}>
+                          +{evalPoints.toFixed(2)}
+                        </div>
+                      </td>
+                    )}
+
+                    {/* Total de la Unidad */}
+                    <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: "900", fontSize: "0.95rem", color: totalUnidad >= 70 ? "#1B396A" : "#ef4444", backgroundColor: totalUnidad < 70 ? "#fef2f2" : "#f8fafc" }}>
+                      {totalUnidad.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

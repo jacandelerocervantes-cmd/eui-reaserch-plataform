@@ -1,0 +1,91 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Cloud Run service (Knative Serving v1) para el servidor vLLM de
+# baidu/Unlimited-OCR — ver docs/05_OCR_Unlimited_Integracion.md para la
+# justificación de Cloud Run con GPU sobre GKE GPU node pool, y el costo
+# estimado por hora de GPU (con fuente citada).
+#
+# CÓDIGO, NO EJECUCIÓN (CORRE 7, Fase 2): este YAML NO se aplicó contra un
+# proyecto GCP real — no hay proyecto/credenciales en este entorno (ver
+# docs/05_OCR_Unlimited_Integracion.md "## PENDIENTE"). Reemplazar
+# <PROJECT_ID>/<REGION>/<SERVICE_ACCOUNT_EMAIL> antes de:
+#   gcloud run services replace deploy/ocr-unlimited/cloud-run-service.yaml \
+#     --region=<REGION> --project=<PROJECT_ID>
+#
+# Seguridad — el servicio NUNCA queda público:
+#   - NO se otorga el rol roles/run.invoker a "allUsers" (equivalente YAML
+#     de --no-allow-unauthenticated, que es el default de Cloud Run cuando
+#     no se toca la IAM policy — se documenta explícito aquí para que quede
+#     como intención, no como omisión accidental).
+#   - Solo la service account de las Edge Functions de Supabase
+#     (OCR_SERVICE_TOKEN en ocrClient.ts = identity token de esa cuenta)
+#     debe tener roles/run.invoker sobre este servicio — se otorga aparte
+#     con:
+#       gcloud run services add-iam-policy-binding unlimited-ocr \
+#         --region=<REGION> --project=<PROJECT_ID> \
+#         --member="serviceAccount:<SERVICE_ACCOUNT_EMAIL>" \
+#         --role="roles/run.invoker"
+# ─────────────────────────────────────────────────────────────────────────
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: unlimited-ocr
+  labels:
+    app: unlimited-ocr
+    managed-by: eui-plataforma
+  annotations:
+    # Cloud Run con GPU requiere ejecutar en el generation 2 (segunda
+    # generación) del entorno de ejecución.
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # ── Escala a cero real ─────────────────────────────────────────
+        # min-instances=0: sin tráfico, CERO instancias facturadas — el
+        # control de costo primario (ver docs/05, "control de costo viene
+        # de: (a) escalar a cero..."). El primer request tras inactividad
+        # paga cold-start (carga de pesos del modelo en la GPU, ~1-2 min
+        # para un modelo de 30B MoE) — aceptado a propósito: el flujo que
+        # lo llama (evaluate-submissions-ia/detect-cross-plagiarism/
+        # intelligent-file-parser vía ocrClient.ts) ya cae a fallback si el
+        # servicio no responde a tiempo (circuit breaker + timeout).
+        autoscaling.knative.dev/minScale: "0"
+        # ── Tope duro de gasto ──────────────────────────────────────────
+        # maxScale=1: como máximo UNA instancia GPU concurrente — nunca más
+        # de una GPU facturándose a la vez, sin importar cuántas requests
+        # lleguen en paralelo (se encolan o rechazan, ver
+        # containerConcurrency abajo). Segunda barrera de costo además del
+        # rate limit diario en ocrClient.ts (que limita la FRECUENCIA;
+        # esto limita la CONCURRENCIA/escala horizontal).
+        autoscaling.knative.dev/maxScale: "1"
+        # GPU NVIDIA L4 — la opción más frugal con soporte oficial de Cloud
+        # Run GPU (ver docs/05_OCR_Unlimited_Integracion.md, costo citado).
+        run.googleapis.com/gpu-type: nvidia-l4
+        run.googleapis.com/gpu-count: "1"
+        # Requerido por Cloud Run al usar GPU: sin esto el arranque en frío
+        # tras escalar a cero es demasiado lento incluso para 1 sola GPU.
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      # NUNCA público — sin esta línea el default de Cloud Run YA es
+      # autenticación requerida, pero se declara explícito (ver comentario
+      # de seguridad arriba) en vez de depender de un default silencioso.
+      containerConcurrency: 1 # 1 request de OCR a la vez por instancia (--max-num-seqs=1 en el Dockerfile)
+      timeoutSeconds: 60 # cold start del modelo puede tardar; ocrClient.ts ya maneja timeout/fallback por su cuenta
+      serviceAccountName: unlimited-ocr-runtime@<PROJECT_ID>.iam.gserviceaccount.com
+      containers:
+        - image: gcr.io/<PROJECT_ID>/unlimited-ocr:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MODEL_ID
+              value: baidu/Unlimited-OCR
+          resources:
+            limits:
+              # L4 trae 24GB VRAM — cpu/memory acompañan el perfil recomendado
+              # para servir un modelo de 30B-MoE (5B activados) con vLLM.
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+  traffic:
+    - percent: 100
+      latestRevision: true

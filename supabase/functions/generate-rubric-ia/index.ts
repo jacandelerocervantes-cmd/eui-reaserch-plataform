@@ -293,7 +293,7 @@ Reglas:
       ACTIVIDAD: ${safeTitle}
       ${hasExistingDescription ? `INSTRUCCIONES YA ESCRITAS POR EL DOCENTE (ajústalas según la petición de este turno, no las reemplaces por algo genérico si ya tienen contenido útil):\n${safeDescription}` : "El docente aún no ha escrito instrucciones — redáctalas desde cero a partir del título y su petición."}
       ${filePart ? "\nADJUNTO: el docente adjuntó el documento original de la actividad (instrucciones, puntajes y/o rúbrica previa, si tenía). Léelo completo y usa su contenido real como base — si ya trae una distribución de puntos, respétala lo más posible en vez de inventar una nueva." : ""}
-      ${safeInstruction ? `\nPETICIÓN DEL DOCENTE EN ESTE TURNO DE CONVERSACIÓN: "${safeInstruction}"` : ""}`
+      ${safeInstruction ? `\nPETICIÓN DEL DOCENTE EN ESTE TURNO DE CONVERSACIÓN: "${safeInstruction}"` : ""}
       ${hasCurrentRubrics ? `\nRÚBRICA ACTUAL (ya trabajada previamente por el docente en este chat) — AJÚSTALA según la petición de este turno, conservando los criterios que no se pidió cambiar en vez de reemplazarlos por completo:\n${JSON.stringify(currentRubrics, null, 2)}` : ""}
 
       REQUISITOS DE LAS INSTRUCCIONES ("instructions"):

@@ -13,3 +13,13 @@ drop policy if exists "Docentes gestionan avisos de sus cursos" on public.course
 drop policy if exists "Docentes gestionan avisos de sus materias" on public.course_announcements;
 drop policy if exists "docente_own_announcements" on public.course_announcements;
 
+-- En perfiles: endurecer lectura pública legacy
+drop policy if exists "Lectura pública de perfiles" on public.perfiles;
+create policy "Lectura autenticada de perfiles"
+  on public.perfiles
+  as permissive
+  for select
+  to authenticated
+  using (auth.uid() = id);
+
+

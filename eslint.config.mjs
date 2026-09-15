@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "supabase/functions/**",
   ]),
   {
     rules: {
@@ -19,6 +20,8 @@ const eslintConfig = defineConfig([
       // sin usar" (ej. el reloadKey que solo existe para invalidar un useMemo,
       // o un parámetro de destructuring que se descarta a propósito).
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 ]);

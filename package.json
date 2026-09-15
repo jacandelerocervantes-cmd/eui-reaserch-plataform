@@ -16,7 +16,7 @@
     "@yudiel/react-qr-scanner": "^2.5.1",
     "dexie": "^4.4.4",
     "lucide-react": "^0.575.0",
-    "next": "16.3.1",
+    "next": "16.3.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.18"

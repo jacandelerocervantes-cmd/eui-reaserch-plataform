@@ -5,15 +5,11 @@ import { useParams } from 'next/navigation';
 import { GeminiCanvas } from '@/components/ia/GeminiCanvas';
 import { useMasterCopilotChat } from '@/components/ia/useMasterCopilotChat';
 import {
-  Sparkles, Loader2, Zap, BookOpen,
-  FlaskConical, MapPin, MessageCircleQuestion
+  Sparkles, Loader2, Zap, BookOpen, MessageCircleQuestion
 } from 'lucide-react';
 
 const SCOPES = [
-  { value: 'DOCENCIA',      label: 'Docencia',       icon: <BookOpen size={16} />,    color: '#1B396A' },
-  { value: 'INVESTIGACION', label: 'Investigación',   icon: <Sparkles size={16} />,   color: '#d97706' },
-  { value: 'LABORATORIO',   label: 'Laboratorio',     icon: <FlaskConical size={16} />,color: '#10b981' },
-  { value: 'CAMPO',         label: 'Campo',           icon: <MapPin size={16} />,     color: '#ea580c' },
+  { value: 'DOCENCIA', label: 'Docencia', icon: <BookOpen size={16} />, color: '#1B396A' },
 ];
 
 export default function PaginaCreacionIA() {

@@ -25,12 +25,11 @@ import { guardOutputOrBlock } from "../_shared/guardrail.ts"
 
 const MAX_TEXT_CHARS = 40_000 // margen de contexto de Gemini para un solo documento
 
-const DOMAINS = ["docencia", "investigacion"] as const
+const DOMAINS = ["docencia"] as const
 type Domain = typeof DOMAINS[number]
 
 const SOURCE_TYPES_BY_DOMAIN: Record<Domain, string[]> = {
   docencia: ["course_material", "materiales_boveda", "exam", "activity"],
-  investigacion: ["literatura_referencia", "proyecto_investigacion", "mision_campo", "captura_campo", "equipo_lab", "telemetria_iot"],
 }
 
 interface ExtractedConcept {
@@ -57,37 +56,32 @@ serve(async (req: Request) => {
   const timeout = setTimeout(() => controller.abort(), 45_000)
 
   try {
-    const { domain, course_id, source_type, source_id, text, titulo } = await req.json()
-    if (!DOMAINS.includes(domain)) return new Response(
-      JSON.stringify({ success: false, error: "'domain' debe ser 'docencia' o 'investigacion'." }),
+    const { domain = "docencia", course_id, source_type, source_id, text, titulo } = await req.json()
+    if (domain !== "docencia") return new Response(
+      JSON.stringify({ success: false, error: "'domain' debe ser 'docencia'." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
     if (!text || typeof text !== "string" || !text.trim()) return new Response(
       JSON.stringify({ success: false, error: "Se requiere 'text'." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
-    const validSourceTypes = SOURCE_TYPES_BY_DOMAIN[domain as Domain]
+    const validSourceTypes = SOURCE_TYPES_BY_DOMAIN.docencia
     const sourceType = validSourceTypes.includes(source_type) ? source_type : validSourceTypes[0]
 
-    // ── Ownership: docencia se valida contra el curso; investigación es
-    //    siempre el grafo del propio usuario autenticado (no hay un
-    //    "scope_id" externo que validar — no existe un solo dueño de
-    //    Investigación+Campo+Laboratorio salvo la persona misma). ──────────
-    if (domain === "docencia") {
-      if (!course_id) return new Response(
-        JSON.stringify({ success: false, error: "Se requiere 'course_id' para domain='docencia'." }),
-        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
-      )
-      const owns = await verifyCourseOwnership(serviceClient, course_id, userId)
-      if (!owns) return new Response(
-        JSON.stringify({ success: false, error: "No tienes permiso sobre esta materia." }),
-        { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
-      )
-    }
+    // ── Ownership: docencia se valida contra el curso ──────────
+    if (!course_id) return new Response(
+      JSON.stringify({ success: false, error: "Se requiere 'course_id' para domain='docencia'." }),
+      { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
+    )
+    const owns = await verifyCourseOwnership(serviceClient, course_id, userId)
+    if (!owns) return new Response(
+      JSON.stringify({ success: false, error: "No tienes permiso sobre esta materia." }),
+      { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
+    )
 
-    const nodesTable = domain === "docencia" ? "knowledge_nodes_docencia" : "knowledge_nodes_investigacion"
-    const edgesTable = domain === "docencia" ? "knowledge_edges_docencia" : "knowledge_edges_investigacion"
-    const scopeColumns = domain === "docencia" ? { course_id } : { usuario_id: userId }
+    const nodesTable = "knowledge_nodes_docencia"
+    const edgesTable = "knowledge_edges_docencia"
+    const scopeColumns = { course_id }
 
     const truncated = text.slice(0, MAX_TEXT_CHARS)
 
@@ -97,7 +91,7 @@ serve(async (req: Request) => {
       {
         contents: [{
           parts: [{ text:
-            `Eres un extractor de grafos de conocimiento para material ${domain === "docencia" ? "educativo universitario" : "de investigación académica"}.
+            `Eres un extractor de grafos de conocimiento para material educativo universitario.
             ${titulo ? `DOCUMENTO: "${titulo}"` : ""}
 
             TEXTO:

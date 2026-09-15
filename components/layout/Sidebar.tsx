@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase, signOut } from "@/lib/supabase"; 
 import {
-  Settings, LogOut, LayoutDashboard, School, Telescope, TestTubeDiagonal,
-  Map, Sparkles, MessageSquareShare, Users, NotebookPen, LineChart,
+  Settings, LogOut, LayoutDashboard, School,
+  Sparkles, MessageSquareShare, Users, NotebookPen, LineChart,
   Cloud, ArrowLeft, UserCheck, History, Contact,
   ClipboardCheck, BookOpen, UsersRound, ShieldAlert
 } from "lucide-react";
@@ -24,9 +24,6 @@ export default function MasterSidebar() {
 
   const getScopeFromPath = () => {
     if (pathname.startsWith("/panel")) return "DOCENCIA";
-    if (pathname.startsWith("/investigacion")) return "INVESTIGACION";
-    if (pathname.startsWith("/laboratorio")) return "LABORATORIO";
-    if (pathname.startsWith("/campo")) return "CAMPO";
     return "CENTRO_DE_MANDO";
   };
 
@@ -63,15 +60,6 @@ export default function MasterSidebar() {
       modules.push({ name: "Mis Clases", icon: <School size={ICON_SIZE} />, path: "/alumno", color: "#3b82f6", rootMatch: "/alumno" });
     }
 
-    if (userRole && userLevel !== null) {
-      if (userLevel <= 2) {
-        modules.push({ name: "Investigación", icon: <Telescope size={ICON_SIZE} />, path: "/investigacion", color: "#f59e0b", rootMatch: "/investigacion" });
-      }
-      if (userLevel === 1) {
-        modules.push({ name: "Laboratorio", icon: <TestTubeDiagonal size={ICON_SIZE} />, path: "/laboratorio", color: "#10b981", rootMatch: "/laboratorio" });
-        modules.push({ name: "Campo", icon: <Map size={ICON_SIZE} />, path: "/campo", color: "#ea580c", rootMatch: "/campo" });
-      }
-    }
     return modules;
   };
 

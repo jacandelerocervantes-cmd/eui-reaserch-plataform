@@ -37,7 +37,7 @@ import { embedText, toVectorLiteral } from "../_shared/embeddings.ts"
 import { guardOutputOrBlock } from "../_shared/guardrail.ts"
 
 const TOP_K_NODES = 6
-const DOMAINS = ["docencia", "investigacion"] as const
+const DOMAINS = ["docencia"] as const
 
 interface MatchedNode {
   id: string; label: string; description: string | null
@@ -62,9 +62,9 @@ serve(async (req: Request) => {
   const timeout = setTimeout(() => controller.abort(), 25_000)
 
   try {
-    const { domain, course_id, query } = await req.json()
-    if (!DOMAINS.includes(domain)) return new Response(
-      JSON.stringify({ success: false, error: "'domain' debe ser 'docencia' o 'investigacion'." }),
+    const { domain = "docencia", course_id, query } = await req.json()
+    if (domain !== "docencia") return new Response(
+      JSON.stringify({ success: false, error: "'domain' debe ser 'docencia'." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
     if (!query || typeof query !== "string" || !query.trim()) return new Response(
@@ -72,24 +72,20 @@ serve(async (req: Request) => {
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
 
-    if (domain === "docencia") {
-      if (!course_id) return new Response(
-        JSON.stringify({ success: false, error: "Se requiere 'course_id' para domain='docencia'." }),
-        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
-      )
-      const owns = await verifyCourseOwnership(serviceClient, course_id, userId)
-      if (!owns) return new Response(
-        JSON.stringify({ success: false, error: "No tienes permiso sobre esta materia." }),
-        { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
-      )
-    }
+    if (!course_id) return new Response(
+      JSON.stringify({ success: false, error: "Se requiere 'course_id' para domain='docencia'." }),
+      { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
+    )
+    const owns = await verifyCourseOwnership(serviceClient, course_id, userId)
+    if (!owns) return new Response(
+      JSON.stringify({ success: false, error: "No tienes permiso sobre esta materia." }),
+      { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
+    )
 
-    const nodesTable = domain === "docencia" ? "knowledge_nodes_docencia" : "knowledge_nodes_investigacion"
-    const edgesTable = domain === "docencia" ? "knowledge_edges_docencia" : "knowledge_edges_investigacion"
-    const matchFn = domain === "docencia" ? "match_knowledge_nodes_docencia" : "match_knowledge_nodes_investigacion"
-    const matchParams = domain === "docencia"
-      ? { match_course_id: course_id }
-      : { match_usuario_id: userId }
+    const nodesTable = "knowledge_nodes_docencia"
+    const edgesTable = "knowledge_edges_docencia"
+    const matchFn = "match_knowledge_nodes_docencia"
+    const matchParams = { match_course_id: course_id }
 
     // ── 1. Embeber la pregunta y buscar nodos semánticamente cercanos ───────
     const queryVector = await embedText(query, GEMINI_KEY, controller.signal)
@@ -102,7 +98,7 @@ serve(async (req: Request) => {
 
     const matched = (topNodes ?? []) as MatchedNode[]
     if (matched.length === 0) return new Response(
-      JSON.stringify({ success: false, error: `El grafo de ${domain} todavía no tiene contenido (usa build-knowledge-graph primero).` }),
+      JSON.stringify({ success: false, error: "El grafo de docencia todavía no tiene contenido (usa build-knowledge-graph primero)." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
 

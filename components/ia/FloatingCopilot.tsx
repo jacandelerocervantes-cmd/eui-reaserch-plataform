@@ -16,10 +16,7 @@ interface Props {
 }
 
 const SCOPE_COLORS: Record<string, string> = {
-  DOCENCIA:      '#1B396A',
-  INVESTIGACION: '#d97706',
-  LABORATORIO:   '#10b981',
-  CAMPO:         '#ea580c',
+  DOCENCIA: '#1B396A',
 };
 
 const QUICK_ACTIONS: Record<string, { label: string; icon: React.ReactNode; cmd: string }[]> = {
@@ -28,9 +25,6 @@ const QUICK_ACTIONS: Record<string, { label: string; icon: React.ReactNode; cmd:
     { label: 'Evaluación', icon: <FileText size={13}/>,    cmd: 'Crea una evaluación de la unidad sobre...' },
     { label: 'Actividad',  icon: <ClipboardList size={13}/>, cmd: 'Crea una actividad para que entreguen...' },
   ],
-  INVESTIGACION: [],
-  LABORATORIO: [],
-  CAMPO: [],
 };
 
 export const FloatingCopilot = ({ onClose, scope = 'DOCENCIA' }: Props) => {

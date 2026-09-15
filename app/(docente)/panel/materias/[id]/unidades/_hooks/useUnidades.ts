@@ -150,15 +150,38 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
     const activAct = unitActs.find(a => a.name.toLowerCase().includes("activ") || a.name.toLowerCase().includes("tarea"));
     const evalAct = unitActs.find(a => a.name.toLowerCase().includes("eval") || a.name.toLowerCase().includes("examen"));
 
-    const upserts = [
-      { id: assistAct?.id, unit_id: unitId, name: "Asistencia", weight_percentage: assist },
-      { id: activAct?.id, unit_id: unitId, name: "Actividades", weight_percentage: activ },
-      { id: evalAct?.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalw },
+    const pillars = [
+      { act: assistAct, name: "Asistencia", weight: assist },
+      { act: activAct, name: "Actividades", weight: activ },
+      { act: evalAct, name: "Evaluaciones", weight: evalw },
     ];
 
-    const { error } = await supabase.from("activities").upsert(upserts);
-    if (!error) onReload();
-    else alert("Error al guardar ponderaciones: " + error.message);
+    const toUpdate: { id: string; unit_id: string; name: string; weight_percentage: number }[] = [];
+    const toInsert: { unit_id: string; name: string; weight_percentage: number }[] = [];
+
+    for (const p of pillars) {
+      if (p.act?.id) {
+        toUpdate.push({ id: p.act.id, unit_id: unitId, name: p.name, weight_percentage: p.weight });
+      } else {
+        toInsert.push({ unit_id: unitId, name: p.name, weight_percentage: p.weight });
+      }
+    }
+
+    if (toUpdate.length > 0) {
+      const { error } = await supabase.from("activities").upsert(toUpdate);
+      if (error) {
+        alert("Error al guardar ponderaciones: " + error.message);
+        return;
+      }
+    }
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from("activities").insert(toInsert);
+      if (error) {
+        alert("Error al guardar ponderaciones: " + error.message);
+        return;
+      }
+    }
+    onReload();
   };
 
   const handleUpdateAssignmentWeight = async (asgnId: string, weight: number) => {
@@ -192,13 +215,31 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
       const activAct = unitActs.find(a => a.name.toLowerCase().includes("activ") || a.name.toLowerCase().includes("tarea"));
       const evalAct = unitActs.find(a => a.name.toLowerCase().includes("eval") || a.name.toLowerCase().includes("examen"));
 
-      const upserts = [
-        { id: assistAct?.id, unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight },
-        { id: activAct?.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight },
-        { id: evalAct?.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight },
+      const pillars = [
+        { act: assistAct, name: "Asistencia", weight: assistWeight },
+        { act: activAct, name: "Actividades", weight: activWeight },
+        { act: evalAct, name: "Evaluaciones", weight: evalWeight },
       ];
-      const { error: actsErr } = await supabase.from("activities").upsert(upserts);
-      if (actsErr) throw actsErr;
+
+      const toUpdate: { id: string; unit_id: string; name: string; weight_percentage: number }[] = [];
+      const toInsert: { unit_id: string; name: string; weight_percentage: number }[] = [];
+
+      for (const p of pillars) {
+        if (p.act?.id) {
+          toUpdate.push({ id: p.act.id, unit_id: unitId, name: p.name, weight_percentage: p.weight });
+        } else {
+          toInsert.push({ unit_id: unitId, name: p.name, weight_percentage: p.weight });
+        }
+      }
+
+      if (toUpdate.length > 0) {
+        const { error: actsErr } = await supabase.from("activities").upsert(toUpdate);
+        if (actsErr) throw actsErr;
+      }
+      if (toInsert.length > 0) {
+        const { error: actsErr } = await supabase.from("activities").insert(toInsert);
+        if (actsErr) throw actsErr;
+      }
 
       await Promise.all(
         Object.entries(asgnWeights).map(async ([asgnId, weight]) => {

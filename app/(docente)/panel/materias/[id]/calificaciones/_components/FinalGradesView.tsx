@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { ArrowLeft, FileSpreadsheet, Save, GraduationCap } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import { formatStudentName } from "@/lib/formatStudentName";
+import { formatUnitTitle } from "@/lib/formatUnitName";
 import type { Unit, Activity, Student, GradeRow, GradesMap } from "./types";
 
 export default function FinalGradesView({
@@ -67,7 +68,7 @@ export default function FinalGradesView({
               </th>
               {units.map(u => (
                 <th key={u.id} style={{ padding: "12px", textAlign: "center", borderRight: "1px solid #2a4a7d" }} colSpan={2}>
-                  U{u.unit_number}: {u.name}
+                  {formatUnitTitle(u.unit_number, u.name)}
                 </th>
               ))}
               <th style={{ padding: "12px 16px", textAlign: "center", borderRight: "1px solid #2a4a7d", backgroundColor: "#1e3a5f" }} rowSpan={2}>

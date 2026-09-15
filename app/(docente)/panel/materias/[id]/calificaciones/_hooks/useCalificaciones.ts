@@ -119,16 +119,17 @@ export function useCalificaciones(courseId: string) {
         a.name.toLowerCase().includes("cuest")
       );
 
-      const upserts: { id?: string; unit_id: string; name: string; weight_percentage: number }[] = [];
+      const toUpdate: { id: string; unit_id: string; name: string; weight_percentage: number }[] = [];
+      const toInsert: { unit_id: string; name: string; weight_percentage: number }[] = [];
 
-      if (assistAct) upserts.push({ id: assistAct.id, unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
-      else upserts.push({ unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
+      if (assistAct?.id) toUpdate.push({ id: assistAct.id, unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
+      else toInsert.push({ unit_id: unitId, name: "Asistencia", weight_percentage: assistWeight });
 
-      if (activAct) upserts.push({ id: activAct.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
-      else upserts.push({ unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
+      if (activAct?.id) toUpdate.push({ id: activAct.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
+      else toInsert.push({ unit_id: unitId, name: "Actividades", weight_percentage: activWeight });
 
-      if (evalAct) upserts.push({ id: evalAct.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
-      else upserts.push({ unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
+      if (evalAct?.id) toUpdate.push({ id: evalAct.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
+      else toInsert.push({ unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight });
 
       // Si había otros criterios legacy, borrarlos para dejar los 3 pilares limpios
       const otherActs = unitActs.filter(a => a.id !== assistAct?.id && a.id !== activAct?.id && a.id !== evalAct?.id);
@@ -140,10 +141,19 @@ export function useCalificaciones(courseId: string) {
         }
       }
 
-      const { error: upsertErr } = await supabase.from("activities").upsert(upserts);
-      if (upsertErr) {
-        setFeedback({ type: "error", message: "Error al guardar ponderación de la unidad: " + upsertErr.message });
-        return;
+      if (toUpdate.length > 0) {
+        const { error: upsertErr } = await supabase.from("activities").upsert(toUpdate);
+        if (upsertErr) {
+          setFeedback({ type: "error", message: "Error al guardar ponderación de la unidad: " + upsertErr.message });
+          return;
+        }
+      }
+      if (toInsert.length > 0) {
+        const { error: insertErr } = await supabase.from("activities").insert(toInsert);
+        if (insertErr) {
+          setFeedback({ type: "error", message: "Error al guardar ponderación de la unidad: " + insertErr.message });
+          return;
+        }
       }
 
       await fetchData();

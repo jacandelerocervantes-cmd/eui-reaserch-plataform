@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Sparkles, Save, Loader2, AlertCircle, AlertTriangle, ExternalLink, FileSpreadsheet, X } from "lucide-react";
+import { Sparkles, Save, Loader2, AlertCircle, AlertTriangle, ExternalLink, FileSpreadsheet, X, Copy } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import DateTimeFieldMX from "@/components/ui/DateTimeFieldMX";
 import { QuestionCard } from "../../_components/QuestionCard";
@@ -12,12 +13,14 @@ import { ExamHeaderNav } from "../../_components/ExamHeaderNav";
 import { EmptyQuestionsState } from "../../_components/EmptyQuestionsState";
 import type { EditQuestion } from "../../_components/questionMapping";
 import { useConfiguracionExamen } from "./_hooks/useConfiguracionExamen";
+import DuplicateExamModal from "./_components/DuplicateExamModal";
 
 export default function ConfiguracionExamenPage() {
   const params = useParams();
   const courseId = params?.id as string;
   const examId = params?.examId as string;
   const e = useConfiguracionExamen(courseId, examId);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   if (e.loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 className="animate-spin" size={48} color="#1B396A" /></div>;
 
@@ -46,7 +49,22 @@ export default function ConfiguracionExamenPage() {
 
       <div style={{ flex: 1, padding: "30px 40px", overflowY: "auto" }}>
 
-        <ExamHeaderNav unitId={e.unitId} setUnitId={e.setUnitId} units={e.units} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+          <ExpandingButton
+            icon={Copy}
+            label="Duplicar a otra materia"
+            onClick={() => setShowDuplicateModal(true)}
+            variant="secondary"
+            size={40}
+            radius={10}
+            gap={8}
+            padding="0 16px"
+            fontWeight={600}
+            fontSize="0.85rem"
+            durationMs={300}
+          />
+          <ExamHeaderNav unitId={e.unitId} setUnitId={e.setUnitId} units={e.units} style={{ marginBottom: 0 }} />
+        </div>
 
         {e.status !== 'draft' && (
           <div style={{ backgroundColor: "#fffbeb", border: "1px solid #fde68a", borderRadius: "14px", padding: "14px 20px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px", color: "#92400e", fontWeight: "700" }}>
@@ -201,6 +219,21 @@ export default function ConfiguracionExamenPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL: Duplicar Examen a Otra Materia */}
+      {showDuplicateModal && (
+        <DuplicateExamModal
+          currentCourseId={courseId}
+          exam={{
+            title: e.examConfig.title,
+            randomize_questions: e.randomizeQuestions,
+            randomize_options: e.randomizeOptions,
+            show_all_questions: e.showAllQuestions,
+          }}
+          questions={e.questions}
+          onClose={() => setShowDuplicateModal(false)}
+        />
       )}
 
       <style jsx>{`

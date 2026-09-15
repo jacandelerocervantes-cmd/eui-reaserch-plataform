@@ -3,6 +3,7 @@
 import { Lock, Unlock, Wand2, Save } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import { formatStudentName } from "@/lib/formatStudentName";
+import { formatUnitTitle } from "@/lib/formatUnitName";
 import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
 import type { CSSProperties } from "react";
 
@@ -60,7 +61,7 @@ export default function CaptureView({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "0.85rem", fontWeight: "900", color: "#1B396A", backgroundColor: "#f0f7ff", padding: "6px 12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-            Unidad {selectedUnit.unit_number}: {selectedUnit.name}
+            {formatUnitTitle(selectedUnit.unit_number, selectedUnit.name)}
           </span>
           <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: "700" }}>
             (100 pts)

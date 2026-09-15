@@ -7,6 +7,7 @@ import ExpandingButton from "@/components/ui/ExpandingButton";
 import CaptureView from "./_components/CaptureView";
 import FinalGradesView from "./_components/FinalGradesView";
 import { useCalificaciones } from "./_hooks/useCalificaciones";
+import { formatUnitTitle } from "@/lib/formatUnitName";
 
 export default function CalificacionesPage() {
   const params = useParams();
@@ -161,7 +162,7 @@ export default function CalificacionesPage() {
                         transition: "all 0.15s",
                       }}
                     >
-                      U{u.unit_number}: {u.name} {u.is_closed && "🔒"}
+                      {formatUnitTitle(u.unit_number, u.name)} {u.is_closed && "🔒"}
                     </button>
                   );
                 })}

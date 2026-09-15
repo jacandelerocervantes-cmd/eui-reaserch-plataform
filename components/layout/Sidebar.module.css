@@ -16,9 +16,18 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: visible;
-  padding-right: 200px; 
+  padding-right: 200px;
   margin-right: -200px;
   scrollbar-width: none;
+  /* El padding-right de 200px (compensado con margin-right negativo) reserva
+     espacio para que un tooltip/flyout al hacer hover en los íconos no se
+     recorte por el overflow-y:auto — pero con overflow-x:visible esa franja
+     invisible seguía intercepando clics reales del contenido de la página
+     que caía debajo (sidebar es position:fixed, z-index:1000). Se desactivan
+     los eventos de puntero en el contenedor y se reactivan solo en nav/footer
+     (los hijos realmente visibles) para que la franja de padding deje de
+     "atrapar" clics ajenos sin perder el espacio reservado para el flyout. */
+  pointer-events: none;
 }
 
 .scrollContainer::-webkit-scrollbar {
@@ -31,7 +40,8 @@
   align-items: center;
   gap: 1.2rem;
   padding: 1.5rem 0;
-  width: 80px; 
+  width: 80px;
+  pointer-events: auto;
 }
 
 .footer {
@@ -42,6 +52,7 @@
   padding-bottom: 1.5rem;
   z-index: 10;
   background: white;
+  pointer-events: auto;
 }
 
 .separator {

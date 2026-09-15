@@ -1,4 +1,11 @@
-export type Unit = { id: string; name: string; unit_number: number; is_closed: boolean; };
+export type Unit = {
+  id: string;
+  name: string;
+  unit_number: number;
+  is_closed?: boolean;
+  attendance_closed_at?: string | null;
+  grades_closed_at?: string | null;
+};
 export type Activity = { id: string; unit_id: string; name: string; weight_percentage: number; };
 export type Assignment = {
   id: string;
@@ -13,6 +20,7 @@ export type Exam = {
   unit_id: string;
   title: string;
   weight_percentage?: number;
+  weight_data?: { weight_percentage?: number; [key: string]: unknown } | null;
 };
 export type Student = {
   id: string;

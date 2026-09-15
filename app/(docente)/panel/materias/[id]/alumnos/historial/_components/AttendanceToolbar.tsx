@@ -29,7 +29,7 @@ export default function AttendanceToolbar({
           <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "800", margin: "0" }}>Historial de Asistencia</h1>
           <p style={{ color: "#64748b", fontSize: "0.85rem", margin: "4px 0 0" }}>
             {selectedUnitData
-              ? `Unidad ${selectedUnitData.unit_number} — ${selectedUnitData.title}${selectedUnitData.is_closed ? " (cerrada)" : " · activa"}`
+              ? `Unidad ${selectedUnitData.unit_number} — ${selectedUnitData.title}${selectedUnitData.attendance_closed_at ? " (sellada)" : " · activa"}`
               : "Control detallado y justificantes"}
           </p>
         </div>
@@ -71,7 +71,7 @@ export default function AttendanceToolbar({
           >
             {units.map(u => (
               <option key={u.id} value={u.unit_number}>
-                {u.is_closed ? "🔒" : "▶"} Unidad {u.unit_number} — {u.title}{u.is_closed ? "" : " (activa)"}
+                {u.attendance_closed_at ? "🔒" : "▶"} Unidad {u.unit_number} — {u.title}{u.attendance_closed_at ? " (sellada)" : " (activa)"}
               </option>
             ))}
           </select>

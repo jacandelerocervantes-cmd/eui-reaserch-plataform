@@ -1,15 +1,16 @@
 "use client";
 
-import { Lock, Unlock, Wand2, Save } from "lucide-react";
+import { useState } from "react";
+import type { CSSProperties } from "react";
+import { Lock, Unlock, Wand2, Save, X } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import { formatStudentName } from "@/lib/formatStudentName";
 import { formatUnitTitle } from "@/lib/formatUnitName";
 import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
-import type { CSSProperties } from "react";
 
 export default function CaptureView({
   selectedUnit, activities, assignments = [], exams = [],
-  assignmentWeights = {}, examWeights = {},
+  assignmentWeights = {},
   students, grades, setGrades, isSaving,
   handleMagicAttendance, handleSaveGrades, handleToggleCloseUnit, inputStyle,
 }: {
@@ -18,7 +19,6 @@ export default function CaptureView({
   assignments?: Assignment[];
   exams?: Exam[];
   assignmentWeights?: Record<string, number>;
-  examWeights?: Record<string, number>;
   students: Student[];
   grades: GradesMap;
   setGrades: (g: GradesMap) => void;
@@ -28,6 +28,9 @@ export default function CaptureView({
   handleToggleCloseUnit: (unit?: Unit) => void;
   inputStyle: (locked: boolean) => CSSProperties;
 }) {
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const isGradesClosed = Boolean(selectedUnit.grades_closed_at);
+
   // Filtrar actividades y tareas de la unidad seleccionada
   const unitActs = activities.filter(a => a.unit_id === selectedUnit.id);
   const unitAssignments = assignments.filter(a => a.unit_id === selectedUnit.id);
@@ -57,7 +60,107 @@ export default function CaptureView({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {/* Barra de Acciones Limpia (Sin Texto Redundante) */}
+      {/* Modal de Confirmación: Cerrar / Reabrir Calificaciones */}
+      {showCloseModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 200,
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "28px",
+              borderRadius: "20px",
+              width: "450px",
+              maxWidth: "90vw",
+              boxShadow: "0 25px 50px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <div
+                style={{
+                  backgroundColor: isGradesClosed ? "#eff6ff" : "#fffbeb",
+                  color: isGradesClosed ? "#2563eb" : "#d97706",
+                  padding: "8px",
+                  borderRadius: "10px",
+                }}
+              >
+                {isGradesClosed ? <Unlock size={20} /> : <Lock size={20} />}
+              </div>
+              <h3
+                style={{
+                  margin: 0,
+                  color: isGradesClosed ? "#1e40af" : "#92400e",
+                  fontWeight: "800",
+                  fontSize: "1.1rem",
+                }}
+              >
+                {isGradesClosed ? "Reabrir Calificaciones" : "Cerrar Calificaciones"}
+              </h3>
+            </div>
+            <p style={{ color: "#475569", fontSize: "0.9rem", lineHeight: 1.5, margin: "0 0 22px" }}>
+              {isGradesClosed ? (
+                <>
+                  ¿Deseas reabrir la captura de calificaciones de la{" "}
+                  <strong>{formatUnitTitle(selectedUnit.unit_number, selectedUnit.name)}</strong>? Las notas volverán
+                  a ser editables.
+                </>
+              ) : (
+                <>
+                  ¿Deseas cerrar las calificaciones de la{" "}
+                  <strong>{formatUnitTitle(selectedUnit.unit_number, selectedUnit.name)}</strong>? Las calificaciones
+                  quedarán en modo de solo lectura. Esta acción es reversible en cualquier momento.
+                </>
+              )}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <ExpandingButton
+                icon={X}
+                label="Cancelar"
+                onClick={() => setShowCloseModal(false)}
+                variant="default"
+                size={40}
+                radius={10}
+                gap={10}
+                padding="0 12px"
+                fontWeight={600}
+                durationMs={300}
+                colors={{ hoverText: "#64748b" }}
+              />
+              <ExpandingButton
+                icon={isGradesClosed ? Unlock : Lock}
+                label={isGradesClosed ? "Sí, Reabrir" : "Sí, Cerrar"}
+                onClick={() => {
+                  setShowCloseModal(false);
+                  handleToggleCloseUnit(selectedUnit);
+                }}
+                variant={isGradesClosed ? "primary" : "warning"}
+                size={40}
+                radius={10}
+                gap={10}
+                padding="0 12px"
+                fontWeight={700}
+                durationMs={300}
+                colors={
+                  isGradesClosed
+                    ? undefined
+                    : { bg: "#d97706", hoverBg: "#b45309", text: "white", hoverText: "white" }
+                }
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barra de Acciones Limpia */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "0.85rem", fontWeight: "900", color: "#1B396A", backgroundColor: "#f0f7ff", padding: "6px 12px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
@@ -69,26 +172,26 @@ export default function CaptureView({
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-          {!selectedUnit.is_closed && (
+          {!isGradesClosed && (
             <>
               <ExpandingButton icon={Wand2} label="Magia Asistencia" onClick={handleMagicAttendance} variant="magic" size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
               <ExpandingButton icon={Save} label={isSaving ? "Guardando..." : "Guardar Notas"} onClick={handleSaveGrades} variant="success" disabled={isSaving} size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover" />
             </>
           )}
           <ExpandingButton
-            icon={selectedUnit.is_closed ? Unlock : Lock}
-            label={selectedUnit.is_closed ? "Reabrir Unidad" : "Cerrar Unidad"}
-            onClick={() => handleToggleCloseUnit(selectedUnit)}
-            variant={selectedUnit.is_closed ? "secondary" : "warning"}
+            icon={isGradesClosed ? Unlock : Lock}
+            label={isGradesClosed ? "Reabrir Calificaciones" : "Cerrar Calificaciones"}
+            onClick={() => setShowCloseModal(true)}
+            variant={isGradesClosed ? "secondary" : "warning"}
             size={38} radius={10} gap={6} padding="0 12px" fontWeight={700} fontSize="0.85rem" durationMs={300} shadow="hover"
-            colors={selectedUnit.is_closed ? undefined : { bg: "white", hoverBg: "#f59e0b", text: "#f59e0b", hoverText: "white", border: "#cbd5e1" }}
+            colors={isGradesClosed ? undefined : { bg: "white", hoverBg: "#f59e0b", text: "#f59e0b", hoverText: "white", border: "#cbd5e1" }}
           />
         </div>
       </div>
 
-      {selectedUnit.is_closed && (
+      {isGradesClosed && (
         <div style={{ backgroundColor: "#fef3c7", border: "1px solid #f59e0b", color: "#b45309", padding: "10px 14px", borderRadius: "10px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", fontSize: "0.85rem" }}>
-          <Lock size={16} /> Esta unidad está cerrada. Las calificaciones son de solo lectura.
+          <Lock size={16} /> Las calificaciones de esta unidad están cerradas (modo solo lectura).
         </div>
       )}
 
@@ -135,7 +238,7 @@ export default function CaptureView({
               {/* Evaluaciones: E1, E2... */}
               {unitExams.length > 0 ? (
                 unitExams.map((ex, idx) => {
-                  const exW = examWeights[ex.id] ?? defaultExamW;
+                  const exW = ex.weight_data?.weight_percentage ?? defaultExamW;
                   const relP = evalWeight > 0 ? ((exW / evalWeight) * 100).toFixed(0) : "0";
                   return (
                     <th
@@ -192,7 +295,7 @@ export default function CaptureView({
                 if (unitExams.length > 0) {
                   unitExams.forEach(ex => {
                     const score = Number(grades[`${s.id}_exam_${ex.id}`] || 0);
-                    const exW = examWeights[ex.id] ?? defaultExamW;
+                    const exW = ex.weight_data?.weight_percentage ?? defaultExamW;
                     evalPoints += (score * (exW / 100));
                   });
                 } else if (evalAct) {
@@ -216,8 +319,8 @@ export default function CaptureView({
                         type="number" min="0" max="100" step="0.01"
                         value={grades[assistKey] !== undefined ? grades[assistKey] : ""}
                         onChange={(e) => setGrades({ ...grades, [assistKey]: e.target.value })}
-                        disabled={selectedUnit.is_closed}
-                        style={inputStyle(selectedUnit.is_closed)}
+                        disabled={isGradesClosed}
+                        style={inputStyle(isGradesClosed)}
                       />
                       <div style={{ fontSize: "0.68rem", color: "#64748b", marginTop: "2px", fontWeight: "700" }}>
                         +{assistPoints.toFixed(2)}
@@ -237,8 +340,8 @@ export default function CaptureView({
                               type="number" min="0" max="100" step="0.01" placeholder="0"
                               value={grades[key] !== undefined ? grades[key] : ""}
                               onChange={(e) => setGrades({ ...grades, [key]: e.target.value })}
-                              disabled={selectedUnit.is_closed}
-                              style={inputStyle(selectedUnit.is_closed)}
+                              disabled={isGradesClosed}
+                              style={inputStyle(isGradesClosed)}
                             />
                             <div style={{ fontSize: "0.68rem", color: "#2563eb", marginTop: "2px", fontWeight: "700" }}>
                               +{pts.toFixed(2)}
@@ -252,8 +355,8 @@ export default function CaptureView({
                           type="number" min="0" max="100" step="0.01"
                           value={activAct && grades[`${s.id}_${activAct.id}`] !== undefined ? grades[`${s.id}_${activAct.id}`] : ""}
                           onChange={(e) => activAct && setGrades({ ...grades, [`${s.id}_${activAct.id}`]: e.target.value })}
-                          disabled={selectedUnit.is_closed}
-                          style={inputStyle(selectedUnit.is_closed)}
+                          disabled={isGradesClosed}
+                          style={inputStyle(isGradesClosed)}
                         />
                         <div style={{ fontSize: "0.68rem", color: "#2563eb", marginTop: "2px", fontWeight: "700" }}>
                           +{activPoints.toFixed(2)}
@@ -266,7 +369,7 @@ export default function CaptureView({
                       unitExams.map(ex => {
                         const key = `${s.id}_exam_${ex.id}`;
                         const score = Number(grades[key] || 0);
-                        const exW = examWeights[ex.id] ?? defaultExamW;
+                        const exW = ex.weight_data?.weight_percentage ?? defaultExamW;
                         const pts = (score * (exW / 100));
                         return (
                           <td key={ex.id} style={{ padding: "6px 6px", textAlign: "center", borderRight: "1px solid #fef3c7", backgroundColor: "#fffdfa" }}>
@@ -274,8 +377,8 @@ export default function CaptureView({
                               type="number" min="0" max="100" step="0.01" placeholder="0"
                               value={grades[key] !== undefined ? grades[key] : ""}
                               onChange={(e) => setGrades({ ...grades, [key]: e.target.value })}
-                              disabled={selectedUnit.is_closed}
-                              style={inputStyle(selectedUnit.is_closed)}
+                              disabled={isGradesClosed}
+                              style={inputStyle(isGradesClosed)}
                             />
                             <div style={{ fontSize: "0.68rem", color: "#d97706", marginTop: "2px", fontWeight: "700" }}>
                               +{pts.toFixed(2)}
@@ -289,8 +392,8 @@ export default function CaptureView({
                           type="number" min="0" max="100" step="0.01"
                           value={evalAct && grades[`${s.id}_${evalAct.id}`] !== undefined ? grades[`${s.id}_${evalAct.id}`] : ""}
                           onChange={(e) => evalAct && setGrades({ ...grades, [`${s.id}_${evalAct.id}`]: e.target.value })}
-                          disabled={selectedUnit.is_closed}
-                          style={inputStyle(selectedUnit.is_closed)}
+                          disabled={isGradesClosed}
+                          style={inputStyle(isGradesClosed)}
                         />
                         <div style={{ fontSize: "0.68rem", color: "#d97706", marginTop: "2px", fontWeight: "700" }}>
                           +{evalPoints.toFixed(2)}

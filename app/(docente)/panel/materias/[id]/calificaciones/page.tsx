@@ -20,7 +20,7 @@ export default function CalificacionesPage() {
 
   const currentUnit = useMemo(() => {
     if (!c.units || c.units.length === 0) return null;
-    return c.units.find(u => u.id === selectedUnitId) || c.units.find(u => !u.is_closed) || c.units[0];
+    return c.units.find(u => u.id === selectedUnitId) || c.units.find(u => !u.grades_closed_at) || c.units[0];
   }, [c.units, selectedUnitId]);
 
   const handleOpenCapture = c.handleOpenCapture;
@@ -162,7 +162,7 @@ export default function CalificacionesPage() {
                         transition: "all 0.15s",
                       }}
                     >
-                      {formatUnitTitle(u.unit_number, u.name)} {u.is_closed && "🔒"}
+                      {formatUnitTitle(u.unit_number, u.name)} {u.grades_closed_at && "🔒"}
                     </button>
                   );
                 })}
@@ -176,7 +176,6 @@ export default function CalificacionesPage() {
                   assignments={c.assignments}
                   exams={c.exams}
                   assignmentWeights={c.assignmentWeights}
-                  examWeights={c.examWeights}
                   students={c.students}
                   grades={c.grades}
                   setGrades={c.setGrades}

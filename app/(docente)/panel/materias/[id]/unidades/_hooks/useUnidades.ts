@@ -8,6 +8,8 @@ export type CourseUnit = {
   total_sessions: number;
   is_closed: boolean;
   closed_at: string | null;
+  attendance_closed_at?: string | null;
+  grades_closed_at?: string | null;
 };
 
 export type UnitActivity = {
@@ -28,6 +30,7 @@ export type UnitExam = {
   id: string;
   title: string;
   unit_id: string | null;
+  weight_data: { weight_percentage?: number } | null;
 };
 
 export type UnitFormValues = { title: string; total_sessions: number };
@@ -68,7 +71,7 @@ async function fetchUnitsData(courseId: string, _reloadKey: number): Promise<Uni
 
     const { data: exData } = await supabase
       .from("exams")
-      .select("id, title, unit_id")
+      .select("id, title, unit_id, weight_data")
       .in("unit_id", unitIds);
     exams = exData ?? [];
   }
@@ -194,6 +197,16 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
     else alert("Error al guardar peso de actividad: " + error.message);
   };
 
+  const handleUpdateExamWeight = async (examId: string, weight: number) => {
+    const ex = exams.find(e => e.id === examId);
+    const currentWeightData = ex?.weight_data || {};
+    const { error } = await supabase.from("exams").update({
+      weight_data: { ...currentWeightData, weight_percentage: weight }
+    }).eq("id", examId);
+    if (!error) onReload();
+    else alert("Error al guardar peso de examen: " + error.message);
+  };
+
   const handleUpdateUnitFull = async (
     unitId: string,
     title: string,
@@ -201,7 +214,8 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
     assistWeight: number,
     activWeight: number,
     evalWeight: number,
-    asgnWeights: Record<string, number>
+    asgnWeights: Record<string, number>,
+    examWeights: Record<string, number> = {}
   ) => {
     setSaving(true);
     try {
@@ -252,6 +266,17 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
         })
       );
 
+      await Promise.all(
+        Object.entries(examWeights).map(async ([examId, weight]) => {
+          const ex = exams.find(e => e.id === examId);
+          const currentWeightData = ex?.weight_data || {};
+          const { error } = await supabase.from("exams").update({
+            weight_data: { ...currentWeightData, weight_percentage: weight }
+          }).eq("id", examId);
+          if (error) throw error;
+        })
+      );
+
       onReload();
     } catch (err: unknown) {
       alert("Error al guardar unidad: " + (err instanceof Error ? err.message : String(err)));
@@ -260,7 +285,7 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
     }
   };
 
-  const activeUnit = units.find((u: CourseUnit) => !u.is_closed);
+  const activeUnit = units.find((u: CourseUnit) => !u.attendance_closed_at && !u.grades_closed_at && !u.is_closed);
 
   return {
     loading,
@@ -279,6 +304,7 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
     handleDelete,
     handleUpdateUnitPillars,
     handleUpdateAssignmentWeight,
+    handleUpdateExamWeight,
     handleUpdateUnitFull,
   };
 }

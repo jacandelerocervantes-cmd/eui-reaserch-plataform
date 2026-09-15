@@ -58,7 +58,7 @@ export function useAsistencia(courseId: string) {
         .from("course_units")
         .select("id, unit_number, title, total_sessions")
         .eq("course_id", courseId)
-        .eq("is_closed", false)
+        .is("attendance_closed_at", null)
         .order("unit_number")
         .limit(1)
         .maybeSingle();

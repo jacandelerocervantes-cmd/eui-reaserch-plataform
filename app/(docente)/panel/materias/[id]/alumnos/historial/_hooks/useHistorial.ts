@@ -65,7 +65,7 @@ export function useHistorial({ courseId, reloadKey, onReload }: UseHistorialArgs
     unitAttendance.find(a => a.student_id === sid && a.session_date === date && a.session_number === session);
 
   const selectedUnitData = units.find(u => u.unit_number === selectedUnitNumber) ?? null;
-  const isSelectedUnitActive = selectedUnitData ? !selectedUnitData.is_closed : false;
+  const isSelectedUnitActive = selectedUnitData ? !selectedUnitData.attendance_closed_at : false;
 
   const filteredStudents = students.filter(s =>
     formatStudentName(s).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -168,8 +168,7 @@ export function useHistorial({ courseId, reloadKey, onReload }: UseHistorialArgs
     setIsClosingUnit(true);
     try {
       const { error } = await supabase.from("course_units").update({
-        is_closed: true,
-        closed_at: new Date().toISOString(),
+        attendance_closed_at: new Date().toISOString(),
       }).eq("id", activeUnit.id);
       if (error) throw error;
 

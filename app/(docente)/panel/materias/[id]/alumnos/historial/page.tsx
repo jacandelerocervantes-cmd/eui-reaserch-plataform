@@ -48,7 +48,7 @@ function HistorialContent({ courseId, reloadKey, onReload }: { courseId: string;
               <h3 style={{ margin: 0, color: "#991b1b", fontWeight: "800", fontSize: "1.1rem" }}>Sellar Asistencia — Acción irreversible</h3>
             </div>
             <p style={{ color: "#475569", fontSize: "0.9rem", lineHeight: 1.5, margin: "0 0 22px" }}>
-              ¿Sellar asistencia de Unidad {h.activeUnit.unit_number} — {h.activeUnit.title}? Se calcularán los porcentajes finales de asistencia y se sincronizarán con el registro. Esta acción no se puede deshacer.
+              ¿Sellar definitivamente la asistencia de la <strong>Unidad {h.activeUnit.unit_number} — {h.activeUnit.title}</strong>? Se calcularán los porcentajes finales y se bloqueará el registro de nuevas asistencias en esta unidad. <strong>Esto NO afecta la captura ni edición de calificaciones</strong>, únicamente sella el pase de lista. Esta acción es irreversible y no se puede deshacer.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
               <ExpandingButton icon={X} label="Cancelar" onClick={() => h.setShowSealConfirm(false)} variant="default" size={40} radius={10} gap={10} padding="0 12px" fontWeight={600} durationMs={300} colors={{ hoverText: "#64748b" }} />

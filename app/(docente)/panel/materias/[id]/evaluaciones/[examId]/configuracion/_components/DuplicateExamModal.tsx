@@ -17,6 +17,7 @@ export type ExamToDuplicate = {
   randomize_questions?: boolean;
   randomize_options?: boolean;
   show_all_questions?: boolean;
+  weight_data?: { weight_percentage?: number; [key: string]: unknown } | null;
 };
 
 export default function DuplicateExamModal({
@@ -103,6 +104,7 @@ export default function DuplicateExamModal({
           randomize_options: exam.randomize_options ?? true,
           show_all_questions: exam.show_all_questions ?? false,
           deployment_method: "interno",
+          weight_data: exam.weight_data || null,
         }])
         .select("id")
         .single();

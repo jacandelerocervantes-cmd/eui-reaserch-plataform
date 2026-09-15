@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Plus, Trash2, X, Loader2, BookOpen, Save,
-  CheckCircle2, AlertTriangle, Sliders, Calendar
+  CheckCircle2, AlertTriangle, Sliders, Calendar, Info
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import {
@@ -42,9 +42,11 @@ function UnitConfigModal({
     assistWeight: number,
     activWeight: number,
     evalWeight: number,
-    asgnWeights: Record<string, number>
+    asgnWeights: Record<string, number>,
+    examWeights: Record<string, number>
   ) => Promise<void>;
 }) {
+  const isUnitClosed = Boolean(unit.attendance_closed_at || unit.grades_closed_at || unit.is_closed);
   const [title, setTitle] = useState(unit.title);
   const [totalSessions, setTotalSessions] = useState(unit.total_sessions);
 
@@ -69,9 +71,19 @@ function UnitConfigModal({
     return map;
   });
 
+  const defaultExamW = unitExams.length > 0 ? Math.round(evalWeight / unitExams.length) : 0;
+  const [examWeights, setExamWeights] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    unitExams.forEach(ex => {
+      map[ex.id] = ex.weight_data?.weight_percentage ?? defaultExamW;
+    });
+    return map;
+  });
+
   const totalMacro = Number(assistWeight) + Number(activWeight) + Number(evalWeight);
   const isPerfect = totalMacro === 100;
   const sumAsgnPts = unitAssignments.reduce((acc, asg) => acc + (asgnWeights[asg.id] ?? defaultAsgnW), 0);
+  const sumExamPts = unitExams.reduce((acc, ex) => acc + (examWeights[ex.id] ?? defaultExamW), 0);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -91,7 +103,8 @@ function UnitConfigModal({
         Number(assistWeight),
         Number(activWeight),
         Number(evalWeight),
-        asgnWeights
+        asgnWeights,
+        examWeights
       );
       onClose();
     } catch (e) {
@@ -149,7 +162,7 @@ function UnitConfigModal({
               <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1B396A" }}>Título de la Unidad</label>
               <input
                 value={title}
-                disabled={unit.is_closed}
+                disabled={isUnitClosed}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ej. Introducción y Fundamentos"
                 style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none", fontWeight: "600" }}
@@ -159,7 +172,7 @@ function UnitConfigModal({
               <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "#1B396A" }}>Sesiones</label>
               <input
                 type="number" min="1" max="50"
-                disabled={unit.is_closed}
+                disabled={isUnitClosed}
                 value={totalSessions}
                 onChange={(e) => setTotalSessions(Number(e.target.value))}
                 style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9rem", textAlign: "center", outline: "none", fontWeight: "700" }}
@@ -193,7 +206,7 @@ function UnitConfigModal({
                 <input
                   className="pts-input"
                   type="number" min="0" max="100"
-                  disabled={unit.is_closed}
+                  disabled={isUnitClosed}
                   value={assistWeight}
                   onChange={(e) => setAssistWeight(Number(e.target.value))}
                   style={{ width: "55px", padding: "6px", borderRadius: "6px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", color: "#1B396A", outline: "none", fontSize: "0.85rem" }}
@@ -213,7 +226,7 @@ function UnitConfigModal({
                   <input
                     className="pts-input"
                     type="number" min="0" max="100"
-                    disabled={unit.is_closed}
+                    disabled={isUnitClosed}
                     value={activWeight}
                     onChange={(e) => setActivWeight(Number(e.target.value))}
                     style={{ width: "55px", padding: "6px", borderRadius: "6px", border: "1px solid #93c5fd", textAlign: "center", fontWeight: "700", color: "#1e40af", outline: "none", fontSize: "0.85rem", backgroundColor: "white" }}
@@ -246,7 +259,7 @@ function UnitConfigModal({
                           <input
                             className="pts-input"
                             type="number" min="0" max={activWeight}
-                            disabled={unit.is_closed}
+                            disabled={isUnitClosed}
                             value={currentPts}
                             onChange={(e) => setAsgnWeights({ ...asgnWeights, [asg.id]: Number(e.target.value) })}
                             style={{ width: "45px", padding: "4px", borderRadius: "4px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.78rem" }}
@@ -271,7 +284,7 @@ function UnitConfigModal({
                   <input
                     className="pts-input"
                     type="number" min="0" max="100"
-                    disabled={unit.is_closed}
+                    disabled={isUnitClosed}
                     value={evalWeight}
                     onChange={(e) => setEvalWeight(Number(e.target.value))}
                     style={{ width: "55px", padding: "6px", borderRadius: "6px", border: "1px solid #fcd34d", textAlign: "center", fontWeight: "700", color: "#92400e", outline: "none", fontSize: "0.85rem", backgroundColor: "white" }}
@@ -279,6 +292,43 @@ function UnitConfigModal({
                   <span style={{ fontWeight: "700", color: "#92400e", fontSize: "0.8rem" }}>pts</span>
                 </div>
               </div>
+
+              {unitExams.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid #fef3c7", paddingTop: "8px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#92400e", display: "flex", justifyContent: "space-between", fontWeight: "700" }}>
+                    <span>Desglose por examen:</span>
+                    <span>Suma: {sumExamPts} / {evalWeight} pts</span>
+                  </div>
+                  {unitExams.map((ex, idx) => {
+                    const currentPts = examWeights[ex.id] ?? defaultExamW;
+                    const relPercent = evalWeight > 0 ? Number(((currentPts / evalWeight) * 100).toFixed(1)) : 0;
+
+                    return (
+                      <div key={ex.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "white", padding: "6px 10px", borderRadius: "6px", border: "1px solid #fef3c7" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "65%" }}>
+                          <span style={{ fontSize: "0.78rem", color: "#1e293b", fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            E{idx + 1}: {ex.title}
+                          </span>
+                          <span style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: "600", flexShrink: 0 }}>
+                            ({relPercent.toFixed(0)}% del pilar)
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <input
+                            className="pts-input"
+                            type="number" min="0" max={evalWeight}
+                            disabled={isUnitClosed}
+                            value={currentPts}
+                            onChange={(e) => setExamWeights({ ...examWeights, [ex.id]: Number(e.target.value) })}
+                            style={{ width: "45px", padding: "4px", borderRadius: "4px", border: "1px solid #cbd5e1", textAlign: "center", fontWeight: "700", fontSize: "0.78rem" }}
+                          />
+                          <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: "700" }}>pts</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -294,7 +344,7 @@ function UnitConfigModal({
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-            {!unit.is_closed && (
+            {!isUnitClosed && (
               <ExpandingButton
                 icon={saving ? Loader2 : Save}
                 label={saving ? "Guardando..." : "Guardar Cambios"}
@@ -353,6 +403,22 @@ function UnidadesListInner({ courseId, reloadKey, onReload }: { courseId: string
               Nueva Unidad {v.units.length + 1}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {(() => {
+                const prevUnclosedUnit = v.units.find(u => !u.attendance_closed_at || !u.grades_closed_at);
+                if (!prevUnclosedUnit) return null;
+                const pendingParts: string[] = [];
+                if (!prevUnclosedUnit.attendance_closed_at) pendingParts.push("asistencia");
+                if (!prevUnclosedUnit.grades_closed_at) pendingParts.push("calificaciones");
+                return (
+                  <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "10px 14px", fontSize: "0.8rem", color: "#1e40af", display: "flex", gap: "8px", alignItems: "flex-start", lineHeight: 1.4 }}>
+                    <Info size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+                    <div>
+                      Nota: La <strong>Unidad {prevUnclosedUnit.unit_number}</strong> aún tiene pendiente el cierre de {pendingParts.join(" y ")}. Para que el sistema considere como &quot;activa&quot; a la nueva unidad, recuerda cerrar dichos procesos desde <em>Historial de Asistencia</em> o <em>Calificaciones</em> respectivamente.
+                    </div>
+                  </div>
+                );
+              })()}
+
               <input
                 placeholder={`Ej. Unidad ${v.units.length + 1}: Métodos cualitativos`}
                 value={v.newUnit.title}
@@ -388,6 +454,19 @@ function UnidadesListInner({ courseId, reloadKey, onReload }: { courseId: string
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "24px" }}>
           {v.units.map((unit: CourseUnit) => {
             const isActive = v.activeUnit?.id === unit.id;
+            const isFullClosed = Boolean((unit.attendance_closed_at && unit.grades_closed_at) || unit.is_closed);
+            const isPartialClosed = Boolean(unit.attendance_closed_at || unit.grades_closed_at || unit.is_closed);
+
+            let statusLabel = "";
+            if (isFullClosed) {
+              statusLabel = "· CERRADA";
+            } else if (unit.attendance_closed_at) {
+              statusLabel = "· ASISTENCIA SELLADA";
+            } else if (unit.grades_closed_at) {
+              statusLabel = "· CALIF. CERRADAS";
+            } else if (isActive) {
+              statusLabel = "· ACTIVA";
+            }
 
             return (
               <div
@@ -402,11 +481,11 @@ function UnidadesListInner({ courseId, reloadKey, onReload }: { courseId: string
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                     <span style={{
                       fontSize: "0.75rem", fontWeight: "800",
-                      color: unit.is_closed ? "#64748b" : (isActive ? "#1d4ed8" : "#1B396A"),
-                      backgroundColor: unit.is_closed ? "#f1f5f9" : (isActive ? "#dbeafe" : "#f0f7ff"),
+                      color: isPartialClosed ? "#64748b" : (isActive ? "#1d4ed8" : "#1B396A"),
+                      backgroundColor: isPartialClosed ? "#f1f5f9" : (isActive ? "#dbeafe" : "#f0f7ff"),
                       padding: "4px 10px", borderRadius: "8px", textTransform: "uppercase"
                     }}>
-                      Unidad {unit.unit_number} {isActive && "· ACTIVA"} {unit.is_closed && "· CERRADA"}
+                      Unidad {unit.unit_number} {statusLabel}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b", fontSize: "0.8rem", fontWeight: "600" }}>
                       <Calendar size={13} /> {unit.total_sessions} sesiones
@@ -430,7 +509,7 @@ function UnidadesListInner({ courseId, reloadKey, onReload }: { courseId: string
                     variant="primary"
                     size={40} radius={10} gap={8} padding="0 12px" fontWeight={700} durationMs={300}
                   />
-                  {!unit.is_closed && (
+                  {!isPartialClosed && (
                     <button
                       type="button"
                       onClick={() => v.handleDelete(unit.id, unit.unit_number)}

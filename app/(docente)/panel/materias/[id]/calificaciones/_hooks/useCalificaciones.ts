@@ -21,7 +21,6 @@ export function useCalificaciones(courseId: string) {
   const [isSaving, setIsSaving] = useState(false);
   const [allGrades, setAllGrades] = useState<GradeRow[]>([]);
   const [assignmentWeights, setAssignmentWeights] = useState<Record<string, number>>({});
-  const [examWeights, setExamWeights] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!feedback) return;
@@ -41,11 +40,21 @@ export function useCalificaciones(courseId: string) {
       if (unitsErr) throw unitsErr;
       if (unitsData) {
         setUnits(
-          (unitsData as { id: string; name?: string; title?: string; unit_number: number; is_closed: boolean }[]).map(u => ({
+          (unitsData as {
+            id: string;
+            name?: string;
+            title?: string;
+            unit_number: number;
+            is_closed?: boolean;
+            attendance_closed_at?: string | null;
+            grades_closed_at?: string | null;
+          }[]).map(u => ({
             id: u.id,
             name: u.name || u.title || `Unidad ${u.unit_number}`,
             unit_number: u.unit_number,
-            is_closed: u.is_closed,
+            is_closed: !!u.is_closed,
+            attendance_closed_at: u.attendance_closed_at ?? null,
+            grades_closed_at: u.grades_closed_at ?? null,
           }))
         );
       }
@@ -75,7 +84,7 @@ export function useCalificaciones(courseId: string) {
 
       const { data: exData, error: exErr } = await supabase
         .from("exams")
-        .select("id, unit_id, title")
+        .select("id, unit_id, title, weight_data")
         .eq("course_id", courseId);
       if (exErr) throw exErr;
       if (exData) setExams(exData);
@@ -180,10 +189,6 @@ export function useCalificaciones(courseId: string) {
       console.error("Error guardando peso de actividad:", err);
       setFeedback({ type: "error", message: "Error guardando peso de actividad." });
     }
-  };
-
-  const handleUpdateExamWeight = (examId: string, weight: number) => {
-    setExamWeights(prev => ({ ...prev, [examId]: weight }));
   };
 
   // --- RESUMEN Y PRECARGA DE CALIFICACIONES POR UNIDAD ---
@@ -366,7 +371,7 @@ export function useCalificaciones(courseId: string) {
   };
 
   const handleMagicAttendance = async () => {
-    if (selectedUnit?.is_closed) return;
+    if (selectedUnit?.grades_closed_at) return;
     const assistCriterio = activities.find(a => a.unit_id === selectedUnit?.id && a.name.toLowerCase().includes("asist"));
     if (!assistCriterio) {
       setFeedback({ type: "error", message: "Para usar la magia, necesitas un criterio que contenga la palabra 'Asistencia'." });
@@ -408,13 +413,24 @@ export function useCalificaciones(courseId: string) {
   const handleToggleCloseUnit = async (targetUnit?: Unit) => {
     const unitToToggle = targetUnit || selectedUnit;
     if (!unitToToggle) return;
-    const newStatus = !unitToToggle.is_closed;
+    const isCurrentlyClosed = Boolean(unitToToggle.grades_closed_at);
+    const newGradesClosedAt = isCurrentlyClosed ? null : new Date().toISOString();
 
-    const { error: closeErr } = await supabase.from("course_units").update({ is_closed: newStatus }).eq("id", unitToToggle.id);
+    const { error: closeErr } = await supabase
+      .from("course_units")
+      .update({ grades_closed_at: newGradesClosedAt })
+      .eq("id", unitToToggle.id);
+
     if (!closeErr) {
-      if (!targetUnit) setSelectedUnit({ ...unitToToggle, is_closed: newStatus });
-      setUnits(units.map(u => u.id === unitToToggle.id ? { ...u, is_closed: newStatus } : u));
-      setFeedback({ type: "success", message: `Unidad ${unitToToggle.unit_number} ${newStatus ? "cerrada" : "reabierta"} correctamente.` });
+      const updatedUnit: Unit = { ...unitToToggle, grades_closed_at: newGradesClosedAt };
+      if (!targetUnit || selectedUnit?.id === unitToToggle.id) {
+        setSelectedUnit(updatedUnit);
+      }
+      setUnits(units.map(u => u.id === unitToToggle.id ? updatedUnit : u));
+      setFeedback({
+        type: "success",
+        message: `Calificaciones de Unidad ${unitToToggle.unit_number} ${newGradesClosedAt ? "cerradas" : "reabiertas"} correctamente.`,
+      });
     } else {
       setFeedback({ type: "error", message: "Error al actualizar estado de la unidad: " + closeErr.message });
     }
@@ -508,10 +524,9 @@ export function useCalificaciones(courseId: string) {
     grades, setGrades,
     isSaving, allGrades,
     fetchData,
-    assignmentWeights, examWeights,
+    assignmentWeights,
     handleUpdateUnitPillars,
     handleUpdateAssignmentWeight,
-    handleUpdateExamWeight,
     handleOpenCapture,
     handleSaveGrades,
     handleMagicAttendance,

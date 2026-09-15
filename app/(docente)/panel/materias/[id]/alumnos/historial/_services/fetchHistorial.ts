@@ -11,12 +11,12 @@ export async function fetchHistorial(courseId: string, _reloadKey: number): Prom
   try {
     const { data: unitsData } = await supabase
       .from("course_units")
-      .select("id, unit_number, title, is_closed")
+      .select("id, unit_number, title, is_closed, attendance_closed_at, grades_closed_at")
       .eq("course_id", courseId)
       .order("unit_number");
 
     const units: CourseUnit[] = unitsData ?? [];
-    const activeUnit = units.find((u: CourseUnit) => !u.is_closed) ?? null;
+    const activeUnit = units.find((u: CourseUnit) => !u.attendance_closed_at) ?? null;
     // Default al tab de la unidad activa; si todas cerradas, la primera
     const initialUnitNumber = activeUnit?.unit_number ?? units[0]?.unit_number ?? null;
 

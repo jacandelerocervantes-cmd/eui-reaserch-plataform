@@ -3,11 +3,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
-import { cacheGet, cacheSet, sha256Hex } from "../_shared/cache.ts"
-import { guardOutputOrBlock } from "../_shared/guardrail.ts"
+import { cacheGet, cacheSet, checkRateLimit, sha256Hex } from "../_shared/cache.ts"
+import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
 
 // 6h (1.3 de docs/01_ARQUITECTURA_DEVOPS_FRUGAL.md)
 const AI_RESPONSE_CACHE_TTL_SECONDS = 6 * 60 * 60
+const RATE_LIMIT_MAX_CALLS = 15
+const RATE_LIMIT_WINDOW_SECONDS = 60
 
 serve(async (req: Request) => {
   const cors = buildCorsHeaders()
@@ -17,6 +19,13 @@ serve(async (req: Request) => {
   const auth = await verifyDocente(req)
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { userId, serviceClient } = auth.ctx
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:generate-exam-ia:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
 
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")
   if (!GEMINI_KEY) return new Response(
@@ -124,6 +133,7 @@ serve(async (req: Request) => {
     // ── 2. MODO: REGENERAR PREGUNTA INDIVIDUAL AISLADA ───────────────────────
     if (mode === "regenerate_single" && targetQuestion) {
       const targetBloom = difficulty === "basica" ? "Recordar o Comprender" : difficulty === "avanzada" ? "Evaluar o Crear" : "Aplicar o Analizar"
+      const safeSingleInstruction = instruction ? applyInputGuardrail(instruction, true).safeText : ""
       const singlePrompt = `Eres Diseñador Curricular certificado del TecNM especializado en evaluación por competencias.
 Genera una variante pedagógica mejorada y rigurosa para el siguiente reactivo de examen universitario de ingeniería:
 
@@ -131,7 +141,7 @@ REACTIVO PREVIO:
 ${JSON.stringify(targetQuestion, null, 2)}
 
 NIVEL DE DIFICULTAD / BLOOM SOLICITADO: ${targetBloom} (${difficulty})
-${instruction ? `INSTRUCCIÓN ESPECÍFICA DEL DOCENTE: "${instruction}"` : "Genera una nueva versión de alta calidad técnica sobre el mismo concepto o los temas indicados."}
+${safeSingleInstruction ? `INSTRUCCIÓN ESPECÍFICA DEL DOCENTE: "${safeSingleInstruction}"` : "Genera una nueva versión de alta calidad técnica sobre el mismo concepto o los temas indicados."}
 
 REGLAS ESTRICTAS:
 1. Devuelve EXACTAMENTE 1 solo reactivo completo.
@@ -181,15 +191,28 @@ Devuelve ÚNICAMENTE un JSON puro sin bloques de código ni markdown:
       )
     }
 
+    const safeFinalInstruction = finalInstruction ? applyInputGuardrail(finalInstruction, true).safeText : ""
+    let safeExtractedText = ""
+    if (extractedText) {
+      const extGuard = applyInputGuardrail(extractedText, false)
+      if (extGuard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        )
+      }
+      safeExtractedText = extGuard.safeText
+    }
+
     const hasCurrentQuestions = Array.isArray(currentQuestions) && currentQuestions.length > 0
     const pointsPerQuestion = Math.max(1, Math.round(100 / (hasCurrentQuestions ? currentQuestions.length : count)))
 
     const promptText = `Eres Diseñador Curricular certificado del TecNM especializado en evaluación por competencias.
 Genera o ajusta reactivos de examen para nivel ingeniería universitaria superior.
 
-${hasCurrentQuestions ? `REACTIVOS YA TRABAJADOS PREVIAMENTE EN EL CHAT (${currentQuestions.length} reactivos):\n${JSON.stringify(currentQuestions, null, 2)}\n\nPETICIÓN DEL DOCENTE EN ESTE TURNO:\n"${finalInstruction}"\n\nREGLA CLAVE DE AJUSTE CONTEXTUAL:\nModifica, agrega o reemplaza reactivos según lo solicitado en este turno, pero CONSERVA todos los reactivos existentes no mencionados. Devuelve la lista completa actualizada de reactivos en "questions".` : `TEMA O DIRECTIVA DEL DOCENTE:\n"${finalInstruction}"\nCANTIDAD DE REACTIVOS A GENERAR: ${count}\nDIFICULTAD GENERAL: ${difficulty}\nTIPOS DE REACTIVO SOLICITADOS: ${questionTypes.length > 0 ? questionTypes.join(", ") : "multiple_choice, true_false, open"}`}
+${hasCurrentQuestions ? `REACTIVOS YA TRABAJADOS PREVIAMENTE EN EL CHAT (${currentQuestions.length} reactivos):\n${JSON.stringify(currentQuestions, null, 2)}\n\nPETICIÓN DEL DOCENTE EN ESTE TURNO:\n"${safeFinalInstruction}"\n\nREGLA CLAVE DE AJUSTE CONTEXTUAL:\nModifica, agrega o reemplaza reactivos según lo solicitado en este turno, pero CONSERVA todos los reactivos existentes no mencionados. Devuelve la lista completa actualizada de reactivos en "questions".` : `TEMA O DIRECTIVA DEL DOCENTE:\n"${safeFinalInstruction}"\nCANTIDAD DE REACTIVOS A GENERAR: ${count}\nDIFICULTAD GENERAL: ${difficulty}\nTIPOS DE REACTIVO SOLICITADOS: ${questionTypes.length > 0 ? questionTypes.join(", ") : "multiple_choice, true_false, open"}`}
 
-${extractedText ? `\nCONTENIDO EXTRAÍDO DEL DOCUMENTO ADJUNTO:\n${extractedText.slice(0, 25000)}` : ""}
+${safeExtractedText ? `\nCONTENIDO EXTRAÍDO DEL DOCUMENTO ADJUNTO:\n${safeExtractedText.slice(0, 25000)}` : ""}
 ${filePart ? `\n(Se adjuntó un archivo/imagen de referencia. Úsalo como fuente de conceptos y temario para las preguntas).` : ""}
 
 REGLAS DE GENERACIÓN — APLICA TODAS SIN EXCEPCIÓN:

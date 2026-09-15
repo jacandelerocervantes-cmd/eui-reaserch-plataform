@@ -18,6 +18,7 @@ interface StudentData {
   apellido_materno?: string;
   correo?: string;
   team_id?: string | null;
+  notifications_opt_out?: boolean;
 }
 
 interface RequestPayload {
@@ -103,6 +104,7 @@ serve(async (req: Request) => {
       apellido_materno: studentData?.apellido_materno?.trim() || undefined,
       correo:  studentData?.correo?.toLowerCase().trim() || undefined,
       team_id: studentData?.team_id?.trim() || null,
+      notifications_opt_out: typeof studentData?.notifications_opt_out === "boolean" ? studentData.notifications_opt_out : false,
     };
 
     // ── 4. Operaciones en base de datos ──────────────────────────────────────

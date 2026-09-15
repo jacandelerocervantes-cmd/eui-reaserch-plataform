@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, X, AlertTriangle } from "lucide-react";
+import { formatStudentName } from "@/lib/formatStudentName";
 import type { Student, AttendanceRecord, SelectedRecord } from "./types";
 
 export default function AttendanceTable({
@@ -42,14 +43,14 @@ export default function AttendanceTable({
             return (
               <tr key={al.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={{ padding: "10px 20px", fontWeight: "600", fontSize: "0.85rem", position: "sticky", left: 0, backgroundColor: "white" }}>
-                  {al.apellido_paterno} {al.nombres}<br/><span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{al.matricula}</span>
+                  {formatStudentName(al)}<br/><span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{al.matricula}</span>
                 </td>
                 {uniqueDates.map((d, i) => {
                   const r = getRecord(al.id, d.date, d.session);
                   const openModal = () => {
                     setSelectedRecord({
                       student_id:     al.id,
-                      student_name:   `${al.apellido_paterno} ${al.nombres}`,
+                      student_name:   formatStudentName(al),
                       session_date:   d.date,
                       session_number: d.session,
                       new_status:     r?.status ?? 0,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { sumWeights, isWeightComplete } from "@/lib/weightValidation";
 import type { PuzzleData } from "../_components/PuzzlePreviewModal";
 
 export type UnitOption = { id: string; unit_number: number; title: string };
@@ -81,8 +82,8 @@ export function useNuevaActividad(courseId: string) {
     duplicateSeed?.rubrics?.length ? duplicateSeed.rubrics : [{ id: Date.now(), name: "Contenido", description: "", weight: 100 }]
   );
 
-  const totalRubricWeight = rubrics.reduce((sum, r) => sum + Number(r.weight), 0);
-  const isRubricValid = formData.submission_type.startsWith("puzzle_") || totalRubricWeight === 100;
+  const totalRubricWeight = sumWeights(rubrics);
+  const isRubricValid = formData.submission_type.startsWith("puzzle_") || isWeightComplete(totalRubricWeight);
 
   const loadDependencias = useCallback(async () => {
     if (!courseId) return;
@@ -228,6 +229,9 @@ export function useNuevaActividad(courseId: string) {
     if (!formData.title?.trim()) return setFeedback({ type: "error", message: "Debes escribir el título de la actividad." });
     if (!formData.unit_id) return setFeedback({ type: "error", message: "Debes seleccionar una unidad temática." });
     if (!formData.soft_deadline) return setFeedback({ type: "error", message: "Debes definir la fecha de entrega (Deadline)." });
+    if (formData.hard_deadline && new Date(formData.hard_deadline) <= new Date(formData.soft_deadline)) {
+      return setFeedback({ type: "error", message: "La fecha límite tardía (hard deadline) debe ser posterior a la fecha de entrega (soft deadline)." });
+    }
     if (!formData.submission_type.startsWith("puzzle_") && !isRubricValid) {
       return setFeedback({ type: "error", message: `La rúbrica debe sumar exactamente 100%. Actualmente suma ${totalRubricWeight}%.` });
     }

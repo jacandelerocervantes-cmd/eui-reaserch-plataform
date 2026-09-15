@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { formatStudentName } from "@/lib/formatStudentName";
 import {
   CheckCircle2, AlertCircle,
   TrendingUp, Download, Sparkles,
@@ -115,7 +116,7 @@ async function fetchResultados(courseId: string, examId: string, _reloadKey: num
         const anomaly = anomalyByStudent.get(s.id);
         return {
           id:       s.id,
-          nombre:   `${s.apellido_paterno} ${s.apellido_materno ?? ''} ${s.nombres}`.trim(),
+          nombre:   formatStudentName(s),
           matricula: s.matricula,
           score:    resp?.final_score ?? 0,
           status:   resp?.status === 'completed' ? 'Calificado' : 'Pendiente',

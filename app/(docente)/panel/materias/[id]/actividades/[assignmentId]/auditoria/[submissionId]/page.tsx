@@ -9,6 +9,7 @@ import {
   ShieldAlert, Users, Search, RotateCcw
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 
 type Submission = {
   id: string;
@@ -22,7 +23,7 @@ type Submission = {
   status: string;
   content_url: string | null;
   file_path: string | null;
-  students: { apellido_paterno: string; nombres: string } | null;
+  students: { apellido_paterno: string; apellido_materno?: string | null; nombres: string } | null;
 };
 
 type IntegrityResult = {
@@ -264,7 +265,7 @@ function AuditoriaContent({
         <div style={{ textAlign: "left", display: "flex", alignItems: "center", gap: "15px" }}>
           <button onClick={() => router.back()} style={{ border: "none", background: "none", cursor: "pointer", color: "#1B396A" }}><ArrowLeft /></button>
           <div>
-            <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "950", color: "#1B396A", letterSpacing: "-0.02em" }}>{submission?.students?.apellido_paterno}, {submission?.students?.nombres}</h2>
+            <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "950", color: "#1B396A", letterSpacing: "-0.02em" }}>{formatStudentName(submission?.students)}</h2>
             <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "800", textTransform: "uppercase" }}>Auditoría en Tiempo Real</span>
           </div>
         </div>

@@ -8,6 +8,7 @@ import {
   Eye, Copy, Maximize2, Clock, RotateCcw, X
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 import {
   useRevisionExamen, useAuditoriaConsola,
   describeAnswer,
@@ -61,7 +62,7 @@ function AuditoriaContent({
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <button onClick={v.goBack} style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}><ArrowLeft /></button>
           <div>
-            <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "950", color: "#1B396A" }}>{response?.students?.apellido_paterno}, {response?.students?.nombres}</h2>
+            <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "950", color: "#1B396A" }}>{formatStudentName(response?.students)}</h2>
             <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: "900", textTransform: "uppercase" }}>{response?.students?.matricula} • Auditoría Certeza AIA</span>
           </div>
         </div>

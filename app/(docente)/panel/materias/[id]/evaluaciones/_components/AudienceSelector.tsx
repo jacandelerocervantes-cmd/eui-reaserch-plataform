@@ -1,8 +1,9 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { formatStudentName } from "@/lib/formatStudentName";
 
-type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string };
+type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string; apellido_materno?: string | null };
 
 // Selector de audiencia (restringir examen a alumnos específicos, ej.
 // extraordinario) — antes duplicado en nuevo/page.tsx y configuracion/page.tsx.
@@ -30,7 +31,7 @@ export const AudienceSelector = ({ students, restrictAudience, setRestrictAudien
                 <div style={{ width: "18px", height: "18px", borderRadius: "5px", border: `2px solid ${isSel ? "#1B396A" : "#cbd5e1"}`, backgroundColor: isSel ? "#1B396A" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {isSel && <Check size={11} color="white" strokeWidth={3} />}
                 </div>
-                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#334155" }}>{s.apellido_paterno} {s.nombres}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#334155" }}>{formatStudentName(s)}</span>
               </label>
             );
           })}

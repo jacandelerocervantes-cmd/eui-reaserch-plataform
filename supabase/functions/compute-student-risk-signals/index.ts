@@ -39,7 +39,11 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyCourseOwnership, verifyDocente } from "../_shared/auth.ts"
+import { checkRateLimit } from "../_shared/cache.ts"
 import { applyKalman, applyKalmanVector } from "../_shared/kalmanStore.ts"
+
+const RATE_LIMIT_MAX_CALLS = 20
+const RATE_LIMIT_WINDOW_SECONDS = 60
 
 // Ruido de proceso (Q) y de medición (R) por señal — valores de partida
 // razonables, no calibrados empíricamente todavía (eso es la Fase de
@@ -139,6 +143,13 @@ serve(async (req: Request) => {
   const auth = await verifyDocente(req)
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { userId, serviceClient } = auth.ctx
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:compute-student-risk-signals:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
 
   try {
     const { course_id } = await req.json()

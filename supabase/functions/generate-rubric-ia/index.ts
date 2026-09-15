@@ -1,7 +1,11 @@
 // deno-lint-ignore-file no-import-prefix
 import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
-import { guardOutputOrBlock } from "../_shared/guardrail.ts"
+import { checkRateLimit } from "../_shared/cache.ts"
+import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
+
+const RATE_LIMIT_MAX_CALLS = 15
+const RATE_LIMIT_WINDOW_SECONDS = 60
 
 function generateWordSearchGrid(words: { word: string; clue: string }[], size = 12) {
   const grid: string[][] = Array.from({ length: size }, () => Array(size).fill(""));
@@ -82,6 +86,13 @@ Deno.serve(async (req: Request) => {
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { userId, serviceClient } = auth.ctx
 
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:generate-rubric-ia:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
+
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")
   if (!GEMINI_KEY) return new Response(
     JSON.stringify({ success: false, error: "GEMINI_API_KEY no configurado." }),
@@ -129,10 +140,14 @@ Deno.serve(async (req: Request) => {
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
     )
 
+    const safeTitle = applyInputGuardrail(title, true).safeText
+    const safeDescription = description ? applyInputGuardrail(description, true).safeText : ""
+    const safeInstruction = instruction ? applyInputGuardrail(instruction, true).safeText : ""
+
     // ── 2. MODO PUZZLE: CRUCIGRAMA O SOPA DE LETRAS ─────────────────────────
     if (puzzleType === "crossword" || puzzleType === "puzzle_crossword") {
       const crosswordPrompt = `Eres un diseñador pedagógico universitario para educación superior en ingeniería.
-Para el tema: "${title}" (Contexto: "${description}"), genera un Crucigrama Técnico conciso con 4 a 6 conceptos clave cruzados en una cuadrícula de máximo 12x12 casillas (índices 0 a 11).
+Para el tema: "${safeTitle}" (Contexto: "${safeDescription}"), genera un Crucigrama Técnico conciso con 4 a 6 conceptos clave cruzados en una cuadrícula de máximo 12x12 casillas (índices 0 a 11).
 
 Reglas estrictas:
 - Las palabras deben estar en mayúsculas, sin espacios, sin acentos ni caracteres especiales.
@@ -254,7 +269,7 @@ Reglas:
           success: true,
           puzzleType: "wordsearch",
           puzzleData: {
-            title: `Sopa de Letras: ${title}`,
+            title: `Sopa de Letras: ${safeTitle}`,
             ...wordSearchData
           }
         }),
@@ -270,15 +285,15 @@ Reglas:
     // instrucciones: si ya había un texto (`description`), se AJUSTA, no se
     // reemplaza por algo genérico que pierda detalles que el docente ya puso.
     const hasCurrentRubrics = Array.isArray(currentRubrics) && currentRubrics.length > 0
-    const hasExistingDescription = !!description?.trim()
+    const hasExistingDescription = !!safeDescription?.trim()
     const promptText =
       `Eres especialista en diseño instruccional por competencias del Tecnológico Nacional de México (TecNM).
       Ayudas al docente en un chat a redactar, en un solo paso, (1) las instrucciones para el alumno y (2) la rúbrica analítica de esta actividad de nivel ingeniería.
 
-      ACTIVIDAD: ${title}
-      ${hasExistingDescription ? `INSTRUCCIONES YA ESCRITAS POR EL DOCENTE (ajústalas según la petición de este turno, no las reemplaces por algo genérico si ya tienen contenido útil):\n${description}` : "El docente aún no ha escrito instrucciones — redáctalas desde cero a partir del título y su petición."}
+      ACTIVIDAD: ${safeTitle}
+      ${hasExistingDescription ? `INSTRUCCIONES YA ESCRITAS POR EL DOCENTE (ajústalas según la petición de este turno, no las reemplaces por algo genérico si ya tienen contenido útil):\n${safeDescription}` : "El docente aún no ha escrito instrucciones — redáctalas desde cero a partir del título y su petición."}
       ${filePart ? "\nADJUNTO: el docente adjuntó el documento original de la actividad (instrucciones, puntajes y/o rúbrica previa, si tenía). Léelo completo y usa su contenido real como base — si ya trae una distribución de puntos, respétala lo más posible en vez de inventar una nueva." : ""}
-      ${instruction ? `\nPETICIÓN DEL DOCENTE EN ESTE TURNO DE CONVERSACIÓN: "${instruction}"` : ""}
+      ${safeInstruction ? `\nPETICIÓN DEL DOCENTE EN ESTE TURNO DE CONVERSACIÓN: "${safeInstruction}"` : ""}`
       ${hasCurrentRubrics ? `\nRÚBRICA ACTUAL (ya trabajada previamente por el docente en este chat) — AJÚSTALA según la petición de este turno, conservando los criterios que no se pidió cambiar en vez de reemplazarlos por completo:\n${JSON.stringify(currentRubrics, null, 2)}` : ""}
 
       REQUISITOS DE LAS INSTRUCCIONES ("instructions"):

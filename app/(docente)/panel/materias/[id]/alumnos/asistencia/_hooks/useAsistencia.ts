@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatStudentName } from "@/lib/formatStudentName";
 import { useJsApiLoader } from '@react-google-maps/api';
 
 // --- Tipos de TypeScript ---
@@ -72,7 +73,7 @@ export function useAsistencia(courseId: string) {
       if (dbStudents) {
         sorted = dbStudents.sort((a, b) => a.apellido_paterno.localeCompare(b.apellido_paterno)).map((s) => ({
           id: s.id, matricula: s.matricula, apellido_paterno: s.apellido_paterno,
-          nombre_completo: `${s.apellido_paterno} ${s.apellido_materno || ''} ${s.nombres}`.trim()
+          nombre_completo: formatStudentName(s)
         }));
         setStudents(sorted);
       }

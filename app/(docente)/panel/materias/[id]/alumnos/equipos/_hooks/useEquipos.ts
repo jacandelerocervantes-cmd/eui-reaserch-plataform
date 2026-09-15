@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatStudentName } from "@/lib/formatStudentName";
 
 // --- TIPOS ---
 export type Student = { id: string; matricula: string; apellido_paterno: string; apellido_materno: string | null; nombres: string; };
@@ -143,7 +144,9 @@ export function useEquiposContent(courseId: string, reloadKey: number, onReload:
       const { error } = await supabase.from("teams").update({ name: editTeamName }).eq("id", editingTeam.id);
       if (error) throw error;
 
-      await supabase.from("team_members").delete().eq("team_id", editingTeam.id);
+      const { error: delErr } = await supabase.from("team_members").delete().eq("team_id", editingTeam.id);
+      if (delErr) throw delErr;
+
       if (editMemberIds.length > 0) {
         const rows = editMemberIds.map(sid => ({ team_id: editingTeam.id, student_id: sid }));
         const { error: memErr } = await supabase.from("team_members").insert(rows);
@@ -216,7 +219,9 @@ export function useEquiposContent(courseId: string, reloadKey: number, onReload:
   };
 
   const filteredStudents = students.filter(s =>
-    `${s.apellido_paterno} ${s.nombres}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.matricula.includes(searchTerm)
+    formatStudentName(s).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    formatStudentName(s, { order: "nombre-apellido" }).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.matricula.includes(searchTerm)
   );
 
   return {

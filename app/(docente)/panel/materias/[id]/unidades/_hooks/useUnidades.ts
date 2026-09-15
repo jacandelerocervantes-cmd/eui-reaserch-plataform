@@ -156,17 +156,19 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
       { id: evalAct?.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalw },
     ];
 
-    await supabase.from("activities").upsert(upserts);
-    onReload();
+    const { error } = await supabase.from("activities").upsert(upserts);
+    if (!error) onReload();
+    else alert("Error al guardar ponderaciones: " + error.message);
   };
 
   const handleUpdateAssignmentWeight = async (asgnId: string, weight: number) => {
     const asg = assignments.find(a => a.id === asgnId);
     const currentRubric = asg?.rubric_data || {};
-    await supabase.from("assignments").update({
+    const { error } = await supabase.from("assignments").update({
       rubric_data: { ...currentRubric, weight_percentage: weight }
     }).eq("id", asgnId);
-    onReload();
+    if (!error) onReload();
+    else alert("Error al guardar peso de actividad: " + error.message);
   };
 
   const handleUpdateUnitFull = async (
@@ -180,9 +182,10 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
   ) => {
     setSaving(true);
     try {
-      await supabase.from("course_units")
+      const { error: unitErr } = await supabase.from("course_units")
         .update({ title: title.trim(), total_sessions: totalSessions })
         .eq("id", unitId);
+      if (unitErr) throw unitErr;
 
       const unitActs = activities.filter(a => a.unit_id === unitId);
       const assistAct = unitActs.find(a => a.name.toLowerCase().includes("asist"));
@@ -194,17 +197,23 @@ export function useUnidadesLista(courseId: string, reloadKey: number, onReload: 
         { id: activAct?.id, unit_id: unitId, name: "Actividades", weight_percentage: activWeight },
         { id: evalAct?.id, unit_id: unitId, name: "Evaluaciones", weight_percentage: evalWeight },
       ];
-      await supabase.from("activities").upsert(upserts);
+      const { error: actsErr } = await supabase.from("activities").upsert(upserts);
+      if (actsErr) throw actsErr;
 
-      for (const [asgnId, weight] of Object.entries(asgnWeights)) {
-        const asg = assignments.find(a => a.id === asgnId);
-        const currentRubric = asg?.rubric_data || {};
-        await supabase.from("assignments").update({
-          rubric_data: { ...currentRubric, weight_percentage: weight }
-        }).eq("id", asgnId);
-      }
+      await Promise.all(
+        Object.entries(asgnWeights).map(async ([asgnId, weight]) => {
+          const asg = assignments.find(a => a.id === asgnId);
+          const currentRubric = asg?.rubric_data || {};
+          const { error } = await supabase.from("assignments").update({
+            rubric_data: { ...currentRubric, weight_percentage: weight }
+          }).eq("id", asgnId);
+          if (error) throw error;
+        })
+      );
 
       onReload();
+    } catch (err: unknown) {
+      alert("Error al guardar unidad: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }

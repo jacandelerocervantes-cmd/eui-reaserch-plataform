@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.ts";
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts";
+import { checkRateLimit } from "../_shared/cache.ts";
+import { applyInputGuardrail, applyOutputGuardrail } from "../_shared/guardrail.ts";
+
+const RATE_LIMIT_MAX_CALLS = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 serve(async (req: Request) => {
   const cors = buildCorsHeaders();
@@ -10,6 +15,14 @@ serve(async (req: Request) => {
   // ── 1. Autenticación ─────────────────────────────────────────────────────
   const auth = await verifyDocente(req);
   if (!auth.ok) return errorResponse(auth.err, cors);
+  const { userId } = auth.ctx;
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:extract-exam-questions-ia:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS);
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  );
 
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!GEMINI_KEY) return new Response(
@@ -75,15 +88,36 @@ JSON puro sin markdown. Ejemplos de cada tipo:
       const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const csvContent = XLSX.utils.sheet_to_csv(firstSheet);
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO (CSV):\n" + csvContent }];
+      const guard = applyInputGuardrail(csvContent, false);
+      if (guard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        );
+      }
+      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO (CSV):\n" + guard.safeText }];
     } else if (isDocx) {
-      // Gemini no acepta .docx como inlineData directamente; lo mandamos como texto crudo extraído.
+      // Gemini no acepta .docx como inlineData directamente; lo mandamos como texto crudo extraído con guardrail.
       const mammoth = await import("https://esm.sh/mammoth@1.7.0");
       const result = await mammoth.extractRawText({ arrayBuffer });
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + result.value }];
+      const guard = applyInputGuardrail(result.value, false);
+      if (guard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        );
+      }
+      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + guard.safeText }];
     } else {
       const textContent = new TextDecoder().decode(arrayBuffer);
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + textContent }];
+      const guard = applyInputGuardrail(textContent, false);
+      if (guard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        );
+      }
+      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + guard.safeText }];
     }
 
     const aiRes = await fetchGeminiWithRetry(
@@ -99,6 +133,14 @@ JSON puro sin markdown. Ejemplos de cada tipo:
     const aiJson  = await aiRes.json();
     const content = aiJson.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!content)  throw new Error("Gemini devolvió respuesta vacía.");
+
+    const outputGuard = applyOutputGuardrail(content);
+    if (!outputGuard.allow) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Respuesta bloqueada por políticas de seguridad (guardrail de salida)." }),
+        { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
 
     const { questions } = JSON.parse(content) as { questions: unknown[] };
 

@@ -11,7 +11,7 @@ serve(async (req: Request) => {
   const { userId, serviceClient } = auth.ctx
 
   try {
-    const { examId } = await req.json()
+    const { examId, force } = await req.json()
     if (!examId) return new Response(
       JSON.stringify({ success: false, error: "Se requiere 'examId'." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
@@ -20,7 +20,7 @@ serve(async (req: Request) => {
     // exams solo tiene unit_id — el ownership se valida vía course_units → courses
     const { data: exam } = await serviceClient
       .from("exams")
-      .select("title, unit_id, course_units(courses(id))")
+      .select("title, unit_id, results_notified_at, course_units(courses(id))")
       .eq("id", examId)
       .single()
     if (!exam) return new Response(
@@ -36,9 +36,21 @@ serve(async (req: Request) => {
       )
     }
 
+    if (!force && exam.results_notified_at) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          already_notified: true,
+          notified_at: exam.results_notified_at,
+          error: `Los resultados de este examen ya fueron notificados el ${exam.results_notified_at}.`,
+        }),
+        { status: 409, headers: { ...cors, "Content-Type": "application/json" } }
+      )
+    }
+
     const { data: responses } = await serviceClient
       .from("evaluation_responses")
-      .select("final_score, feedback_manual, feedback_ia, students(nombres, apellido_paterno, correo)")
+      .select("final_score, feedback_manual, feedback_ia, students(nombres, apellido_paterno, correo, notifications_opt_out)")
       .eq("exam_id", examId)
       .eq("status", "completed")
 
@@ -50,6 +62,7 @@ serve(async (req: Request) => {
     }
 
     const resultados = responses
+      .filter((r: any) => !r.students?.notifications_opt_out)
       .map((r: any) => ({
         email:    r.students?.correo,
         nombre:   r.students?.nombres,
@@ -57,6 +70,18 @@ serve(async (req: Request) => {
         feedback: r.feedback_manual || r.feedback_ia || "",
       }))
       .filter((r: any) => r.email)
+
+    if (!resultados.length) {
+      await serviceClient
+        .from("exams")
+        .update({ results_notified_at: new Date().toISOString() })
+        .eq("id", examId)
+
+      return new Response(
+        JSON.stringify({ success: true, message: "No hay alumnos para notificar por correo (todos tienen opt-out de notificaciones o no tienen correo)." }),
+        { headers: { ...cors, "Content-Type": "application/json" } }
+      )
+    }
 
     const APPS_SCRIPT_URL = Deno.env.get("APPS_SCRIPT_URL")
     const WEBHOOK_SECRET  = Deno.env.get("APPS_SCRIPT_SECRET")
@@ -84,6 +109,11 @@ serve(async (req: Request) => {
     }
 
     if (!scriptResult.success) throw new Error(scriptResult.error || "Error al enviar correos.")
+
+    await serviceClient
+      .from("exams")
+      .update({ results_notified_at: new Date().toISOString() })
+      .eq("id", examId)
 
     return new Response(
       JSON.stringify({ success: true, message: scriptResult.message }),

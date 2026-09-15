@@ -17,7 +17,7 @@ serve(async (req: Request) => {
   const { userId, serviceClient } = auth.ctx
 
   try {
-    const { examId } = await req.json()
+    const { examId, force } = await req.json()
     if (!examId) return new Response(
       JSON.stringify({ success: false, error: "Se requiere 'examId'." }),
       { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
@@ -26,7 +26,7 @@ serve(async (req: Request) => {
     // exams solo tiene unit_id — el ownership se valida vía course_units → courses
     const { data: exam, error: examErr } = await serviceClient
       .from("exams")
-      .select("id, title, unit_id, course_units(title, courses(id, teacher_id, drive_folder_id))")
+      .select("id, title, unit_id, deployment_method, google_form_id, google_form_url, course_units(title, courses(id, teacher_id, drive_folder_id))")
       .eq("id", examId)
       .single()
     if (examErr || !exam) return new Response(
@@ -40,6 +40,22 @@ serve(async (req: Request) => {
         JSON.stringify({ success: false, error: "No tienes permiso sobre este examen." }),
         { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
       )
+    }
+
+    if (!force && exam.google_form_id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          already_published: true,
+          google_form_url: exam.google_form_url,
+          error: "Este examen ya tiene un Google Form vinculado.",
+        }),
+        { status: 409, headers: { ...cors, "Content-Type": "application/json" } }
+      )
+    }
+
+    if (exam.google_form_id) {
+      console.warn(`[PUBLISH_EXAM_FORM] Reemplazando Google Form existente para examId=${examId}. Form ID anterior: ${exam.google_form_id}, URL anterior: ${exam.google_form_url}`)
     }
 
     const { data: questionsRows, error: qErr } = await serviceClient

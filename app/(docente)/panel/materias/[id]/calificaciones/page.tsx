@@ -103,6 +103,24 @@ export default function CalificacionesPage() {
         </div>
       </div>
 
+      {c.feedback && (
+        <div style={{
+          padding: "12px 16px",
+          borderRadius: "8px",
+          backgroundColor: c.feedback.type === 'success' ? '#dcfce7' : '#fee2e2',
+          color: c.feedback.type === 'success' ? '#166534' : '#991b1b',
+          border: `1px solid ${c.feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          fontSize: "0.9rem",
+          fontWeight: "600",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <span>{c.feedback.message}</span>
+          <button onClick={() => c.setFeedback(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontWeight: "700" }}>✕</button>
+        </div>
+      )}
+
       {/* CONTENIDO 1: CALIFICACIONES POR UNIDAD */}
       {activeTab === 'units' && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

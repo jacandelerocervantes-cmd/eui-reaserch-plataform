@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatStudentName } from "@/lib/formatStudentName";
 
 export type ExamInfo = {
   title: string;
@@ -67,7 +68,7 @@ async function fetchRevision(courseId: string, examId: string, _reloadKey: numbe
         return {
           id:          s.id,
           matricula:   s.matricula,
-          nombre:      `${s.apellido_paterno} ${s.apellido_materno ?? ''} ${s.nombres}`.trim(),
+          nombre:      formatStudentName(s),
           entregado:   !!resp,
           score_ia:    resp?.score_ia    ?? 0,
           final_score: resp?.final_score ?? 0,
@@ -112,6 +113,7 @@ export function useEvaluacionDetalleContent(courseId: string, examId: string, re
   const [alumnos, setAlumnos] = useState<AlumnoRevision[]>([]);
   const [feedbackToast, setFeedbackToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
+  const [showReNotifyModal, setShowReNotifyModal] = useState<{ notifiedAt: string } | null>(null);
 
   useEffect(() => {
     if (!feedbackToast) return;
@@ -179,15 +181,34 @@ export function useEvaluacionDetalleContent(courseId: string, examId: string, re
     setShowNotifyConfirm(true);
   };
 
-  const confirmNotify = async () => {
+  const confirmNotify = async (force: boolean = false) => {
     setShowNotifyConfirm(false);
+    if (force) setShowReNotifyModal(null);
     setIsNotifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke('notify-exam-results', { body: { examId } });
-      if (error) throw error;
-      setFeedbackToast({ type: 'success', message: data?.message || "Notificaciones enviadas." });
-    } catch (e) { setFeedbackToast({ type: 'error', message: "Error al notificar: " + (e instanceof Error ? e.message : String(e)) }); }
-    finally { setIsNotifying(false); }
+      const { data, error } = await supabase.functions.invoke('notify-exam-results', { body: { examId, force } });
+      let payload = data;
+      if (error) {
+        try {
+          const errJson = await (error as any).context?.json?.();
+          if (errJson) payload = errJson;
+        } catch {}
+      }
+
+      if (payload?.already_notified) {
+        setShowReNotifyModal({ notifiedAt: payload.notified_at });
+        return;
+      }
+
+      if (error || !payload?.success) {
+        throw new Error(payload?.error || error?.message || "Error al notificar.");
+      }
+      setFeedbackToast({ type: 'success', message: payload?.message || "Notificaciones enviadas." });
+    } catch (e) {
+      setFeedbackToast({ type: 'error', message: "Error al notificar: " + (e instanceof Error ? e.message : String(e)) });
+    } finally {
+      setIsNotifying(false);
+    }
   };
 
   // --- ACCIÓN 4: Guardar calificación final manual desde la tabla ---
@@ -223,6 +244,7 @@ export function useEvaluacionDetalleContent(courseId: string, examId: string, re
     feedbackModal, setFeedbackModal,
     feedbackToast, setFeedbackToast,
     showNotifyConfirm, setShowNotifyConfirm,
+    showReNotifyModal, setShowReNotifyModal,
     savingScoreId,
     handleBulkIA,
     handleSyncGrades,

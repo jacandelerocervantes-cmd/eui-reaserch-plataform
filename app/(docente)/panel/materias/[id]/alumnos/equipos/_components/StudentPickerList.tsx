@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, Check, ChevronDown, ChevronUp, UserCheck } from "lucide-react";
+import { formatStudentName } from "@/lib/formatStudentName";
 import styles from "../../alumnos.module.css";
 
 type Student = { id: string; matricula: string; apellido_paterno: string; apellido_materno: string | null; nombres: string; };
@@ -69,7 +70,7 @@ export default function StudentPickerList({
                   <div style={{ width: "20px", height: "20px", borderRadius: "6px", border: `2px solid ${isSelected ? "#1B396A" : "#cbd5e1"}`, backgroundColor: isSelected ? "#1B396A" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {isSelected && <Check size={13} color="white" strokeWidth={3} />}
                   </div>
-                  <span style={{ fontWeight: "600", color: "#334155", fontSize: "0.9rem" }}>{s.apellido_paterno} {s.nombres}</span>
+                  <span style={{ fontWeight: "600", color: "#334155", fontSize: "0.9rem" }}>{formatStudentName(s)}</span>
                   <span style={{ fontSize: "0.75rem", color: "#94a3b8", marginLeft: "auto" }}>{s.matricula}</span>
                 </label>
               );

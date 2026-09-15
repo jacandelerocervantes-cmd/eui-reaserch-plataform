@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { formatStudentName } from '@/lib/formatStudentName';
 
 export type Aviso = {
   id: string;
@@ -42,7 +43,7 @@ export async function fetchMateriaAlumno(
 
     const { data: studentRec } = await supabase
       .from('students')
-      .select('id, nombres, apellido_paterno, courses(title)')
+      .select('id, nombres, apellido_paterno, apellido_materno, courses(title)')
       .ilike('correo', user.email?.trim() ?? '')
       .eq('course_id', courseId)
       .maybeSingle();
@@ -53,7 +54,7 @@ export async function fetchMateriaAlumno(
     if (studentRec) {
       const courseObj = (studentRec as unknown as { courses: { title: string } | null }).courses;
       courseName = courseObj?.title ?? 'Materia';
-      studentName = `${(studentRec as { nombres?: string }).nombres || ''} ${(studentRec as { apellido_paterno?: string }).apellido_paterno || ''}`.trim() || 'Alumno';
+      studentName = formatStudentName(studentRec as { nombres: string; apellido_paterno: string; apellido_materno?: string | null }, { order: 'nombre-apellido' }) || 'Alumno';
     } else {
       // Fallback: verificar que la materia exista
       const { data: courseData } = await supabase

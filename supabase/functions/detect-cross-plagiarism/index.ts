@@ -30,10 +30,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyCourseOwnership, verifyDocente } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
+import { checkRateLimit } from "../_shared/cache.ts"
 import { embedText } from "../_shared/embeddings.ts"
 import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
 import { extractTextWithOcr } from "../_shared/ocrClient.ts"
 
+const RATE_LIMIT_MAX_CALLS = 10
+const RATE_LIMIT_WINDOW_SECONDS = 60
 const MAX_FILES = 40 // antes 12 — el cuello de botella real (prompt todo-contra-todo) ya no existe
 const EMBEDDING_PRESELECT_THRESHOLD = 0.88 // similitud coseno del RESUMEN, no del texto completo — conservador a propósito, es solo un filtro previo
 const MAX_PAIRS_TO_VERIFY = 25 // tope de costo para la fase 2 (verificación cualitativa con PDFs completos)
@@ -68,6 +71,13 @@ serve(async (req: Request) => {
   const auth = await verifyDocente(req)
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { userId, serviceClient } = auth.ctx
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:detect-cross-plagiarism:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
 
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")
   if (!GEMINI_KEY) return new Response(

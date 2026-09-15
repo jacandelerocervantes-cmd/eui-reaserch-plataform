@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { sumWeights, isWeightComplete } from "@/lib/weightValidation";
 import { useMasterCopilotChat } from "@/components/ia/useMasterCopilotChat";
 import {
   FileText, Presentation, FileSpreadsheet,
@@ -69,13 +70,13 @@ export function useCrearMaterial() {
     if (p.tool_name === "crear_rubrica_sheet" && Array.isArray(p.params.criterios)) setCriterios(p.params.criterios);
   };
 
-  const totalWeight = criterios.reduce((acc, c) => acc + (parseFloat(String(c.weight)) || 0), 0);
+  const totalWeight = sumWeights(criterios);
 
   const canSave =
     !!titulo.trim() && !!unitId && !isSaving &&
     (tipo.tool === "crear_material_boveda" ? !!contenido.trim()
       : tipo.tool === "crear_presentacion_slides" ? slides.length > 0
-      : criterios.length > 0 && totalWeight === 100);
+      : criterios.length > 0 && isWeightComplete(totalWeight));
 
   const handleSave = async () => {
     if (!canSave) return;

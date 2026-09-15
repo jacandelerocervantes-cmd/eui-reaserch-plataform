@@ -2,6 +2,7 @@
 
 import { X, Save, Loader2 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 import styles from "../../alumnos.module.css";
 
 type Student = { id: string; matricula: string; apellido_paterno: string; apellido_materno: string | null; nombres: string; };
@@ -38,7 +39,7 @@ export default function EditTeamModal({
               {students.map(s => (
                 <label key={s.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", cursor: "pointer", backgroundColor: editMemberIds.includes(s.id) ? "#eff6ff" : "transparent" }}>
                   <input type="checkbox" checked={editMemberIds.includes(s.id)} onChange={() => toggleEditMember(s.id)} />
-                  <span style={{ fontSize: "0.88rem", color: "#334155", fontWeight: "600" }}>{s.apellido_paterno} {s.nombres}</span>
+                  <span style={{ fontSize: "0.88rem", color: "#334155", fontWeight: "600" }}>{formatStudentName(s)}</span>
                   <span style={{ fontSize: "0.75rem", color: "#94a3b8", marginLeft: "auto" }}>{s.matricula}</span>
                 </label>
               ))}

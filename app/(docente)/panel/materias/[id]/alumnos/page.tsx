@@ -6,10 +6,12 @@ import { supabase } from "@/lib/supabase";
 import {
   Search, Trash2, X, Save, Plus,
   UserPlus, CalendarDays, Sparkles, FileText,
-  Loader2, CheckCircle2, AlertCircle, RotateCcw
+  Loader2, CheckCircle2, AlertCircle, RotateCcw,
+  Bell, BellOff
 } from "lucide-react";
 import styles from "./alumnos.module.css";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 
 // --- TIPOS ---
 type Student = {
@@ -20,6 +22,7 @@ type Student = {
   nombres: string;
   correo: string;
   course_id?: string;
+  notifications_opt_out?: boolean;
 };
 
 type FetchResult = { ok: true; students: Student[] } | { ok: false; error: string };
@@ -94,7 +97,9 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
   const [showModal, setShowModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newStudent, setNewStudent] = useState({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "" });
+  const [newStudent, setNewStudent] = useState({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "", notifications_opt_out: false });
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [isUpdatingStudent, setIsUpdatingStudent] = useState(false);
   // Si la matrícula ya existe en el sistema (en cualquier materia), su
   // identidad se autocompleta y se bloquea — un docente no puede escribir
   // encima del nombre/correo de un alumno ya registrado, eso es exclusivo
@@ -164,7 +169,7 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
       if (!data?.success) throw new Error(data?.error || "Error al agregar el alumno.");
 
       setShowModal(false);
-      setNewStudent({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "" });
+      setNewStudent({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "", notifications_opt_out: false });
       setMatriculaLookup('idle');
       onReload();
     } catch (e) {
@@ -172,6 +177,32 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
       console.error(e instanceof Error ? e.message : e);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveEditingStudent = async () => {
+    if (!editingStudent) return;
+    setIsUpdatingStudent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enroll-manual', {
+        method: 'POST',
+        body: {
+          courseId,
+          mode: 'edit',
+          studentId: editingStudent.id,
+          studentData: {
+            ...editingStudent,
+            notifications_opt_out: editingStudent.notifications_opt_out ?? false,
+          }
+        }
+      });
+      if (error || !data?.success) throw new Error(data?.error || "Error al actualizar preferencia de notificación.");
+      setEditingStudent(null);
+      onReload();
+    } catch (err) {
+      console.error("Error guardando preferencia de notificación:", err);
+    } finally {
+      setIsUpdatingStudent(false);
     }
   };
 
@@ -397,13 +428,35 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
                   <span className={styles.matriculaText}>{s.matricula}</span>
                 </td>
                 <td className={styles.tableCell}>
-                  <span className={styles.nameText}>{`${s.apellido_paterno} ${s.apellido_materno || ''} ${s.nombres}`}</span>
+                  <span className={styles.nameText}>{formatStudentName(s)}</span>
                 </td>
                 <td className={styles.tableCell}>
-                  <span style={{ color: "#64748b", fontSize: "0.9rem" }}>{s.correo || "No registrado"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{ color: "#64748b", fontSize: "0.9rem" }}>{s.correo || "No registrado"}</span>
+                    {s.notifications_opt_out && (
+                      <span style={{ fontSize: "0.72rem", backgroundColor: "#fee2e2", color: "#b91c1c", padding: "2px 8px", borderRadius: "6px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <BellOff size={12} /> Sin correos
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className={styles.tableCell}>
                   <div className={styles.actionsContainer}>
+                    <ExpandingButton
+                      small
+                      smallSize={36}
+                      icon={s.notifications_opt_out ? BellOff : Bell}
+                      label={s.notifications_opt_out ? "Sin avisos" : "Notificaciones"}
+                      variant="secondary"
+                      radius={10}
+                      gap={8}
+                      padding="0 12px"
+                      fontWeight={600}
+                      durationMs={300}
+                      expandedLabelMaxWidth="150px"
+                      onClick={() => setEditingStudent(s)}
+                      colors={s.notifications_opt_out ? { bg: "#fee2e2", hoverBg: "#fecaca", text: "#b91c1c", hoverText: "#991b1b" } : undefined}
+                    />
                     <ExpandingButton small smallSize={36} icon={Trash2} label="Quitar de la Materia" variant="danger" radius={10} gap={8} padding="0 12px" fontWeight={600} durationMs={300} expandedLabelMaxWidth="150px" colors={{ bg: "#fee2e2", hoverBg: "#ef4444", text: "#ef4444", hoverText: "white" }} onClick={() => handleDelete(s.id)} />
                   </div>
                 </td>
@@ -413,13 +466,75 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
         </table>
       </div>
 
+      {/* MODAL EDITAR PREFERENCIAS DE ALUMNO (Opt-out de Notificaciones) */}
+      {editingStudent && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Preferencias del Alumno</h2>
+              <button onClick={() => setEditingStudent(null)} className={styles.closeButton}><X size={24} /></button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "10px 0" }}>
+              <div style={{ backgroundColor: "#f8fafc", padding: "14px 18px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", marginBottom: "4px" }}>Alumno</div>
+                <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "#1B396A" }}>{formatStudentName(editingStudent)}</div>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "2px" }}>
+                  Matrícula: <strong>{editingStudent.matricula}</strong> • {editingStudent.correo || "Sin correo"}
+                </div>
+              </div>
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "16px", backgroundColor: editingStudent.notifications_opt_out ? "#fff7ed" : "white", borderRadius: "12px", border: `1px solid ${editingStudent.notifications_opt_out ? "#fed7aa" : "#e2e8f0"}`, cursor: "pointer", transition: "0.2s" }}>
+                <input
+                  type="checkbox"
+                  checked={editingStudent.notifications_opt_out ?? false}
+                  onChange={(e) => setEditingStudent({ ...editingStudent, notifications_opt_out: e.target.checked })}
+                  style={{ marginTop: "3px", width: "18px", height: "18px", cursor: "pointer", accentColor: "#1B396A" }}
+                />
+                <div>
+                  <span style={{ fontSize: "0.92rem", fontWeight: 700, color: "#1e293b", display: "block" }}>
+                    No enviar notificaciones automáticas por correo a este alumno
+                  </span>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b", lineHeight: 1.4, display: "block", marginTop: "4px" }}>
+                    Al marcar esta opción, el sistema excluirá a este alumno de los envíos masivos por correo (como calificaciones de exámenes y avisos institucionales).
+                  </span>
+                </div>
+              </label>
+
+              <div className={styles.formFooter} style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  style={{ padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1", backgroundColor: "white", color: "#475569", fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <ExpandingButton
+                  icon={isUpdatingStudent ? Loader2 : Save}
+                  label={isUpdatingStudent ? "Guardando..." : "Guardar Preferencia"}
+                  onClick={handleSaveEditingStudent}
+                  loading={isUpdatingStudent}
+                  variant="primary"
+                  size={44}
+                  radius={10}
+                  gap={8}
+                  padding="0 18px"
+                  fontWeight={600}
+                  durationMs={300}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL AGREGAR ALUMNO A LA MATERIA — solo alta; editar identidad es exclusivo de admin */}
       {showModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Nuevo Alumno</h2>
-              <button onClick={() => { setShowModal(false); setNewStudent({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "" }); setMatriculaLookup('idle'); }} className={styles.closeButton}><X size={24} /></button>
+              <button onClick={() => { setShowModal(false); setNewStudent({ matricula: "", apellido_paterno: "", apellido_materno: "", nombres: "", correo: "", notifications_opt_out: false }); setMatriculaLookup('idle'); }} className={styles.closeButton}><X size={24} /></button>
             </div>
 
             <form onSubmit={handleSaveStudent} className={styles.formGrid}>
@@ -445,6 +560,16 @@ function ListaAlumnosContent({ courseId, reloadKey, onReload }: { courseId: stri
               </div>
 
               <input type="email" disabled={matriculaLookup === 'found'} placeholder="Correo electrónico (Opcional)" className={styles.inputField} value={newStudent.correo} onChange={(e) => setNewStudent({...newStudent, correo: e.target.value})} />
+
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem", color: "#334155", fontWeight: 600, cursor: "pointer", padding: "6px 2px" }}>
+                <input
+                  type="checkbox"
+                  checked={newStudent.notifications_opt_out}
+                  onChange={(e) => setNewStudent({ ...newStudent, notifications_opt_out: e.target.checked })}
+                  style={{ width: "16px", height: "16px", accentColor: "#1B396A" }}
+                />
+                No enviar notificaciones automáticas por correo a este alumno
+              </label>
 
               <div className={styles.formFooter}>
                 <ExpandingButton icon={isSubmitting ? Loader2 : Save} label={isSubmitting ? "Guardando..." : "Guardar Alumno"} type="submit" variant="primary" disabled={isSubmitting} size={44} radius={10} gap={8} padding="0 12px" fontWeight={600} durationMs={300} iconSize={20} expandedLabelMaxWidth="150px" />

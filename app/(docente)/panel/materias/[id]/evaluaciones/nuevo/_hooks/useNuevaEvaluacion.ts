@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { buildQuestionRow, type EditQuestion } from "../../_components/questionMapping";
 
 export type UnitOption = { id: string; unit_number: number; title: string };
-export type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string };
+export type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string; apellido_materno?: string | null };
 
 export function useNuevaEvaluacion(courseId: string) {
   const router = useRouter();
@@ -67,7 +67,7 @@ export function useNuevaEvaluacion(courseId: string) {
 
         const { data: studentsData } = await supabase
           .from("students")
-          .select("id, matricula, nombres, apellido_paterno")
+          .select("id, matricula, nombres, apellido_paterno, apellido_materno")
           .eq("course_id", courseId)
           .order("apellido_paterno", { ascending: true });
 

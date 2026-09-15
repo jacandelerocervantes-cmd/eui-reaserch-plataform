@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { uploadValidated } from "@/lib/uploadValidated";
+import { formatStudentName } from "@/lib/formatStudentName";
 import type { SelectedRecord } from "../_components/types";
 import { fetchHistorial, type FetchResult } from "../_services/fetchHistorial";
 
@@ -67,7 +68,9 @@ export function useHistorial({ courseId, reloadKey, onReload }: UseHistorialArgs
   const isSelectedUnitActive = selectedUnitData ? !selectedUnitData.is_closed : false;
 
   const filteredStudents = students.filter(s =>
-    `${s.apellido_paterno} ${s.nombres}`.toLowerCase().includes(searchTerm.toLowerCase()) || s.matricula.includes(searchTerm)
+    formatStudentName(s).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    formatStudentName(s, { order: "nombre-apellido" }).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.matricula.includes(searchTerm)
   );
 
   const handleDeleteRecord = async () => {
@@ -140,7 +143,7 @@ export function useHistorial({ courseId, reloadKey, onReload }: UseHistorialArgs
           return { fecha: d.date, sesion: d.session, estatus: r ? r.status : 0 };
         });
         const pct = unitDates.length > 0 ? (total / unitDates.length) * 100 : 0;
-        return { matricula: al.matricula, nombre_completo: `${al.apellido_paterno} ${al.nombres}`, asistencias, resumen: { porcentaje: pct, derecho_examen: pct >= 80 } };
+        return { matricula: al.matricula, nombre_completo: formatStudentName(al), asistencias, resumen: { porcentaje: pct, derecho_examen: pct >= 80 } };
       });
 
       const { data } = await supabase.functions.invoke('sync-attendance-history', {

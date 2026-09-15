@@ -13,6 +13,7 @@ import PlagiarismBanner, { type PlagiarismResult } from "./_components/Plagiaris
 import SubmissionsTable, { type SubmissionRow } from "./_components/SubmissionsTable";
 import FloatingActionPill from "./_components/FloatingActionPill";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 
 type FetchResult = { ok: true; submissions: SubmissionRow[] } | { ok: false; error: string };
 
@@ -20,7 +21,7 @@ async function fetchEntregas(courseId: string, assignmentId: string, _reloadKey:
   try {
     const { data: studentsList } = await supabase
       .from('students')
-      .select('id, matricula, nombres, apellido_paterno')
+      .select('id, matricula, nombres, apellido_paterno, apellido_materno')
       .eq('course_id', courseId)
       .order('apellido_paterno', { ascending: true });
 
@@ -29,7 +30,7 @@ async function fetchEntregas(courseId: string, assignmentId: string, _reloadKey:
       .select('id, student_id, status, final_score, ai_score, ai_feedback, metadata, is_late, submitted_at, file_path, content_url, drive_folder_id')
       .eq('assignment_id', assignmentId);
 
-    type StudentRow = { id: string; matricula: string; nombres: string; apellido_paterno: string };
+    type StudentRow = { id: string; matricula: string; nombres: string; apellido_paterno: string; apellido_materno?: string | null };
     type SubRow = {
       id: string; student_id: string; status: string; final_score: number | null; ai_score: number | null;
       ai_feedback: string | null; metadata: unknown; is_late: boolean; submitted_at: string | null;
@@ -44,7 +45,7 @@ async function fetchEntregas(courseId: string, assignmentId: string, _reloadKey:
       return {
         id:          student.id,
         subId:       sub?.id ?? null,
-        name:        `${student.apellido_paterno}, ${student.nombres}`,
+        name:        formatStudentName(student),
         status:      hasRealSubmission ? sub.status : 'no_submission',
         score:       sub?.final_score ?? (sub?.status === 'ai_draft' ? sub?.ai_score : null),
         aiScore:     sub?.ai_score ?? null,
@@ -158,19 +159,21 @@ function DashboardEntregasContent({
 
     setIsProcessingAI(true);
     try {
-      for (const s of toPublish) {
-        const { error } = await supabase
-          .from('submissions')
-          .update({
-            status:         'completed',
-            final_score:    s.aiScore,
-            final_feedback: s.aiFeedback,
-            metadata:       s.metadata,
-            graded_at:      new Date().toISOString(),
-          })
-          .eq('id', s.subId);
-        if (error) throw error;
-      }
+      await Promise.all(
+        toPublish.map(async (s) => {
+          const { error } = await supabase
+            .from('submissions')
+            .update({
+              status:         'completed',
+              final_score:    s.aiScore,
+              final_feedback: s.aiFeedback,
+              metadata:       s.metadata,
+              graded_at:      new Date().toISOString(),
+            })
+            .eq('id', s.subId);
+          if (error) throw error;
+        })
+      );
       onReload();
       if (skipped > 0) {
         alert(`${toPublish.length} calificación(es) publicada(s). ${skipped} quedaron pendientes por el orden secuencial — se desbloquean a medida que se publican las anteriores.`);

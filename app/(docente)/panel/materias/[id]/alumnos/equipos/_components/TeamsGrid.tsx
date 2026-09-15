@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UsersRound, Edit2, Trash2, UserMinus, ChevronDown, ChevronUp } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 import styles from "../../alumnos.module.css";
 
 type Student = { id: string; matricula: string; apellido_paterno: string; apellido_materno: string | null; nombres: string; };
@@ -82,7 +83,7 @@ export default function TeamsGrid({
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {team.members.map((m) => (
                         <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", backgroundColor: "#f8fafc", borderRadius: "8px" }}>
-                          <span style={{ fontSize: "0.82rem", color: "#334155", fontWeight: "600" }}>{m.apellido_paterno} {m.nombres}</span>
+                          <span style={{ fontSize: "0.82rem", color: "#334155", fontWeight: "600" }}>{formatStudentName(m)}</span>
                           <button onClick={() => handleRemoveMember(team.id, m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex", padding: "2px" }} title="Quitar del equipo">
                             <UserMinus size={13} />
                           </button>

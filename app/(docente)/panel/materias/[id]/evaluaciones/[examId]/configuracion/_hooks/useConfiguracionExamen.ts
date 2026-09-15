@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { buildQuestionRow, parseQuestionRow, type EditQuestion, type QuestionRow } from "../../../_components/questionMapping";
 
 export type UnitOption = { id: string; unit_number: number; title: string };
-export type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string };
+export type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string; apellido_materno?: string | null };
 
 export function useConfiguracionExamen(courseId: string, examId: string) {
   const router = useRouter();
@@ -35,6 +35,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
   const total = Number(questions.reduce((acc, q) => acc + (parseFloat(String(q.points)) || 0), 0).toFixed(1));
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showRePublishConfirm, setShowRePublishConfirm] = useState(false);
 
   useEffect(() => {
     if (!feedback) return;
@@ -48,7 +49,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
       const { data: unitsData } = await supabase.from("course_units").select("id, unit_number, title").eq("course_id", courseId).order("unit_number", { ascending: true });
       if (unitsData) setUnits(unitsData);
 
-      const { data: studentsData } = await supabase.from("students").select("id, matricula, nombres, apellido_paterno").eq("course_id", courseId).order("apellido_paterno", { ascending: true });
+      const { data: studentsData } = await supabase.from("students").select("id, matricula, nombres, apellido_paterno, apellido_materno").eq("course_id", courseId).order("apellido_paterno", { ascending: true });
       if (studentsData) setStudents(studentsData);
 
       const { data: exam, error: examError } = await supabase.from("exams").select("*").eq("id", examId).single();
@@ -155,7 +156,9 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
       if (examError) throw examError;
 
       // Audiencia: reemplazar por completo con la selección actual
-      await supabase.from("exam_students").delete().eq("exam_id", examId);
+      const { error: audDelError } = await supabase.from("exam_students").delete().eq("exam_id", examId);
+      if (audDelError) throw audDelError;
+
       if (restrictAudience && selectedStudentIds.length > 0) {
         const { error: audError } = await supabase
           .from("exam_students")
@@ -171,11 +174,12 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
       const toUpdate = questions.filter(q => q.id);
       const toInsert = questions.filter(q => !q.id);
 
-      for (let i = 0; i < toUpdate.length; i++) {
-        const q = toUpdate[i];
-        const { error } = await supabase.from("questions").update(buildQuestionRow(q, examId, questions.indexOf(q))).eq("id", q.id);
-        if (error) throw error;
-      }
+      await Promise.all(
+        toUpdate.map(async (q) => {
+          const { error } = await supabase.from("questions").update(buildQuestionRow(q, examId, questions.indexOf(q))).eq("id", q.id);
+          if (error) throw error;
+        })
+      );
 
       if (toInsert.length > 0) {
         const rows = toInsert.map(q => buildQuestionRow(q, examId, questions.indexOf(q)));
@@ -192,15 +196,30 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     }
   };
 
-  const handlePublishForm = async () => {
+  const handlePublishForm = async (force: boolean = false) => {
     setIsPublishingForm(true);
+    if (force) setShowRePublishConfirm(false);
     try {
-      const { data, error } = await supabase.functions.invoke('publish-exam-form', { body: { examId } });
-      if (error || !data?.success) throw new Error(data?.error || error?.message || "No se pudo generar el formulario.");
-      setGoogleFormUrl(data.publishedUrl);
-      setGoogleFormEditUrl(data.editUrl);
+      const { data, error } = await supabase.functions.invoke('publish-exam-form', { body: { examId, force } });
+      let payload = data;
+      if (error) {
+        try {
+          const errJson = await (error as any).context?.json?.();
+          if (errJson) payload = errJson;
+        } catch {}
+      }
+
+      if (payload?.already_published) {
+        setShowRePublishConfirm(true);
+        return;
+      }
+
+      if (error || !payload?.success) throw new Error(payload?.error || error?.message || "No se pudo generar el formulario.");
+      setGoogleFormUrl(payload.publishedUrl);
+      setGoogleFormEditUrl(payload.editUrl);
       setDeploymentMethod("google_forms");
-      window.open(data.publishedUrl, "_blank");
+      window.open(payload.publishedUrl, "_blank");
+      setShowRePublishConfirm(false);
     } catch (e) {
       setFeedback({ type: 'error', message: `Certeza AIA: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
@@ -211,6 +230,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
   return {
     loading, isSaving, isGenerating, isPublishingForm,
     feedback, setFeedback,
+    showRePublishConfirm, setShowRePublishConfirm,
     units, unitId, setUnitId,
     status,
     examConfig, setExamConfig,

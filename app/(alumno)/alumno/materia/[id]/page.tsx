@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Megaphone, Clock, Loader2, FileText, GraduationCap, ArrowRight, RotateCcw } from 'lucide-react';
 import ExpandingButton from "@/components/ui/ExpandingButton";
@@ -151,6 +151,24 @@ function TablonContent({ courseId, reloadKey, onReload }: { courseId: string; re
 export default function TablonAlumno() {
   const { id: courseId } = useParams<{ id: string }>();
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Revalidación al volver a la pestaña para ver avisos nuevos sin recargar a mano
+  useEffect(() => {
+    let lastReload = Date.now();
+    const handleRevalidation = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastReload > 3000) {
+        lastReload = Date.now();
+        setReloadKey((k) => k + 1);
+      }
+    };
+
+    window.addEventListener("focus", handleRevalidation);
+    document.addEventListener("visibilitychange", handleRevalidation);
+    return () => {
+      window.removeEventListener("focus", handleRevalidation);
+      document.removeEventListener("visibilitychange", handleRevalidation);
+    };
+  }, []);
 
   return (
     <TablonContent courseId={courseId} reloadKey={reloadKey} onReload={() => setReloadKey((k) => k + 1)} />

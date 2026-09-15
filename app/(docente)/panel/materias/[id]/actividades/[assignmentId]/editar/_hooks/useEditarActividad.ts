@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { sumWeights, isWeightComplete } from "@/lib/weightValidation";
 
 export type FormData = {
   title: string; description: string; unit_id: string; criteria_id: string;
@@ -113,8 +114,8 @@ export function useEditarActividad(courseId: string, assignmentId: string) {
   // --- LÓGICA DE BLOQUEO POR FECHA ---
   const isDeadlinePassed = formData.soft_deadline ? new Date() > new Date(formData.soft_deadline) : false;
 
-  const totalRubricWeight = rubrics.reduce((sum, r) => sum + Number(r.weight), 0);
-  const isRubricValid = totalRubricWeight === 100;
+  const totalRubricWeight = sumWeights(rubrics);
+  const isRubricValid = isWeightComplete(totalRubricWeight);
 
   const handleAddRubricRow = () => {
     if (isDeadlinePassed) return;

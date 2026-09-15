@@ -23,6 +23,7 @@ function RevisionContent({ courseId, examId, reloadKey, onReload }: { courseId: 
     feedbackModal, setFeedbackModal,
     feedbackToast, setFeedbackToast,
     showNotifyConfirm, setShowNotifyConfirm,
+    showReNotifyModal, setShowReNotifyModal,
     confirmNotify,
     savingScoreId,
     handleBulkIA,
@@ -214,13 +215,70 @@ function RevisionContent({ courseId, examId, reloadKey, onReload }: { courseId: 
               </button>
               <button
                 type="button"
-                onClick={confirmNotify}
+                onClick={() => confirmNotify(false)}
                 style={{
                   padding: "10px 20px", borderRadius: "10px", border: "none",
                   backgroundColor: "#1B396A", color: "white", fontWeight: "700", cursor: "pointer", fontSize: "0.9rem"
                 }}
               >
                 Sí, enviar correos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN: Ya Notificado (Reenvío Explícito) */}
+      {showReNotifyModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowReNotifyModal(null); }}
+        >
+          <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "30px", maxWidth: "480px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, color: "#1B396A", fontWeight: "800", fontSize: "1.2rem" }}>
+                ¿Reenviar notificaciones de examen?
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowReNotifyModal(null)}
+                style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "6px", cursor: "pointer" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ color: "#334155", lineHeight: "1.6", margin: "0 0 24px 0", fontSize: "0.95rem" }}>
+              Ya se notificaron resultados el{" "}
+              <strong>
+                {showReNotifyModal.notifiedAt
+                  ? new Date(showReNotifyModal.notifiedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+                  : "anteriormente"}
+              </strong>
+              . ¿Deseas reenviar de todas formas los correos a toda la clase?
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setShowReNotifyModal(null)}
+                style={{
+                  padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1",
+                  backgroundColor: "white", color: "#64748b", fontWeight: "700", cursor: "pointer", fontSize: "0.9rem"
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmNotify(true)}
+                style={{
+                  padding: "10px 20px", borderRadius: "10px", border: "none",
+                  backgroundColor: "#d97706", color: "white", fontWeight: "700", cursor: "pointer", fontSize: "0.9rem"
+                }}
+              >
+                Sí, reenviar de todas formas
               </button>
             </div>
           </div>

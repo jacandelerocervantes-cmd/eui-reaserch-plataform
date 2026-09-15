@@ -70,7 +70,7 @@ serve(async (req: Request) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25_000); // 25s máximo
 
-    let scriptResult: unknown;
+    let scriptResult: any;
     try {
       const response = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
@@ -92,8 +92,15 @@ serve(async (req: Request) => {
       clearTimeout(timeout);
     }
 
+    if (!scriptResult || !scriptResult.success) {
+      return new Response(
+        JSON.stringify({ success: false, error: scriptResult?.error ?? "Error de sincronización" }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: true, data: scriptResult }),
+      JSON.stringify({ success: true, data: scriptResult.data ?? scriptResult }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } }
     );
 

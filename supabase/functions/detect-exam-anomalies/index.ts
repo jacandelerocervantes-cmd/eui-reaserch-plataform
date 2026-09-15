@@ -21,7 +21,11 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyCourseOwnership, verifyDocente } from "../_shared/auth.ts"
+import { checkRateLimit } from "../_shared/cache.ts"
 import { isolationForest, MIN_SUBMISSIONS_FOR_FOREST } from "../_shared/isolationForest.ts"
+
+const RATE_LIMIT_MAX_CALLS = 20
+const RATE_LIMIT_WINDOW_SECONDS = 60
 
 interface AntiCheatMetadata {
   total_violations?: number
@@ -77,6 +81,13 @@ serve(async (req: Request) => {
   const auth = await verifyDocente(req)
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { userId, serviceClient } = auth.ctx
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:detect-exam-anomalies:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
 
   let body: { exam_id?: string }
   try {

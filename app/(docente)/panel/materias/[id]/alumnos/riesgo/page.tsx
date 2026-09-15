@@ -16,9 +16,36 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 function StudentRow({ row }: { row: StudentRiskRow }) {
+  const tieneMotivos = Array.isArray(row.motivo_riesgo) && row.motivo_riesgo.length > 0;
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-      <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1B396A" }}>{row.nombre}</td>
+      <td style={{ padding: "10px 14px", color: "#1B396A" }}>
+        <div style={{ fontWeight: 700 }}>{row.nombre}</div>
+        {tieneMotivos ? (
+          <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+            {row.motivo_riesgo.map((motivo, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  padding: "2px 6px",
+                  borderRadius: "6px",
+                  backgroundColor: "#fee2e2",
+                  color: "#991b1b",
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                }}
+              >
+                {motivo}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginTop: "2px", fontSize: "0.7rem", color: "#94a3b8" }}>
+            Sin alertas por umbral absoluto
+          </div>
+        )}
+      </td>
       {(["asistencia_suavizada", "puntualidad_suavizada", "promedio_actividades_suavizado", "promedio_examenes_suavizado", "esfuerzo_suavizado"] as const).map((key) => (
         <td key={key} style={{ padding: "10px 14px", color: "#64748b", fontWeight: 600, fontSize: "0.85rem" }}>
           {row[key] === null ? "—" : row[key]!.toFixed(2)}
@@ -32,11 +59,16 @@ function ClusterCard({ label, rows }: { label: string; rows: StudentRiskRow[] })
   const isOk = label === "Sin riesgo aparente";
   return (
     <div style={{ backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "20px", marginBottom: "24px", overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", backgroundColor: isOk ? "#f0fdf4" : "#fef2f2", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: "10px" }}>
-        {isOk ? <Users size={18} color="#16a34a" /> : <ShieldAlert size={18} color="#dc2626" />}
-        <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: isOk ? "#16a34a" : "#991b1b" }}>
-          {label} <span style={{ fontWeight: 600, color: "#94a3b8" }}>({rows.length} alumno{rows.length !== 1 ? "s" : ""})</span>
-        </h3>
+      <div style={{ padding: "16px 20px", backgroundColor: isOk ? "#f0fdf4" : "#fef2f2", borderBottom: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isOk ? <Users size={18} color="#16a34a" /> : <ShieldAlert size={18} color="#dc2626" />}
+          <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: isOk ? "#16a34a" : "#991b1b" }}>
+            {label} <span style={{ fontWeight: 600, color: "#94a3b8" }}>({rows.length} alumno{rows.length !== 1 ? "s" : ""})</span>
+          </h3>
+        </div>
+        <p style={{ margin: "2px 0 0 28px", fontSize: "0.75rem", color: isOk ? "#15803d" : "#b91c1c", opacity: 0.9 }}>
+          Nota: Esta agrupación es relativa al desempeño promedio de este curso específico, no representa un umbral institucional absoluto.
+        </p>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>

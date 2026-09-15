@@ -2,6 +2,7 @@
 
 import { Lock, Unlock, Wand2, Save } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 import type { Unit, Activity, Assignment, Exam, Student, GradesMap } from "./types";
 import type { CSSProperties } from "react";
 
@@ -165,7 +166,7 @@ export default function CaptureView({
               <tr><td colSpan={10} style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>No hay alumnos registrados en esta materia.</td></tr>
             ) : (
               students.map(s => {
-                const nombreCompleto = `${s.apellido_paterno} ${s.apellido_materno || ""} ${s.nombres}`.trim();
+                const nombreCompleto = formatStudentName(s);
 
                 // 1. Cálculo Asistencia
                 const assistKey = assistAct ? `${s.id}_${assistAct.id}` : `${s.id}_asist_${selectedUnit.id}`;

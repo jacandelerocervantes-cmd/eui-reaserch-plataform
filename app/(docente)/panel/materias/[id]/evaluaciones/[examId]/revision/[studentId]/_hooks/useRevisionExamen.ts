@@ -13,7 +13,7 @@ export type ExamQuestion = {
   options: ExamQuestionOptions;
 };
 
-export type StudentInfo = { apellido_paterno: string; nombres: string; matricula: string };
+export type StudentInfo = { apellido_paterno: string; apellido_materno?: string | null; nombres: string; matricula: string };
 
 export type AntiCheatMeta = {
   total_violations?: number;

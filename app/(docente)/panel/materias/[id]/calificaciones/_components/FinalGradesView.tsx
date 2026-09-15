@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import { ArrowLeft, FileSpreadsheet, Save, GraduationCap } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
+import { formatStudentName } from "@/lib/formatStudentName";
 import type { Unit, Activity, Student, GradeRow, GradesMap } from "./types";
 
 export default function FinalGradesView({
@@ -104,7 +105,7 @@ export default function FinalGradesView({
               students.map(s => {
                 let sumEffectiveUnits = 0;
                 let usedUnitRecovery = false;
-                const nombreCompleto = `${s.apellido_paterno} ${s.apellido_materno || ""} ${s.nombres}`.trim();
+                const nombreCompleto = formatStudentName(s);
 
                 const unitGradesData = units.map(u => {
                   let uOrd = 0;

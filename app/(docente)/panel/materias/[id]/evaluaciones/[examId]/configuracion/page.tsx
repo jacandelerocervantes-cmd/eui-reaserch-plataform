@@ -119,10 +119,10 @@ export default function ConfiguracionExamenPage() {
                     <FileSpreadsheet size={16} /> Editar en Forms
                   </a>
                 )}
-                <ExpandingButton icon={Sparkles} label="Regenerar Formulario" loadingLabel="Generando..." variant="ai" small onClick={e.handlePublishForm} loading={e.isPublishingForm} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} />
+                <ExpandingButton icon={Sparkles} label="Regenerar Formulario" loadingLabel="Generando..." variant="ai" small onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} />
               </div>
             ) : (
-              <ExpandingButton icon={Sparkles} label="Generar Google Form" loadingLabel="Generando..." variant="ai" onClick={e.handlePublishForm} loading={e.isPublishingForm} disabled={e.questions.length === 0} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />
+              <ExpandingButton icon={Sparkles} label="Generar Google Form" loadingLabel="Generando..." variant="ai" onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} disabled={e.questions.length === 0} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />
             )}
           </div>
 
@@ -148,6 +148,60 @@ export default function ConfiguracionExamenPage() {
           )}
         </div>
       </div>
+
+      {/* MODAL DE CONFIRMACIÓN: Ya Publicado (Regenerar Formulario) */}
+      {e.showRePublishConfirm && (
+        <div
+          style={{
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+          }}
+          onClick={(ev) => { if (ev.target === ev.currentTarget) e.setShowRePublishConfirm(false); }}
+        >
+          <div style={{ backgroundColor: "white", borderRadius: "20px", padding: "30px", maxWidth: "480px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <AlertTriangle size={22} color="#d97706" />
+                <h3 style={{ margin: 0, color: "#1B396A", fontWeight: "800", fontSize: "1.15rem" }}>
+                  ¿Regenerar Google Form?
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => e.setShowRePublishConfirm(false)}
+                style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "6px", cursor: "pointer" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ color: "#334155", lineHeight: "1.6", margin: "0 0 24px 0", fontSize: "0.95rem" }}>
+              Este examen ya tiene un Google Form vinculado. Si creas uno nuevo, el formulario anterior quedará huérfano y las respuestas previas de los alumnos no estarán vinculadas a esta plataforma. ¿Deseas recrearlo de todas formas?
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={() => e.setShowRePublishConfirm(false)}
+                style={{
+                  padding: "10px 18px", borderRadius: "10px", border: "1px solid #cbd5e1",
+                  backgroundColor: "white", color: "#64748b", fontWeight: "700", cursor: "pointer", fontSize: "0.9rem"
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => e.handlePublishForm(true)}
+                style={{
+                  padding: "10px 20px", borderRadius: "10px", border: "none",
+                  backgroundColor: "#d97706", color: "white", fontWeight: "700", cursor: "pointer", fontSize: "0.9rem"
+                }}
+              >
+                Sí, regenerar formulario
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

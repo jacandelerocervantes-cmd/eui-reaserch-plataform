@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { buildCorsHeaders, errorResponse, verifyCourseOwnership, verifyDocente } from "../_shared/auth.ts"
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
+import { checkRateLimit } from "../_shared/cache.ts"
 import { applyInputGuardrail, applyOutputGuardrail } from "../_shared/guardrail.ts"
 import { extractDriveFileId } from "../_shared/driveUrl.ts"
 import { extractTextWithOcr } from "../_shared/ocrClient.ts"
@@ -9,6 +10,8 @@ import { extractTextWithOcr } from "../_shared/ocrClient.ts"
 // PDFs son pesados: 3 × ~8s ≈ 24s dentro del budget de 30s por llamada.
 // El cliente llama de nuevo si remaining > 0 (patrón cursor-DB).
 const BATCH_SIZE = 3
+const RATE_LIMIT_MAX_CALLS = 20
+const RATE_LIMIT_WINDOW_SECONDS = 60
 
 serve(async (req: Request) => {
   const cors = buildCorsHeaders()
@@ -18,6 +21,13 @@ serve(async (req: Request) => {
   const auth = await verifyDocente(req)
   if (!auth.ok) return errorResponse(auth.err, cors)
   const { serviceClient, userId } = auth.ctx
+
+  // ── 1.b Rate limit por docente ──────────────────────────────────────────
+  const rateLimit = await checkRateLimit(`ratelimit:evaluate-submissions-ia:${userId}`, RATE_LIMIT_MAX_CALLS, RATE_LIMIT_WINDOW_SECONDS)
+  if (!rateLimit.allowed) return new Response(
+    JSON.stringify({ success: false, error: `Límite de ${RATE_LIMIT_MAX_CALLS} llamadas/min alcanzado. Intenta de nuevo en unos segundos.` }),
+    { status: 429, headers: { ...cors, "Content-Type": "application/json", "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } }
+  )
 
   const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY")
   if (!GEMINI_KEY) return new Response(

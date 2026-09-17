@@ -3,6 +3,7 @@ import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
 import { checkRateLimit } from "../_shared/cache.ts"
 import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
+import { extractDocumentText } from "../_shared/documentTextExtractor.ts"
 
 const RATE_LIMIT_MAX_CALLS = 15
 const RATE_LIMIT_WINDOW_SECONDS = 60
@@ -110,6 +111,7 @@ Deno.serve(async (req: Request) => {
     let instruction = ""
     let currentRubrics: unknown[] = []
     let filePart: { inlineData: { data: string; mimeType: string } } | null = null
+    let extractedText = ""
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData()
@@ -121,10 +123,22 @@ Deno.serve(async (req: Request) => {
       const file = formData.get("archivo") as File | null
 
       if (file) {
-        const arrayBuffer = await file.arrayBuffer()
-        const base64Data  = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-        const mimeType    = file.type || "application/pdf"
-        filePart = { inlineData: { data: base64Data, mimeType } }
+        const extraction = await extractDocumentText(file)
+        if (!extraction.success) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              unreadable_file: true,
+              error: extraction.error || "No se pudo leer el archivo adjunto.",
+            }),
+            { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+          )
+        }
+        if (extraction.text) {
+          extractedText = extraction.text
+        } else if (extraction.isVisionFallback && extraction.inlineData) {
+          filePart = { inlineData: extraction.inlineData }
+        }
       }
     } else {
       const body = await req.json()
@@ -284,6 +298,18 @@ Reglas:
     // no borren el resto de los criterios ya buenos. Lo mismo aplica a las
     // instrucciones: si ya había un texto (`description`), se AJUSTA, no se
     // reemplaza por algo genérico que pierda detalles que el docente ya puso.
+    let safeExtractedText = ""
+    if (extractedText) {
+      const extGuard = applyInputGuardrail(extractedText, false)
+      if (extGuard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        )
+      }
+      safeExtractedText = extGuard.safeText
+    }
+
     const hasCurrentRubrics = Array.isArray(currentRubrics) && currentRubrics.length > 0
     const hasExistingDescription = !!safeDescription?.trim()
     const promptText =
@@ -292,6 +318,7 @@ Reglas:
 
       ACTIVIDAD: ${safeTitle}
       ${hasExistingDescription ? `INSTRUCCIONES YA ESCRITAS POR EL DOCENTE (ajústalas según la petición de este turno, no las reemplaces por algo genérico si ya tienen contenido útil):\n${safeDescription}` : "El docente aún no ha escrito instrucciones — redáctalas desde cero a partir del título y su petición."}
+      ${safeExtractedText ? `\nCONTENIDO EXTRAÍDO DEL DOCUMENTO ADJUNTO:\n${safeExtractedText.slice(0, 25000)}` : ""}
       ${filePart ? "\nADJUNTO: el docente adjuntó el documento original de la actividad (instrucciones, puntajes y/o rúbrica previa, si tenía). Léelo completo y usa su contenido real como base — si ya trae una distribución de puntos, respétala lo más posible en vez de inventar una nueva." : ""}
       ${safeInstruction ? `\nPETICIÓN DEL DOCENTE EN ESTE TURNO DE CONVERSACIÓN: "${safeInstruction}"` : ""}
       ${hasCurrentRubrics ? `\nRÚBRICA ACTUAL (ya trabajada previamente por el docente en este chat) — AJÚSTALA según la petición de este turno, conservando los criterios que no se pidió cambiar en vez de reemplazarlos por completo:\n${JSON.stringify(currentRubrics, null, 2)}` : ""}

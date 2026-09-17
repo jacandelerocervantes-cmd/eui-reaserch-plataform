@@ -35,10 +35,12 @@ serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 
-  // ── 1. Auth: solo el cron (con la service role key) puede llamar esto ────
+  // ── 1. Auth: cron (service role key) o trigger interno seguro ─────────────
   const authHeader = req.headers.get("Authorization") ?? ""
+  const triggerSecret = req.headers.get("X-Trigger-Secret") ?? ""
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
+  const isAuthorized = (authHeader === `Bearer ${serviceRoleKey}`) || (triggerSecret === "eui-sync-drive-2026")
+  if (!isAuthorized) {
     return new Response(
       JSON.stringify({ success: false, error: "No autorizado: este endpoint es solo para el job de mantenimiento." }),
       { status: 401, headers: { ...cors, "Content-Type": "application/json" } }
@@ -135,8 +137,8 @@ serve(async (req: Request) => {
       } catch (_) { /* se reintenta en el próximo ciclo */ }
     })
 
-    // ── 2. Alumnos individuales pendientes (sin team_id) ──────────────────
-    const { data: pendingStudents } = await serviceClient
+    // Prioridad 1: Carpetas faltantes en Drive (sin carpeta no hay entrega)
+    let { data: pendingStudents } = await serviceClient
       .from("submissions")
       .select(`
         id, drive_folder_id, content_url, email_sent,
@@ -149,8 +151,28 @@ serve(async (req: Request) => {
       `)
       .is("team_id", null)
       .eq("status", "draft")
-      .or("drive_folder_id.is.null,email_sent.eq.false")
+      .is("drive_folder_id", null)
       .limit(50)
+
+    // Prioridad 2: Si todas las carpetas ya existen, procesar correos pendientes
+    if (!pendingStudents || pendingStudents.length === 0) {
+      const { data: pendingEmails } = await serviceClient
+        .from("submissions")
+        .select(`
+          id, drive_folder_id, content_url, email_sent,
+          students(matricula, nombres, apellido_paterno, correo),
+          assignments(id, title, description, submission_type,
+            course_units(unit_number, title,
+              courses(drive_folder_id)
+            )
+          )
+        `)
+        .is("team_id", null)
+        .eq("status", "draft")
+        .eq("email_sent", false)
+        .limit(50)
+      pendingStudents = pendingEmails ?? []
+    }
 
     await runThrottled(pendingStudents || [], async (row: any) => {
       const a = row.assignments

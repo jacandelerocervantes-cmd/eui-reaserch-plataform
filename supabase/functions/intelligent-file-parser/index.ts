@@ -10,6 +10,7 @@ import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
 import { validateFileBytes, type DeclaredKind } from "../_shared/fileValidation.ts"
 import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
 import { extractTextWithOcr } from "../_shared/ocrClient.ts"
+import { toSafeBase64 } from "../_shared/documentTextExtractor.ts"
 
 serve(async (req: Request) => {
   const cors = buildCorsHeaders()
@@ -47,7 +48,7 @@ serve(async (req: Request) => {
     const fileCheck = validateFileBytes(bytes, declaredKind)
     if (!fileCheck.ok) throw new Error(fileCheck.reason)
 
-    const base64Data  = btoa(String.fromCharCode(...bytes))
+    const base64Data  = toSafeBase64(bytes.buffer)
 
     // ── OCR previo (docs/05_OCR_Unlimited_Integracion.md) ─────────────────
     // Si el cliente OCR está disponible (breaker cerrado, dentro del rate

@@ -5,6 +5,7 @@ import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts"
 import { cacheGet, cacheSet, checkRateLimit, sha256Hex } from "../_shared/cache.ts"
 import { applyInputGuardrail, guardOutputOrBlock } from "../_shared/guardrail.ts"
+import { extractDocumentText } from "../_shared/documentTextExtractor.ts"
 
 // 6h (1.3 de docs/01_ARQUITECTURA_DEVOPS_FRUGAL.md)
 const AI_RESPONSE_CACHE_TTL_SECONDS = 6 * 60 * 60
@@ -80,41 +81,22 @@ serve(async (req: Request) => {
 
       const file = formData.get("archivo") as File | null
       if (file) {
-        try {
-          const arrayBuffer = await file.arrayBuffer()
-          const fileName = file.name?.toLowerCase() ?? ""
-          const mimeType = file.type?.toLowerCase() ?? ""
-
-          const isPdf = mimeType === "application/pdf" || fileName.endsWith(".pdf")
-          const isImage = mimeType.startsWith("image/")
-          const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".ods") || mimeType.includes("spreadsheet") || mimeType.includes("excel")
-          const isDocx = fileName.endsWith(".docx") || mimeType.includes("wordprocessingml")
-
-          if (isPdf || isImage) {
-            const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-            filePart = { inlineData: { data: base64Data, mimeType: isPdf ? "application/pdf" : mimeType } }
-          } else if (isExcel) {
-            const XLSX = await import("https://esm.sh/xlsx@0.18.5")
-            const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" })
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
-            extractedText = XLSX.utils.sheet_to_csv(firstSheet)
-          } else if (isDocx) {
-            const mammoth = await import("https://esm.sh/mammoth@1.7.0")
-            const result = await mammoth.extractRawText({ arrayBuffer })
-            extractedText = result.value
-          } else {
-            extractedText = new TextDecoder().decode(arrayBuffer)
-          }
-        } catch (fileErr) {
-          console.error("[GENERATE_EXAM_IA] Error extrayendo archivo adjunto:", fileErr)
+        const extraction = await extractDocumentText(file)
+        if (!extraction.success) {
           return new Response(
             JSON.stringify({
               success: false,
               unreadable_file: true,
-              error: "No se pudo leer el archivo adjunto (puede estar protegido, dañado o no soportado). Puedes reintentar con otro archivo o continuar usando solo texto."
+              error: extraction.error || "No se pudo leer el archivo adjunto.",
             }),
             { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
           )
+        }
+
+        if (extraction.text) {
+          extractedText = extraction.text
+        } else if (extraction.isVisionFallback && extraction.inlineData) {
+          filePart = { inlineData: extraction.inlineData }
         }
       }
     } else {

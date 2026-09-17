@@ -85,12 +85,12 @@ export default function ActivityChatAssistant({
           />
           <input
             type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.docx"
+            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.ppt,.pptx,.xlsx,.csv"
             onChange={(e) => setRubricSourceFile(e.target.files?.[0] ?? null)}
             style={{ display: "none" }}
             id="activity-chat-file"
           />
-          <label htmlFor="activity-chat-file" title="Adjuntar actividad existente (con puntajes, etc.)" style={{ flexShrink: 0, cursor: "pointer", color: rubricSourceFile ? "#1B396A" : "#94a3b8", marginBottom: "6px", display: "flex" }}>
+          <label htmlFor="activity-chat-file" title="Adjuntar documento o presentación existente (PDF, Word, PowerPoint, Excel)" style={{ flexShrink: 0, cursor: "pointer", color: rubricSourceFile ? "#1B396A" : "#94a3b8", marginBottom: "6px", display: "flex" }}>
             <Paperclip size={18} />
           </label>
           <button

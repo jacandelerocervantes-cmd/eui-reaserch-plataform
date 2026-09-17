@@ -4,6 +4,7 @@ import { buildCorsHeaders, errorResponse, verifyDocente } from "../_shared/auth.
 import { fetchGeminiWithRetry } from "../_shared/gemini.ts";
 import { checkRateLimit } from "../_shared/cache.ts";
 import { applyInputGuardrail, applyOutputGuardrail } from "../_shared/guardrail.ts";
+import { extractDocumentText } from "../_shared/documentTextExtractor.ts";
 
 const RATE_LIMIT_MAX_CALLS = 10;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
@@ -68,56 +69,34 @@ JSON puro sin markdown. Ejemplos de cada tipo:
   {"type":"multi_select","content":"¿Cuáles son protocolos de capa de transporte?","options":["TCP","UDP","IP","HTTP"],"correct":["TCP","UDP"],"points":10}
 ]}`;
 
-    const isPdf   = mimeType === "application/pdf" || fileName.endsWith(".pdf");
-    const isImage = mimeType.startsWith("image/");
-    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls")
-                 || fileName.endsWith(".ods")
-                 || mimeType.includes("spreadsheet") || mimeType.includes("excel");
-    const isDocx  = fileName.endsWith(".docx") || mimeType.includes("wordprocessingml");
+    const extraction = await extractDocumentText(file);
+    if (!extraction.success) {
+      return new Response(
+        JSON.stringify({ success: false, error: extraction.error || "No se pudo leer el archivo adjunto." }),
+        { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
 
     let parts: unknown[];
-
-    if (isPdf || isImage) {
-      const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    if (extraction.text) {
+      const guard = applyInputGuardrail(extraction.text, false);
+      if (guard.block) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
+          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+        );
+      }
+      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL DOCUMENTO:\n" + guard.safeText }];
+    } else if (extraction.isVisionFallback && extraction.inlineData) {
       parts = [
         { text: PROMPT },
-        { inlineData: { data: base64Data, mimeType: isPdf ? "application/pdf" : mimeType } },
+        { inlineData: extraction.inlineData },
       ];
-    } else if (isExcel) {
-      const XLSX = await import("https://esm.sh/xlsx@0.18.5");
-      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const csvContent = XLSX.utils.sheet_to_csv(firstSheet);
-      const guard = applyInputGuardrail(csvContent, false);
-      if (guard.block) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
-          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
-        );
-      }
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO (CSV):\n" + guard.safeText }];
-    } else if (isDocx) {
-      // Gemini no acepta .docx como inlineData directamente; lo mandamos como texto crudo extraído con guardrail.
-      const mammoth = await import("https://esm.sh/mammoth@1.7.0");
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      const guard = applyInputGuardrail(result.value, false);
-      if (guard.block) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
-          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
-        );
-      }
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + guard.safeText }];
     } else {
-      const textContent = new TextDecoder().decode(arrayBuffer);
-      const guard = applyInputGuardrail(textContent, false);
-      if (guard.block) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Contenido del archivo bloqueado por sospecha de inyección de prompt." }),
-          { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
-        );
-      }
-      parts = [{ text: PROMPT + "\n\nCONTENIDO DEL ARCHIVO:\n" + guard.safeText }];
+      return new Response(
+        JSON.stringify({ success: false, error: "No se pudo extraer contenido del archivo." }),
+        { status: 422, headers: { ...cors, "Content-Type": "application/json" } }
+      );
     }
 
     const aiRes = await fetchGeminiWithRetry(

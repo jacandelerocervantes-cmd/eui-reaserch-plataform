@@ -745,14 +745,14 @@ export default function ExamChatAssistant({
             <input
               type="file"
               ref={fileInputRef}
-              accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.csv"
+              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.ppt,.pptx,.xlsx,.csv"
               onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
               style={{ display: "none" }}
               id="exam-chat-file"
             />
             <label
               htmlFor="exam-chat-file"
-              title="Adjuntar documento o imagen de referencia (PDF, Word, Excel, JPG, PNG)"
+              title="Adjuntar documento o presentación de referencia (PDF, Word, PowerPoint, Excel, JPG, PNG)"
               style={{
                 flexShrink: 0, cursor: "pointer",
                 color: selectedFile ? "#1B396A" : "#94a3b8",

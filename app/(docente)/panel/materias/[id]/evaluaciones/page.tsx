@@ -84,39 +84,115 @@ const ExamHoverCard = ({ exam, courseId, onStatusChange }: { exam: ExamListItem,
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f1f5f9", padding: "16px 20px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-        {exam.google_form_url && (
-          <a
-            href={exam.google_form_url}
-            target="_blank"
-            rel="noreferrer"
+      <div style={{ borderTop: "1px solid #f1f5f9", padding: "14px 18px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Fila 1: Acciones de Estado / Form */}
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          {exam.google_form_url && (
+            <a
+              href={exam.google_form_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "0 14px",
+                height: "38px",
+                borderRadius: "10px",
+                border: "1px solid #1B396A25",
+                backgroundColor: "#1B396A10",
+                color: "#1B396A",
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                textDecoration: "none",
+              }}
+            >
+              <ExternalLink size={14} /> Form
+            </a>
+          )}
+          {exam.status === 'draft' && (
+            <ExpandingButton
+              icon={Rocket}
+              label="Publicar ahora"
+              onClick={() => handleStatusChange('published')}
+              variant="primary"
+              disabled={changingStatus}
+              size={38}
+              radius={10}
+              gap={8}
+              padding="0 14px"
+              fontWeight={700}
+              durationMs={200}
+              expanded={true}
+            />
+          )}
+          {exam.status === 'published' && (
+            <ExpandingButton
+              icon={Lock}
+              label="Cerrar ahora"
+              onClick={() => handleStatusChange('closed')}
+              variant="default"
+              disabled={changingStatus}
+              size={38}
+              radius={10}
+              gap={8}
+              padding="0 14px"
+              fontWeight={700}
+              durationMs={200}
+              expanded={true}
+              colors={{ hoverText: "#64748b" }}
+            />
+          )}
+        </div>
+
+        {/* Fila 2: Herramientas del Docente (Simular, Configuración, Resultados) sin saltos ni parpadeos */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+          <button
+            type="button"
+            onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/simulacion`)}
+            title="Simular vista de alumno"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "0 14px",
-              height: "44px",
-              borderRadius: "12px",
-              border: "1px solid #1B396A25",
-              backgroundColor: "#1B396A10",
-              color: "#1B396A",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-              textDecoration: "none",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
+              backgroundColor: "white", color: "#1B396A", fontWeight: 700, fontSize: "0.8rem",
+              cursor: "pointer", transition: "all 0.15s ease",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f0f4f9"; e.currentTarget.style.borderColor = "#1B396A"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
           >
-            <ExternalLink size={15} /> Form
-          </a>
-        )}
-        {exam.status === 'draft' && (
-          <ExpandingButton icon={Rocket} label="Publicar ahora" onClick={() => handleStatusChange('published')} variant="primary" disabled={changingStatus} size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
-        )}
-        {exam.status === 'published' && (
-          <ExpandingButton icon={Lock} label="Cerrar ahora" onClick={() => handleStatusChange('closed')} variant="default" disabled={changingStatus} size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} colors={{ hoverText: "#64748b" }} />
-        )}
-        <ExpandingButton icon={FileText} label="Resultados" onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/resultados`)} variant="default" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} colors={{ hoverText: "#64748b" }} />
-        <ExpandingButton icon={Settings} label="Configuración" onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/configuracion`)} variant="default" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} colors={{ hoverText: "#64748b" }} />
-        <ExpandingButton icon={Play} label="Simular" onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/simulacion`)} variant="default" size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} colors={{ hoverText: "#64748b" }} />
+            <Play size={14} color="#1B396A" /> Simular
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/configuracion`)}
+            title="Configuración y reactivos"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
+              backgroundColor: "white", color: "#475569", fontWeight: 700, fontSize: "0.8rem",
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8fafc"; e.currentTarget.style.borderColor = "#94a3b8"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
+          >
+            <Settings size={14} color="#475569" /> Ajustes
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/resultados`)}
+            title="Ver resultados y notas"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
+              backgroundColor: "white", color: "#475569", fontWeight: 700, fontSize: "0.8rem",
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8fafc"; e.currentTarget.style.borderColor = "#94a3b8"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
+          >
+            <FileText size={14} color="#475569" /> Notas
+          </button>
+        </div>
       </div>
     </div>
   );

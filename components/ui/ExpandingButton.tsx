@@ -186,6 +186,7 @@ export default function ExpandingButton({
         height: `${height}px`,
         minWidth,
         width: fullWidth ? "100%" : undefined,
+        flexShrink: 0,
         fontWeight,
         fontSize,
         cursor: isBlocked ? "not-allowed" : "pointer",

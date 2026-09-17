@@ -186,6 +186,15 @@ Devuelve ÚNICAMENTE un JSON puro sin bloques de código ni markdown:
       safeExtractedText = extGuard.safeText
     }
 
+    // Si la instrucción del docente contiene explícitamente una cantidad (ej: "genera 50 preguntas", "50 reactivos")
+    const promptCountMatch = safeFinalInstruction.match(/(\d+)\s*(?:preguntas|reactivos|cuestionamientos|items)/i)
+    if (promptCountMatch) {
+      const parsedExplicitCount = parseInt(promptCountMatch[1], 10)
+      if (parsedExplicitCount > 0 && parsedExplicitCount <= 100) {
+        count = parsedExplicitCount
+      }
+    }
+
     const hasCurrentQuestions = Array.isArray(currentQuestions) && currentQuestions.length > 0
     const pointsPerQuestion = Math.max(1, Math.round(100 / (hasCurrentQuestions ? currentQuestions.length : count)))
 
@@ -198,7 +207,7 @@ ${safeExtractedText ? `\nCONTENIDO EXTRAÍDO DEL DOCUMENTO ADJUNTO:\n${safeExtra
 ${filePart ? `\n(Se adjuntó un archivo/imagen de referencia. Úsalo como fuente de conceptos y temario para las preguntas).` : ""}
 
 REGLAS DE GENERACIÓN — APLICA TODAS SIN EXCEPCIÓN:
-1. Cantidad: si es generación inicial, genera exactamente ${count} reactivos. Si es un turno incremental de ajuste, aplica las modificaciones y mantén el total coherente.
+1. Cantidad ESTRICTA: Genera EXACTAMENTE ${count} reactivos. Ni uno más, ni uno menos. Es un requisito imperativo. Si es un turno incremental de ajuste, aplica las modificaciones y mantén el total coherente.
 2. Dificultad y Taxonomía de Bloom:
    - Dificultad "basica": enfatiza niveles Recordar y Comprender.
    - Dificultad "intermedia": ≥ 60% en Aplicar y Analizar.
@@ -238,7 +247,21 @@ JSON puro sin markdown:
     if (!content) throw new Error("Gemini devolvió respuesta vacía.")
 
     const parsed = JSON.parse(content)
-    const questionsList = Array.isArray(parsed.questions) ? parsed.questions : Array.isArray(parsed) ? parsed : []
+    let questionsList = Array.isArray(parsed.questions) ? parsed.questions : Array.isArray(parsed) ? parsed : []
+
+    // Si la IA generó más reactivos que los solicitados en generación inicial, truncar al conteo exacto
+    if (count > 0 && !hasCurrentQuestions && questionsList.length > count) {
+      questionsList = questionsList.slice(0, count)
+    }
+
+    // Normalizar puntos para que la suma total sea exactamente 100
+    if (questionsList.length > 0) {
+      const basePoints = Math.floor(100 / questionsList.length)
+      const remainder = 100 - (basePoints * questionsList.length)
+      questionsList.forEach((q: any, idx: number) => {
+        q.points = basePoints + (idx < remainder ? 1 : 0)
+      })
+    }
 
     const guard = await guardOutputOrBlock(JSON.stringify(questionsList), {
       serviceClient, teacherId: userId, toolName: "generate_exam_ia", cors,

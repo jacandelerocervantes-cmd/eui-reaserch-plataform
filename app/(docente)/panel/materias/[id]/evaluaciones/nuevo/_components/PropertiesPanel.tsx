@@ -63,7 +63,42 @@ export default function PropertiesPanel({
         </div>
 
         <div>
-          <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>Fin</label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", textTransform: "uppercase", margin: 0 }}>Fin</label>
+            <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+              {[30, 50, 60, 90].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => {
+                    if (!examConfig.startAt) return;
+                    const startDate = new Date(examConfig.startAt);
+                    if (isNaN(startDate.getTime())) return;
+                    const endDate = new Date(startDate.getTime() + mins * 60 * 1000);
+                    const y = endDate.getFullYear();
+                    const mo = String(endDate.getMonth() + 1).padStart(2, "0");
+                    const d = String(endDate.getDate()).padStart(2, "0");
+                    const h = String(endDate.getHours()).padStart(2, "0");
+                    const m = String(endDate.getMinutes()).padStart(2, "0");
+                    setExamConfig({ ...examConfig, endAt: `${y}-${mo}-${d}T${h}:${m}` });
+                  }}
+                  style={{
+                    fontSize: "0.7rem",
+                    fontWeight: "700",
+                    padding: "2px 6px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    backgroundColor: "white",
+                    color: "#1B396A",
+                    cursor: examConfig.startAt ? "pointer" : "not-allowed",
+                    opacity: examConfig.startAt ? 1 : 0.5,
+                  }}
+                >
+                  +{mins}m
+                </button>
+              ))}
+            </div>
+          </div>
           <DateTimeFieldMX value={examConfig.endAt} onChange={(v) => setExamConfig({...examConfig, endAt: v})} />
         </div>
 

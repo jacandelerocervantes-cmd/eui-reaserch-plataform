@@ -18,6 +18,8 @@ export type ExamToDuplicate = {
   randomize_options?: boolean;
   show_all_questions?: boolean;
   weight_data?: { weight_percentage?: number; [key: string]: unknown } | null;
+  deployment_method?: string | null;
+  google_form_url?: string | null;
 };
 
 export default function DuplicateExamModal({
@@ -36,11 +38,16 @@ export default function DuplicateExamModal({
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [targetCourseId, setTargetCourseId] = useState("");
   const [targetUnitId, setTargetUnitId] = useState("");
+  const [duplicateTitle, setDuplicateTitle] = useState(`${exam.title} (copia)`);
+  const [createGoogleForm, setCreateGoogleForm] = useState(
+    exam.deployment_method === "google_forms" || !!exam.google_form_url
+  );
   const [loading, setLoading] = useState(true);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicatingStep, setDuplicatingStep] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar materias activas del docente actual excluyendo la materia de origen
+  // Cargar materias activas del docente actual
   useEffect(() => {
     (async () => {
       try {
@@ -51,7 +58,6 @@ export default function DuplicateExamModal({
           .select("id, title")
           .eq("teacher_id", user.id)
           .eq("is_active", true)
-          .neq("id", currentCourseId)
           .order("title");
         setCourses(data ?? []);
       } finally {
@@ -78,7 +84,7 @@ export default function DuplicateExamModal({
     })();
   }, [targetCourseId]);
 
-  // Copia 1:1 exacta del examen y sus reactivos hacia la materia y unidad seleccionada
+  // Copia 1:1 del examen y reactivos, generando un Google Form independiente si se solicita
   const handleCopy1to1 = async () => {
     if (!targetCourseId || !targetUnitId) {
       setError("Selecciona materia y unidad destino.");
@@ -86,15 +92,17 @@ export default function DuplicateExamModal({
     }
     setIsDuplicating(true);
     setError(null);
+    setDuplicatingStep("Creando examen y duplicando reactivos...");
 
     try {
-      // 1. Insertar el examen nuevo en borrador (status: draft, fechas vacías para definición al revisar)
+      // 1. Insertar el examen nuevo en borrador
+      const finalTitle = duplicateTitle.trim() || `${exam.title} (copia)`;
       const { data: newExam, error: examError } = await supabase
         .from("exams")
         .insert([{
           course_id: targetCourseId,
           unit_id: targetUnitId,
-          title: `${exam.title} (copia)`,
+          title: finalTitle,
           description: exam.description || null,
           status: "draft",
           start_at: null,
@@ -103,7 +111,7 @@ export default function DuplicateExamModal({
           randomize_questions: exam.randomize_questions ?? true,
           randomize_options: exam.randomize_options ?? true,
           show_all_questions: exam.show_all_questions ?? false,
-          deployment_method: "interno",
+          deployment_method: createGoogleForm ? "google_forms" : "interno",
           weight_data: exam.weight_data || null,
         }])
         .select("id")
@@ -113,7 +121,7 @@ export default function DuplicateExamModal({
         throw new Error(examError?.message || "Error al crear la copia del examen.");
       }
 
-      // 2. Insertar reactivos asociados al nuevo examen (preservando tipo, contenido, opciones, respuesta y puntaje)
+      // 2. Insertar reactivos asociados al nuevo examen
       if (questions.length > 0) {
         const questionRows = questions.map((q, idx) => buildQuestionRow(q, newExam.id, idx));
         const { error: qError } = await supabase.from("questions").insert(questionRows);
@@ -122,11 +130,34 @@ export default function DuplicateExamModal({
         }
       }
 
-      // 3. Redirigir a la pantalla de configuración del nuevo examen
+      // 3. Si se solicitó Google Forms, generar un Form exclusivo e independiente en Drive
+      if (createGoogleForm) {
+        setDuplicatingStep("Generando Google Form independiente en Google Drive...");
+        try {
+          const { data: formPayload, error: formErr } = await supabase.functions.invoke("publish-exam-form", {
+            body: { examId: newExam.id, force: true },
+          });
+          let resultData = formPayload;
+          if (formErr) {
+            try {
+              const errJson = await (formErr as any).context?.json?.();
+              if (errJson) resultData = errJson;
+            } catch {}
+          }
+          if (formErr || !resultData?.success) {
+            console.warn("[DUPLICATE_EXAM] No se pudo generar Google Form en copia:", resultData?.error || formErr?.message);
+          }
+        } catch (callErr) {
+          console.warn("[DUPLICATE_EXAM] Falló llamada a publish-exam-form:", callErr);
+        }
+      }
+
+      // 4. Redirigir a la pantalla de configuración del nuevo examen
       router.push(`/panel/materias/${targetCourseId}/evaluaciones/${newExam.id}/configuracion`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setIsDuplicating(false);
+      setDuplicatingStep("");
     }
   };
 
@@ -190,6 +221,37 @@ export default function DuplicateExamModal({
                 fontWeight: "900",
                 color: "#64748b",
                 display: "block",
+                marginBottom: "6px",
+                textTransform: "uppercase",
+              }}
+            >
+              Título de la evaluación duplicada
+            </label>
+            <input
+              type="text"
+              value={duplicateTitle}
+              onChange={(e) => setDuplicateTitle(e.target.value)}
+              disabled={isDuplicating}
+              placeholder="Nombre del examen..."
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "10px",
+                border: "1px solid #cbd5e1",
+                marginBottom: "16px",
+                fontWeight: "600",
+                color: "#1B396A",
+                outline: "none",
+                backgroundColor: "white",
+              }}
+            />
+
+            <label
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: "900",
+                color: "#64748b",
+                display: "block",
                 marginBottom: "8px",
                 textTransform: "uppercase",
               }}
@@ -215,7 +277,7 @@ export default function DuplicateExamModal({
               <option value="">Selecciona una materia...</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.title}
+                  {c.title}{c.id === currentCourseId ? " (Materia actual)" : ""}
                 </option>
               ))}
             </select>
@@ -265,6 +327,57 @@ export default function DuplicateExamModal({
               </p>
             )}
 
+            <div
+              style={{
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "12px 14px",
+                marginBottom: "16px",
+                cursor: isDuplicating ? "not-allowed" : "pointer",
+              }}
+              onClick={() => !isDuplicating && setCreateGoogleForm(!createGoogleForm)}
+            >
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: isDuplicating ? "not-allowed" : "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={createGoogleForm}
+                  onChange={(e) => setCreateGoogleForm(e.target.checked)}
+                  disabled={isDuplicating}
+                  style={{ marginTop: "3px", cursor: isDuplicating ? "not-allowed" : "pointer", accentColor: "#1B396A" }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: "700", color: "#1B396A" }}>
+                    Generar nuevo Google Form independiente
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px", lineHeight: "1.3" }}>
+                    Crea un formulario nuevo exclusivo para este grupo en Google Drive, con su propia liga y hoja de respuestas separada.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {isDuplicating && duplicatingStep && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  backgroundColor: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  color: "#166534",
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  fontSize: "0.82rem",
+                  fontWeight: "600",
+                  marginBottom: "16px",
+                }}
+              >
+                <Loader2 className="animate-spin" size={16} />
+                <span>{duplicatingStep}</span>
+              </div>
+            )}
+
             {error && (
               <div
                 style={{
@@ -303,7 +416,7 @@ export default function DuplicateExamModal({
                 }}
               >
                 {isDuplicating ? <Loader2 className="animate-spin" size={18} /> : <Copy size={18} />}
-                Copiar 1:1
+                {isDuplicating ? "Duplicando..." : "Copiar 1:1"}
               </button>
               <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: "4px 0 0", textAlign: "center" }}>
                 Las fechas se definen en la revisión. La audiencia personalizada no se copia.

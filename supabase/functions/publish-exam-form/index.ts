@@ -26,7 +26,7 @@ serve(async (req: Request) => {
     // exams solo tiene unit_id — el ownership se valida vía course_units → courses
     const { data: exam, error: examErr } = await serviceClient
       .from("exams")
-      .select("id, title, unit_id, deployment_method, google_form_id, google_form_url, course_units(title, courses(id, teacher_id, drive_folder_id))")
+      .select("id, title, start_at, unit_id, deployment_method, google_form_id, google_form_url, course_units(title, courses(id, teacher_id, drive_folder_id))")
       .eq("id", examId)
       .single()
     if (examErr || !exam) return new Response(
@@ -93,7 +93,7 @@ serve(async (req: Request) => {
     if (!APPS_SCRIPT_URL) throw new Error("APPS_SCRIPT_URL no configurado.")
 
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 45_000)
+    const timeout = setTimeout(() => controller.abort(), 90_000)
     let scriptResult: any
     try {
       const res = await fetch(APPS_SCRIPT_URL, {
@@ -102,7 +102,14 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           secret: WEBHOOK_SECRET,
           action: "crearFormularioGoogle",
-          payload: { title: exam.title, questions, unitName: (exam as any).course_units?.title ?? "", examId },
+          payload: {
+            title: exam.title,
+            questions,
+            unitName: (exam as any).course_units?.title ?? "",
+            examId,
+            isFuture: exam.start_at ? new Date(exam.start_at).getTime() > Date.now() : false,
+            startTimeStr: exam.start_at ? new Date(exam.start_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "",
+          },
         }),
         signal: controller.signal,
       })

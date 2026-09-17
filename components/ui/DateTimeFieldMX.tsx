@@ -1,120 +1,218 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-// El <input type="datetime-local"> nativo muestra mm/dd/aaaa o dd/mm/aaaa
-// según el idioma del NAVEGADOR del docente, no algo que la app controle —
-// por convención en México debe verse siempre dd/mm/aaaa sin importar eso.
-// Este campo arma manualmente el mismo string "YYYY-MM-DDTHH:mm" que ya
-// esperan las Edge Functions y la BD, así es un reemplazo directo del input
-// nativo sin tocar el resto de la lógica de guardado/validación.
+import { useEffect, useState } from "react";
+import { Calendar, Clock } from "lucide-react";
 
 function parseValue(value: string) {
-  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!m) return { year: "", month: "", day: "", hour: "", minute: "" };
+  const m = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) {
+    return { date: "", hour: "07", minute: "00", isEmpty: true };
+  }
   const [, year, month, day, hour, minute] = m;
-  return { year, month, day, hour, minute };
+  return { date: `${year}-${month}-${day}`, hour, minute, isEmpty: false };
 }
-
-function buildValue(f: { year: string; month: string; day: string; hour: string; minute: string }) {
-  if (!f.year || f.year.length < 4 || !f.month || !f.day || !f.hour || !f.minute) return "";
-  return `${f.year.padStart(4, "0")}-${f.month.padStart(2, "0")}-${f.day.padStart(2, "0")}T${f.hour.padStart(2, "0")}:${f.minute.padStart(2, "0")}`;
-}
-
-const clamp = (v: string, max: number) => {
-  if (v === "") return v;
-  const n = Math.min(Number(v), max);
-  return String(n);
-};
 
 export default function DateTimeFieldMX({
-  value, onChange, disabled,
+  value,
+  onChange,
+  disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
   const parsed = parseValue(value);
-  const [day, setDay] = useState(parsed.day);
-  const [month, setMonth] = useState(parsed.month);
-  const [year, setYear] = useState(parsed.year);
+  const [date, setDate] = useState(parsed.date);
   const [hour, setHour] = useState(parsed.hour);
   const [minute, setMinute] = useState(parsed.minute);
 
-  // Resincroniza si el value externo cambia (ej. reset del formulario).
   useEffect(() => {
     const p = parseValue(value);
-    setDay(p.day); setMonth(p.month); setYear(p.year); setHour(p.hour); setMinute(p.minute);
+    setDate(p.date);
+    setHour(p.hour);
+    setMinute(p.minute);
   }, [value]);
 
-  const dayRef = useRef<HTMLInputElement>(null);
-  const monthRef = useRef<HTMLInputElement>(null);
-  const yearRef = useRef<HTMLInputElement>(null);
-  const hourRef = useRef<HTMLInputElement>(null);
-  const minuteRef = useRef<HTMLInputElement>(null);
-
-  const emit = (next: Partial<{ day: string; month: string; year: string; hour: string; minute: string }>) => {
-    onChange(buildValue({ day, month, year, hour, minute, ...next }));
+  const update = (newDate: string, newHour: string, newMin: string) => {
+    if (!newDate) {
+      onChange("");
+      return;
+    }
+    const h = (newHour || "07").padStart(2, "0");
+    const m = (newMin || "00").padStart(2, "0");
+    onChange(`${newDate}T${h}:${m}`);
   };
 
-  const segmentStyle: React.CSSProperties = {
-    border: "none", outline: "none", textAlign: "center", fontWeight: 600, fontSize: "1.05rem",
-    color: "#334155", background: "transparent", fontFamily: "inherit", padding: 0,
+  const handleQuickDate = (offsetDays: number) => {
+    if (disabled) return;
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${mo}-${day}`;
+    setDate(dateStr);
+    update(dateStr, hour || "07", minute || "00");
   };
+
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const standardMinutes = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+  const minutesList = standardMinutes.includes(minute) ? standardMinutes : [...standardMinutes, minute].sort();
 
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: "3px", width: "100%", padding: "16px",
-      borderRadius: "12px", border: "2px solid #e2e8f0", backgroundColor: disabled ? "#f1f5f9" : "white",
-    }}>
-      <input
-        ref={dayRef} disabled={disabled} placeholder="DD" value={day} maxLength={2} inputMode="numeric"
-        style={{ ...segmentStyle, width: "24px" }}
-        onChange={(e) => {
-          const v = clamp(e.target.value.replace(/\D/g, "").slice(0, 2), 31);
-          setDay(v); emit({ day: v });
-          if (v.length === 2) monthRef.current?.focus();
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          width: "100%",
+          padding: "8px 12px",
+          borderRadius: "12px",
+          border: "2px solid #e2e8f0",
+          backgroundColor: disabled ? "#f8fafc" : "white",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+          flexWrap: "wrap",
         }}
-      />
-      <span style={{ color: "#94a3b8" }}>/</span>
-      <input
-        ref={monthRef} disabled={disabled} placeholder="MM" value={month} maxLength={2} inputMode="numeric"
-        style={{ ...segmentStyle, width: "24px" }}
-        onChange={(e) => {
-          const v = clamp(e.target.value.replace(/\D/g, "").slice(0, 2), 12);
-          setMonth(v); emit({ month: v });
-          if (v.length === 2) yearRef.current?.focus();
-        }}
-      />
-      <span style={{ color: "#94a3b8" }}>/</span>
-      <input
-        ref={yearRef} disabled={disabled} placeholder="AAAA" value={year} maxLength={4} inputMode="numeric"
-        style={{ ...segmentStyle, width: "52px" }}
-        onChange={(e) => {
-          const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-          setYear(v); emit({ year: v });
-          if (v.length === 4) hourRef.current?.focus();
-        }}
-      />
-      <span style={{ color: "#cbd5e1", margin: "0 6px" }}>·</span>
-      <input
-        ref={hourRef} disabled={disabled} placeholder="HH" value={hour} maxLength={2} inputMode="numeric"
-        style={{ ...segmentStyle, width: "24px" }}
-        onChange={(e) => {
-          const v = clamp(e.target.value.replace(/\D/g, "").slice(0, 2), 23);
-          setHour(v); emit({ hour: v });
-          if (v.length === 2) minuteRef.current?.focus();
-        }}
-      />
-      <span style={{ color: "#94a3b8" }}>:</span>
-      <input
-        ref={minuteRef} disabled={disabled} placeholder="mm" value={minute} maxLength={2} inputMode="numeric"
-        style={{ ...segmentStyle, width: "24px" }}
-        onChange={(e) => {
-          const v = clamp(e.target.value.replace(/\D/g, "").slice(0, 2), 59);
-          setMinute(v); emit({ minute: v });
-        }}
-      />
+      >
+        {/* Selector de Fecha */}
+        <div
+          onClick={(e) => {
+            if (disabled) return;
+            const input = e.currentTarget.querySelector("input");
+            if (input && typeof (input as any).showPicker === "function") {
+              try { (input as any).showPicker(); } catch {}
+            }
+          }}
+          style={{ display: "flex", alignItems: "center", gap: "6px", flex: "1 1 140px", cursor: disabled ? "not-allowed" : "pointer" }}
+        >
+          <Calendar size={16} color="#64748b" style={{ flexShrink: 0 }} />
+          <input
+            type="date"
+            disabled={disabled}
+            value={date}
+            onClick={(e) => {
+              try { (e.target as any).showPicker?.(); } catch {}
+            }}
+            onChange={(e) => {
+              const d = e.target.value;
+              setDate(d);
+              update(d, hour, minute);
+            }}
+            style={{
+              border: "none",
+              outline: "none",
+              fontSize: "0.9rem",
+              fontWeight: "700",
+              color: "#1B396A",
+              background: "transparent",
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              width: "100%",
+            }}
+          />
+        </div>
+
+        <div style={{ width: "1px", height: "24px", backgroundColor: "#e2e8f0" }} />
+
+        {/* Selector de Hora y Minuto */}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+          <Clock size={16} color="#64748b" style={{ marginRight: "2px" }} />
+          <select
+            disabled={disabled}
+            value={hour}
+            onChange={(e) => {
+              const h = e.target.value;
+              setHour(h);
+              update(date, h, minute);
+            }}
+            style={{
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "4px 6px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              color: "#1B396A",
+              backgroundColor: "white",
+              outline: "none",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {hours.map((h) => (
+              <option key={h} value={h}>
+                {h} hrs
+              </option>
+            ))}
+          </select>
+
+          <span style={{ fontWeight: "800", color: "#64748b" }}>:</span>
+
+          <select
+            disabled={disabled}
+            value={minute}
+            onChange={(e) => {
+              const m = e.target.value;
+              setMinute(m);
+              update(date, hour, m);
+            }}
+            style={{
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "4px 6px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              color: "#1B396A",
+              backgroundColor: "white",
+              outline: "none",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {minutesList.map((m) => (
+              <option key={m} value={m}>
+                {m} min
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Atajos Rápidos */}
+      {!disabled && (
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => handleQuickDate(0)}
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: "700",
+              padding: "2px 8px",
+              borderRadius: "6px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "#f8fafc",
+              color: "#64748b",
+              cursor: "pointer",
+            }}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQuickDate(1)}
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: "700",
+              padding: "2px 8px",
+              borderRadius: "6px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "#f8fafc",
+              color: "#64748b",
+              cursor: "pointer",
+            }}
+          >
+            Mañana
+          </button>
+        </div>
+      )}
     </div>
   );
 }

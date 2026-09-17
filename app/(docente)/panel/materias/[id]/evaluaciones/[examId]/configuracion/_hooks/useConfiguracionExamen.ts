@@ -21,6 +21,8 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
   const [deploymentMethod, setDeploymentMethod] = useState("interno");
   const [googleFormUrl, setGoogleFormUrl] = useState<string | null>(null);
   const [googleFormEditUrl, setGoogleFormEditUrl] = useState<string | null>(null);
+  const [startNotifiedAt, setStartNotifiedAt] = useState<string | null>(null);
+  const [isTestingRelay, setIsTestingRelay] = useState(false);
 
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [restrictAudience, setRestrictAudience] = useState(false);
@@ -68,6 +70,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
         setDeploymentMethod(exam.deployment_method ?? "interno");
         setGoogleFormUrl(exam.google_form_url ?? null);
         setGoogleFormEditUrl(exam.google_form_edit_url ?? null);
+        setStartNotifiedAt((exam as any).start_notified_at ?? null);
       }
 
       const { data: audience } = await supabase.from("exam_students").select("student_id").eq("exam_id", examId);
@@ -218,7 +221,10 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
       setGoogleFormUrl(payload.publishedUrl);
       setGoogleFormEditUrl(payload.editUrl);
       setDeploymentMethod("google_forms");
-      window.open(payload.publishedUrl, "_blank");
+      setFeedback({ type: 'success', message: "¡Google Form generado exitosamente! Ya puedes compartir la liga con tus alumnos." });
+      try {
+        window.open(payload.publishedUrl, "_blank");
+      } catch {}
       setShowRePublishConfirm(false);
     } catch (e) {
       setFeedback({ type: 'error', message: `Certeza AIA: ${e instanceof Error ? e.message : String(e)}` });
@@ -227,8 +233,25 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     }
   };
 
+  const handleTestRelay = async (forceAction: "full_test" | "notify" | "open" | "close" = "full_test") => {
+    setIsTestingRelay(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('activate-scheduled-exams', {
+        body: { testExamId: examId, forceAction }
+      });
+      if (error || !data?.success) throw new Error(data?.error || error?.message || "Error al ejecutar relay.");
+      const detailsMsg = data.details?.length > 0 ? data.details.join(" ") : `Avisos: ${data.notifiedExams}, Abiertos: ${data.openedExams}, Cerrados: ${data.closedExams}`;
+      setFeedback({ type: 'success', message: `¡Relay ejecutado! ${detailsMsg}` });
+      await fetchData();
+    } catch (err) {
+      setFeedback({ type: 'error', message: `Error en relay: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setIsTestingRelay(false);
+    }
+  };
+
   return {
-    loading, isSaving, isGenerating, isPublishingForm,
+    loading, isSaving, isGenerating, isPublishingForm, isTestingRelay,
     feedback, setFeedback,
     showRePublishConfirm, setShowRePublishConfirm,
     units, unitId, setUnitId,
@@ -237,6 +260,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     questions, setQuestions,
     deploymentMethod,
     googleFormUrl, googleFormEditUrl,
+    startNotifiedAt,
     students,
     restrictAudience, setRestrictAudience,
     selectedStudentIds, setSelectedStudentIds,
@@ -252,5 +276,6 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     handleRemoveQuestion,
     handleSave,
     handlePublishForm,
+    handleTestRelay,
   };
 }

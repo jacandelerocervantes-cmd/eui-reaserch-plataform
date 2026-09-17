@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Plus, Calendar, FileText,
-  Settings, Play, Loader2, AlertCircle, BookOpen, Rocket, Lock, RotateCcw, X
+  Settings, Play, Loader2, AlertCircle, BookOpen, Rocket, Lock, RotateCcw, X, ExternalLink
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import { useEvaluaciones, useEvaluacionesContent, useExamCard, type ExamListItem } from "./_hooks/useEvaluaciones";
@@ -53,13 +53,24 @@ const ExamHoverCard = ({ exam, courseId, onStatusChange }: { exam: ExamListItem,
       )}
       <div style={{ padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", alignItems: "center" }}>
-          <span style={{
-            fontSize: "0.7rem", fontWeight: "800",
-            color: statusColor.text, backgroundColor: statusColor.bg,
-            padding: "4px 8px", borderRadius: "6px", textTransform: "uppercase"
-          }}>
-            {STATUS_LABEL[exam.status] ?? exam.status}
-          </span>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <span style={{
+              fontSize: "0.7rem", fontWeight: "800",
+              color: statusColor.text, backgroundColor: statusColor.bg,
+              padding: "4px 8px", borderRadius: "6px", textTransform: "uppercase"
+            }}>
+              {STATUS_LABEL[exam.status] ?? exam.status}
+            </span>
+            {exam.deployment_method === "google_forms" && (
+              <span style={{
+                fontSize: "0.7rem", fontWeight: "800",
+                color: "#1B396A", backgroundColor: "#1B396A12",
+                padding: "4px 8px", borderRadius: "6px", textTransform: "uppercase"
+              }}>
+                Forms
+              </span>
+            )}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "#64748b", fontSize: "0.8rem", fontWeight: "600" }}>
             <Calendar size={12} /> {exam.start_at ? new Date(exam.start_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Sin fecha'}
           </div>
@@ -74,6 +85,29 @@ const ExamHoverCard = ({ exam, courseId, onStatusChange }: { exam: ExamListItem,
       </div>
 
       <div style={{ borderTop: "1px solid #f1f5f9", padding: "16px 20px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        {exam.google_form_url && (
+          <a
+            href={exam.google_form_url}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "0 14px",
+              height: "44px",
+              borderRadius: "12px",
+              border: "1px solid #1B396A25",
+              backgroundColor: "#1B396A10",
+              color: "#1B396A",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+              textDecoration: "none",
+            }}
+          >
+            <ExternalLink size={15} /> Form
+          </a>
+        )}
         {exam.status === 'draft' && (
           <ExpandingButton icon={Rocket} label="Publicar ahora" onClick={() => handleStatusChange('published')} variant="primary" disabled={changingStatus} size={44} radius={12} gap={10} padding="0 16px" fontWeight={700} durationMs={300} />
         )}

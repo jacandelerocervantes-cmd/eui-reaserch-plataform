@@ -5,6 +5,7 @@ export type UnitOption = { id: string; unit_number: number; title: string };
 export type ExamListItem = {
   id: string; unit_id: string; title: string; description: string | null; status: string;
   start_at: string | null; duration_minutes: number | null; questions_count: number | null;
+  deployment_method?: string | null; google_form_url?: string | null;
 };
 
 export type FetchResult = { ok: true; units: UnitOption[]; evaluaciones: ExamListItem[] } | { ok: false; error: string };

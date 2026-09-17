@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Sparkles, Save, Loader2, AlertCircle, AlertTriangle, ExternalLink, FileSpreadsheet, X, Copy } from "lucide-react";
+import { Sparkles, Save, Loader2, AlertCircle, AlertTriangle, ExternalLink, FileSpreadsheet, X, Copy, Check, Radio, Play } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import DateTimeFieldMX from "@/components/ui/DateTimeFieldMX";
 import { QuestionCard } from "../../_components/QuestionCard";
@@ -21,6 +21,14 @@ export default function ConfiguracionExamenPage() {
   const examId = params?.examId as string;
   const e = useConfiguracionExamen(courseId, examId);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [copiedFormUrl, setCopiedFormUrl] = useState(false);
+
+  const handleCopyFormUrl = () => {
+    if (!e.googleFormUrl) return;
+    navigator.clipboard.writeText(e.googleFormUrl);
+    setCopiedFormUrl(true);
+    setTimeout(() => setCopiedFormUrl(false), 2000);
+  };
 
   if (e.loading) return <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><Loader2 className="animate-spin" size={48} color="#1B396A" /></div>;
 
@@ -97,7 +105,42 @@ export default function ConfiguracionExamenPage() {
             <DateTimeFieldMX value={e.examConfig.startAt} onChange={(v) => e.setExamConfig({...e.examConfig, startAt: v})} />
           </div>
           <div>
-            <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>Fin</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", textTransform: "uppercase", margin: 0 }}>Fin</label>
+              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                {[30, 50, 60, 90].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => {
+                      if (!e.examConfig.startAt) return;
+                      const startDate = new Date(e.examConfig.startAt);
+                      if (isNaN(startDate.getTime())) return;
+                      const endDate = new Date(startDate.getTime() + mins * 60 * 1000);
+                      const y = endDate.getFullYear();
+                      const mo = String(endDate.getMonth() + 1).padStart(2, "0");
+                      const d = String(endDate.getDate()).padStart(2, "0");
+                      const h = String(endDate.getHours()).padStart(2, "0");
+                      const m = String(endDate.getMinutes()).padStart(2, "0");
+                      e.setExamConfig({ ...e.examConfig, endAt: `${y}-${mo}-${d}T${h}:${m}` });
+                    }}
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: "700",
+                      padding: "2px 6px",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      backgroundColor: "white",
+                      color: "#1B396A",
+                      cursor: e.examConfig.startAt ? "pointer" : "not-allowed",
+                      opacity: e.examConfig.startAt ? 1 : 0.5,
+                    }}
+                  >
+                    +{mins}m
+                  </button>
+                ))}
+              </div>
+            </div>
             <DateTimeFieldMX value={e.examConfig.endAt} onChange={(v) => e.setExamConfig({...e.examConfig, endAt: v})} />
           </div>
         </div>
@@ -129,6 +172,28 @@ export default function ConfiguracionExamenPage() {
             </div>
             {e.googleFormUrl ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={handleCopyFormUrl}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: copiedFormUrl ? "1px solid #86efac" : "1px solid #1B396A",
+                    backgroundColor: copiedFormUrl ? "#f0fdf4" : "#1B396A",
+                    color: copiedFormUrl ? "#166534" : "white",
+                    fontWeight: "700",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {copiedFormUrl ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedFormUrl ? "¡Liga copiada al portapapeles!" : "Copiar liga para alumnos"}
+                </button>
                 <a href={e.googleFormUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1B396A25", backgroundColor: "#1B396A10", color: "#1B396A", fontWeight: "700", fontSize: "0.85rem", textDecoration: "none" }}>
                   <ExternalLink size={16} /> Ver Formulario
                 </a>
@@ -142,6 +207,114 @@ export default function ConfiguracionExamenPage() {
             ) : (
               <ExpandingButton icon={Sparkles} label="Generar Google Form" loadingLabel="Generando..." variant="ai" onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} disabled={e.questions.length === 0} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />
             )}
+          </div>
+
+          <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Radio size={14} color="#0284c7" />
+                <span style={{ fontSize: "0.75rem", fontWeight: "900", color: "#0f172a", textTransform: "uppercase" }}>Relay Programado</span>
+              </div>
+              <span style={{
+                fontSize: "0.68rem",
+                fontWeight: "800",
+                padding: "2px 8px",
+                borderRadius: "6px",
+                backgroundColor: e.status === "published" ? "#dcfce7" : e.status === "closed" ? "#f1f5f9" : "#fef3c7",
+                color: e.status === "published" ? "#166534" : e.status === "closed" ? "#475569" : "#b45309",
+              }}>
+                {e.status === "published" ? "En curso" : e.status === "closed" ? "Finalizado" : "Programado"}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.75rem", color: "#475569", marginBottom: "14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#64748b" }}>Aviso previo:</span>
+                <span style={{ fontWeight: "700", color: e.startNotifiedAt ? "#166534" : "#64748b" }}>
+                  {e.startNotifiedAt ? `Enviado (${new Date(e.startNotifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : "10 min antes"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#64748b" }}>Apertura:</span>
+                <span style={{ fontWeight: "700", color: "#0f172a" }}>
+                  {e.examConfig.startAt ? new Date(e.examConfig.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sin definir"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#64748b" }}>Cierre:</span>
+                <span style={{ fontWeight: "700", color: "#0f172a" }}>
+                  {e.examConfig.endAt ? new Date(e.examConfig.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sin definir"}
+                </span>
+              </div>
+            </div>
+
+            {/* Acciones de Prueba Inmediata */}
+            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
+              <span style={{ fontSize: "0.7rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                Pruebas en tiempo real:
+              </span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => e.handleTestRelay("notify")}
+                  disabled={e.isTestingRelay}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                    padding: "7px 8px", borderRadius: "8px", border: "1px solid #cbd5e1",
+                    backgroundColor: "white", fontSize: "0.72rem", fontWeight: "700", color: "#334155",
+                    cursor: e.isTestingRelay ? "not-allowed" : "pointer"
+                  }}
+                  title="Enviar correo de aviso a los alumnos del examen"
+                >
+                  <Play size={11} color="#0284c7" /> Probar Aviso
+                </button>
+                <button
+                  type="button"
+                  onClick={() => e.handleTestRelay("open")}
+                  disabled={e.isTestingRelay}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                    padding: "7px 8px", borderRadius: "8px", border: "1px solid #cbd5e1",
+                    backgroundColor: "white", fontSize: "0.72rem", fontWeight: "700", color: "#334155",
+                    cursor: e.isTestingRelay ? "not-allowed" : "pointer"
+                  }}
+                  title="Publicar y abrir Google Form en Drive"
+                >
+                  <Play size={11} color="#16a34a" /> Probar Apertura
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => e.handleTestRelay("close")}
+                  disabled={e.isTestingRelay}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                    padding: "7px 8px", borderRadius: "8px", border: "1px solid #cbd5e1",
+                    backgroundColor: "white", fontSize: "0.72rem", fontWeight: "700", color: "#334155",
+                    cursor: e.isTestingRelay ? "not-allowed" : "pointer"
+                  }}
+                  title="Cerrar examen y dejar de recibir respuestas en Google Form"
+                >
+                  <Play size={11} color="#dc2626" /> Probar Cierre
+                </button>
+                <button
+                  type="button"
+                  onClick={() => e.handleTestRelay()}
+                  disabled={e.isTestingRelay}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
+                    padding: "7px 8px", borderRadius: "8px", border: "1px solid #93c5fd",
+                    backgroundColor: "#eff6ff", fontSize: "0.72rem", fontWeight: "700", color: "#1d4ed8",
+                    cursor: e.isTestingRelay ? "not-allowed" : "pointer"
+                  }}
+                  title="Verificar y ejecutar relay según los horarios programados"
+                >
+                  {e.isTestingRelay ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} color="#1d4ed8" />} Auto Check
+                </button>
+              </div>
+            </div>
           </div>
 
           <SecuritySettings
@@ -230,6 +403,8 @@ export default function ConfiguracionExamenPage() {
             randomize_questions: e.randomizeQuestions,
             randomize_options: e.randomizeOptions,
             show_all_questions: e.showAllQuestions,
+            deployment_method: e.deploymentMethod,
+            google_form_url: e.googleFormUrl,
           }}
           questions={e.questions}
           onClose={() => setShowDuplicateModal(false)}

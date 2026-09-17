@@ -176,6 +176,18 @@ function doPost(e) {
         resultData = crearFormularioGoogle(payload);
         break;
 
+      case 'abrirFormularioGoogle':
+        resultData = abrirFormularioGoogle(payload);
+        break;
+
+      case 'cerrarFormularioGoogle':
+        resultData = cerrarFormularioGoogle(payload);
+        break;
+
+      case 'enviarCorreoAvisoExamen':
+        resultData = enviarCorreoAvisoExamen(payload);
+        break;
+
       case 'subirMaterialHibrido':
         resultData = subirMaterialHibrido(payload);
         break;

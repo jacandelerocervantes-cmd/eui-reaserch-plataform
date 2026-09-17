@@ -519,7 +519,7 @@ export default function ExamChatAssistant({
               SELECCIONA LA CANTIDAD DE REACTIVOS:
             </p>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-              {[5, 10, 15, 20].map((c) => (
+              {[5, 10, 20, 50].map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -541,7 +541,7 @@ export default function ExamChatAssistant({
                 <input
                   type="number"
                   min={1}
-                  max={40}
+                  max={100}
                   placeholder="#"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {

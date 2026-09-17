@@ -22,7 +22,7 @@
  * la respuesta en el mismo formato que usa el examen interno.
  */
 function crearFormularioGoogle(payload) {
-  const { title, questions, unitName, examId } = payload;
+  const { title, questions, unitName, examId, isFuture, startTimeStr } = payload;
 
   try {
     const form = FormApp.create(`[EUI-EVAL] ${title}`)
@@ -31,6 +31,12 @@ function crearFormularioGoogle(payload) {
         .setIsQuiz(true) // Crucial: lo convierte en cuestionario calificado
         .setCollectEmail(true)
         .setLimitOneResponsePerUser(true);
+
+    if (isFuture) {
+      form.setAcceptingResponses(false);
+      var timeMsg = startTimeStr ? " a las " + startTimeStr : " en el horario programado";
+      form.setCustomClosedFormMessage("Esta evaluación iniciará" + timeMsg + ". Por favor espera a la hora indicada para responder.");
+    }
 
     const itemsMap = []; // {questionId, formItemId, subIndex}
 
@@ -169,3 +175,99 @@ function onExamFormSubmit(e) {
     console.error('[onExamFormSubmit] ' + err.toString());
   }
 }
+
+/**
+ * Abre un Google Form para aceptar respuestas en vivo.
+ */
+function abrirFormularioGoogle(payload) {
+  const { formId } = payload;
+  if (!formId) return { success: false, error: "Falta formId." };
+  try {
+    const form = FormApp.openById(formId);
+    form.setAcceptingResponses(true);
+    return { success: true, formId: formId, acceptingResponses: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Cierra un Google Form para no aceptar más respuestas.
+ */
+function cerrarFormularioGoogle(payload) {
+  const { formId } = payload;
+  if (!formId) return { success: false, error: "Falta formId." };
+  try {
+    const form = FormApp.openById(formId);
+    form.setAcceptingResponses(false);
+    form.setCustomClosedFormMessage("Esta evaluación ha finalizado. Ya no se aceptan más respuestas.");
+    return { success: true, formId: formId, acceptingResponses: false };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Envía el correo institucional previo con la liga oficial de la evaluación a los alumnos.
+ */
+function enviarCorreoAvisoExamen(payload) {
+  const { emails, title, courseTitle, startTimeStr, endTimeStr, formUrl } = payload;
+  if (!emails || !Array.isArray(emails) || emails.length === 0) {
+    return { success: true, message: "Sin destinatarios para notificar." };
+  }
+
+  var quota = MailApp.getRemainingDailyQuota();
+  if (quota < emails.length) {
+    return { success: false, error: "Cuota de correo insuficiente (quedan " + quota + ", requeridos " + emails.length + ")." };
+  }
+
+  try {
+    var html =
+      '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:14px;padding:26px;background:#ffffff;">' +
+      '<div style="border-bottom:2px solid #1B396A;padding-bottom:14px;margin-bottom:20px;">' +
+      '<span style="font-size:11px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Certeza AIA • EUI Plataforma de Educación</span>' +
+      '<h2 style="color:#1B396A;margin:8px 0 0 0;font-size:1.35rem;">Aviso de Evaluación Programada</h2>' +
+      '<p style="color:#475569;font-size:14px;margin:4px 0 0 0;">Materia: <strong>' + (courseTitle || "") + '</strong></p>' +
+      '</div>' +
+      '<p style="color:#334155;font-size:15px;line-height:1.5;">' +
+      'Estimado(a) estudiante,<br><br>' +
+      'Te informamos que tu evaluación <strong>"' + (title || "Evaluación") + '"</strong> comenzará en breve.' +
+      '</p>' +
+      '<div style="background:#f8fafc;border-left:4px solid #1B396A;padding:14px 18px;margin:18px 0;border-radius:0 10px 10px 0;">' +
+      '<p style="margin:4px 0;font-size:14px;color:#1e293b;"><strong>Horario de Inicio:</strong> ' + (startTimeStr || "Hora indicada") + '</p>' +
+      '<p style="margin:4px 0;font-size:14px;color:#1e293b;"><strong>Horario de Cierre:</strong> ' + (endTimeStr || "Hora indicada") + '</p>' +
+      '</div>' +
+      '<p style="color:#334155;font-size:14px;line-height:1.5;">' +
+      'Ten preparado tu dispositivo y conexión. Accede mediante la liga oficial a continuación (el formulario se habilitará a la hora programada):' +
+      '</p>' +
+      '<p style="text-align:center;margin:28px 0;">' +
+      '<a href="' + formUrl + '" style="background:#1B396A;color:#ffffff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;box-shadow:0 4px 6px -1px rgba(27,57,106,0.2);">' +
+      'Ingresar a la Evaluación' +
+      '</a>' +
+      '</p>' +
+      '<p style="color:#94a3b8;font-size:12px;text-align:center;margin-top:24px;border-top:1px solid #f1f5f9;padding-top:14px;">' +
+      'Este es un mensaje institucional automático. Por favor no respondas a este correo.' +
+      '</p>' +
+      '</div>';
+
+    var sentCount = 0;
+    emails.forEach(function(email) {
+      if (!email || typeof email !== "string" || email.indexOf("@") === -1) return;
+      try {
+        MailApp.sendEmail({
+          to: email.trim(),
+          subject: '[Aviso de Evaluación] ' + (courseTitle ? courseTitle + ' - ' : '') + title,
+          htmlBody: html,
+        });
+        sentCount++;
+      } catch (sendErr) {
+        console.error('[enviarCorreoAvisoExamen] Error enviando a ' + email + ': ' + sendErr.toString());
+      }
+    });
+
+    return { success: true, sentCount: sentCount };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+

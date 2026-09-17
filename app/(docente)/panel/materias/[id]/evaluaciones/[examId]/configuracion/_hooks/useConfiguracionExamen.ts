@@ -6,6 +6,25 @@ import { buildQuestionRow, parseQuestionRow, type EditQuestion, type QuestionRow
 export type UnitOption = { id: string; unit_number: number; title: string };
 export type StudentOption = { id: string; matricula: string; nombres: string; apellido_paterno: string; apellido_materno?: string | null };
 
+function formatToLocalInput(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${mo}-${day}T${h}:${m}`;
+}
+
+function parseToUTC(inputStr: string | null | undefined): string | null {
+  if (!inputStr) return null;
+  const d = new Date(inputStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export function useConfiguracionExamen(courseId: string, examId: string) {
   const router = useRouter();
 
@@ -61,8 +80,8 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
         setStatus(exam.status ?? "draft");
         setExamConfig({
           title: exam.title ?? "",
-          startAt: exam.start_at ? new Date(exam.start_at).toISOString().slice(0, 16) : "",
-          endAt: exam.end_at ? new Date(exam.end_at).toISOString().slice(0, 16) : "",
+          startAt: formatToLocalInput(exam.start_at),
+          endAt: formatToLocalInput(exam.end_at),
         });
         setRandomizeQuestions(exam.randomize_questions ?? true);
         setRandomizeOptions(exam.randomize_options ?? true);
@@ -148,12 +167,13 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
         .update({
           unit_id:             unitId,
           title:               examConfig.title,
-          start_at:            examConfig.startAt,
-          end_at:              examConfig.endAt,
+          start_at:            parseToUTC(examConfig.startAt),
+          end_at:              parseToUTC(examConfig.endAt),
           duration_minutes:    durationMinutes,
           randomize_questions: randomizeQuestions,
           randomize_options:   randomizeOptions,
-          show_all_questions: showAllQuestions,
+          show_all_questions:  showAllQuestions,
+          deployment_method:   deploymentMethod,
         })
         .eq("id", examId);
       if (examError) throw examError;

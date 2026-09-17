@@ -310,12 +310,13 @@ export function useNuevaEvaluacion(courseId: string) {
           unit_id:             unitId,
           title:               examConfig.title,
           status:              "draft",
-          start_at:            examConfig.startAt,
-          end_at:              examConfig.endAt,
+          start_at:            examConfig.startAt ? new Date(examConfig.startAt).toISOString() : null,
+          end_at:              examConfig.endAt ? new Date(examConfig.endAt).toISOString() : null,
           duration_minutes:    durationMinutes,
           randomize_questions: randomizeQuestions,
           randomize_options:   randomizeOptions,
           show_all_questions:  showAllQuestions,
+          deployment_method:   deployment,
         }])
         .select("id")
         .single();

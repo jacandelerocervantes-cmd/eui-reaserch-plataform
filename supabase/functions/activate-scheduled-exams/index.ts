@@ -19,8 +19,21 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 
   const authHeader = req.headers.get("Authorization") ?? ""
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+  const serviceRoleKey = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim()
+
+  let isServiceRole = Boolean(serviceRoleKey && token === serviceRoleKey)
+  if (!isServiceRole && token.includes(".")) {
+    try {
+      const parts = token.split(".")
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]))
+        if (payload.role === "service_role") {
+          isServiceRole = true
+        }
+      }
+    } catch {}
+  }
 
   let docenteUserId: string | null = null
   let serviceClient: any

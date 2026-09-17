@@ -44,6 +44,7 @@ serve(async (req: Request) => {
   const now = new Date()
   const nowIso = now.toISOString()
   const tenMinutesFromNowIso = new Date(now.getTime() + 10 * 60 * 1000).toISOString()
+  const oneHourFromNowIso = new Date(now.getTime() + 60 * 60 * 1000).toISOString()
 
   let testExamId: string | null = null
   let forceAction: string | null = null
@@ -57,6 +58,7 @@ serve(async (req: Request) => {
   }
 
   const results = {
+    formsCreated: 0,
     notifiedExams: 0,
     emailsSent: 0,
     openedExams: 0,
@@ -66,7 +68,57 @@ serve(async (req: Request) => {
 
   try {
     // ══════════════════════════════════════════════════════════════════════════
-    // FASE 1: NOTIFICACIÓN ANTICIPADA (10 MINUTOS ANTES DE INICIAR)
+    // FASE 0: PRE-CREACIÓN AUTOMÁTICA DE GOOGLE FORMS (1 HORA ANTES O MENOS)
+    // Si un examen usa Google Forms y aún no tiene form_id, se pre-crea en Drive
+    // en estado cerrado para que esté listo sin importar con cuántos minutos
+    // de anticipación lo programó o guardó el docente.
+    // ══════════════════════════════════════════════════════════════════════════
+    let preCreateQuery = serviceClient
+      .from("exams")
+      .select("id, title, start_at, end_at, course_id, unit_id, deployment_method, google_form_id, course_units(title, courses(id, title, teacher_id))")
+      .eq("deployment_method", "google_forms")
+      .is("google_form_id", null)
+      .in("status", ["draft", "published"])
+      .not("start_at", "is", null)
+
+    if (testExamId) {
+      preCreateQuery = preCreateQuery.eq("id", testExamId)
+    } else {
+      preCreateQuery = preCreateQuery
+        .lte("start_at", oneHourFromNowIso)
+        .gt("end_at", nowIso)
+        .limit(BATCH_LIMIT)
+    }
+
+    const { data: examsNeedingForm } = await preCreateQuery
+    if (examsNeedingForm && examsNeedingForm.length > 0) {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
+      for (const ex of examsNeedingForm) {
+        if (docenteUserId && ex.course_units?.courses?.teacher_id && ex.course_units.courses.teacher_id !== docenteUserId) {
+          continue
+        }
+        try {
+          const pubRes = await fetch(`${SUPABASE_URL}/functions/v1/publish-exam-form`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ examId: ex.id }),
+          })
+          const pubJson = await pubRes.json()
+          if (pubJson?.success) {
+            results.formsCreated++
+            results.details.push(`Google Form pre-creado en Drive para "${ex.title}".`)
+          }
+        } catch (cErr) {
+          console.error("[RELAY] Error pre-creando formulario:", cErr)
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // FASE 1: NOTIFICACIÓN ANTICIPADA (10 MINUTOS ANTES DE INICIAR O INMEDIATA)
     // ══════════════════════════════════════════════════════════════════════════
     let notifyQuery = serviceClient
       .from("exams")

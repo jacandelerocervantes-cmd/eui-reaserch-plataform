@@ -190,8 +190,29 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
         if (error) throw error;
       }
 
-      setFeedback({ type: 'success', message: "¡Cambios guardados correctamente!" });
-      setTimeout(() => router.push(`/panel/materias/${courseId}/evaluaciones`), 1200);
+      // 3. Si el método es Google Forms y aún no se ha generado el Formulario, generarlo en automático al guardar
+      if (deploymentMethod === "google_forms" && !googleFormUrl) {
+        setIsPublishingForm(true);
+        try {
+          const { data: formData, error: formError } = await supabase.functions.invoke('publish-exam-form', { body: { examId } });
+          if (formData?.success && formData.publishedUrl) {
+            setGoogleFormUrl(formData.publishedUrl);
+            setGoogleFormEditUrl(formData.editUrl);
+            setFeedback({ type: 'success', message: "¡Examen guardado y Google Form generado exitosamente en Google Drive!" });
+          } else {
+            setFeedback({ type: 'success', message: "¡Cambios guardados correctamente!" });
+          }
+        } catch (fErr) {
+          console.error("Error auto-generando Google Form al guardar:", fErr);
+          setFeedback({ type: 'success', message: "¡Cambios guardados correctamente!" });
+        } finally {
+          setIsPublishingForm(false);
+        }
+      } else {
+        setFeedback({ type: 'success', message: "¡Cambios guardados correctamente!" });
+      }
+
+      setTimeout(() => router.push(`/panel/materias/${courseId}/evaluaciones`), 1400);
     } catch (e) {
       setFeedback({ type: 'error', message: `Error al guardar: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
@@ -233,7 +254,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     }
   };
 
-  const handleTestRelay = async (forceAction: "full_test" | "notify" | "open" | "close" = "full_test") => {
+  const handleTestRelay = async (forceAction?: string) => {
     setIsTestingRelay(true);
     try {
       const { data, error } = await supabase.functions.invoke('activate-scheduled-exams', {
@@ -258,7 +279,7 @@ export function useConfiguracionExamen(courseId: string, examId: string) {
     status,
     examConfig, setExamConfig,
     questions, setQuestions,
-    deploymentMethod,
+    deploymentMethod, setDeploymentMethod,
     googleFormUrl, googleFormEditUrl,
     startNotifiedAt,
     students,

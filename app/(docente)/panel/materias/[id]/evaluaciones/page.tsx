@@ -145,23 +145,8 @@ const ExamHoverCard = ({ exam, courseId, onStatusChange }: { exam: ExamListItem,
           )}
         </div>
 
-        {/* Fila 2: Herramientas del Docente (Simular, Configuración, Resultados) sin saltos ni parpadeos */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/simulacion`)}
-            title="Simular vista de alumno"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-              height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
-              backgroundColor: "white", color: "#1B396A", fontWeight: 700, fontSize: "0.8rem",
-              cursor: "pointer", transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f0f4f9"; e.currentTarget.style.borderColor = "#1B396A"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
-          >
-            <Play size={14} color="#1B396A" /> Simular
-          </button>
+        {/* Fila 2: Herramientas del Docente (Ajustes y Notas) */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
           <button
             type="button"
             onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/configuracion`)}
@@ -169,28 +154,28 @@ const ExamHoverCard = ({ exam, courseId, onStatusChange }: { exam: ExamListItem,
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
               height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
-              backgroundColor: "white", color: "#475569", fontWeight: 700, fontSize: "0.8rem",
+              backgroundColor: "white", color: "#1B396A", fontWeight: 700, fontSize: "0.85rem",
               cursor: "pointer", transition: "all 0.15s ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8fafc"; e.currentTarget.style.borderColor = "#94a3b8"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f0f4f9"; e.currentTarget.style.borderColor = "#1B396A"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
           >
-            <Settings size={14} color="#475569" /> Ajustes
+            <Settings size={15} color="#1B396A" /> Configurar
           </button>
           <button
             type="button"
             onClick={() => router.push(`/panel/materias/${courseId}/evaluaciones/${exam.id}/resultados`)}
-            title="Ver resultados y notas"
+            title="Ver resultados y notas de alumnos"
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
               height: "38px", borderRadius: "10px", border: "1px solid #cbd5e1",
-              backgroundColor: "white", color: "#475569", fontWeight: 700, fontSize: "0.8rem",
+              backgroundColor: "white", color: "#475569", fontWeight: 700, fontSize: "0.85rem",
               cursor: "pointer", transition: "all 0.15s ease",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#f8fafc"; e.currentTarget.style.borderColor = "#94a3b8"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "white"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
           >
-            <FileText size={14} color="#475569" /> Notas
+            <FileText size={15} color="#475569" /> Resultados
           </button>
         </div>
       </div>

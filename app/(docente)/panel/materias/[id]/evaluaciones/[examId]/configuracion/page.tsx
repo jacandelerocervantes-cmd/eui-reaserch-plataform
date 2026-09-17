@@ -166,46 +166,75 @@ export default function ConfiguracionExamenPage() {
       <div style={{ width: "320px", backgroundColor: "white", borderLeft: "1px solid #e2e8f0", padding: "35px", display: "flex", flexDirection: "column", overflowY: "auto" }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "28px" }}>
           <div>
-            <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>Google Forms</label>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 10px", borderRadius: "8px", backgroundColor: e.deploymentMethod === "google_forms" ? "#1B396A10" : "#f1f5f9", color: e.deploymentMethod === "google_forms" ? "#1B396A" : "#64748b", fontSize: "0.7rem", fontWeight: "800", marginBottom: "12px" }}>
-              Modo actual: {e.deploymentMethod === "google_forms" ? "Google Forms" : "Interno"}
+            <label style={{ fontSize: "0.75rem", fontWeight: "900", color: "#64748b", display: "block", marginBottom: "10px", textTransform: "uppercase" }}>Método de Aplicación</label>
+            <div style={{ display: "flex", gap: "6px", backgroundColor: "#f1f5f9", padding: "5px", borderRadius: "14px", marginBottom: "12px" }}>
+              <button
+                type="button"
+                onClick={() => e.setDeploymentMethod("interno")}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: "10px", border: "none",
+                  fontSize: "0.75rem", fontWeight: "900", cursor: "pointer",
+                  backgroundColor: e.deploymentMethod === "interno" ? "white" : "transparent",
+                  boxShadow: e.deploymentMethod === "interno" ? "0 4px 6px rgba(0,0,0,0.05)" : "none",
+                  color: e.deploymentMethod === "interno" ? "#1B396A" : "#64748b",
+                  transition: "0.2s"
+                }}
+              >INTERNO</button>
+              <button
+                type="button"
+                onClick={() => e.setDeploymentMethod("google_forms")}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: "10px", border: "none",
+                  fontSize: "0.75rem", fontWeight: "900", cursor: "pointer",
+                  backgroundColor: e.deploymentMethod === "google_forms" ? "white" : "transparent",
+                  boxShadow: e.deploymentMethod === "google_forms" ? "0 4px 6px rgba(0,0,0,0.05)" : "none",
+                  color: e.deploymentMethod === "google_forms" ? "#1B396A" : "#64748b",
+                  transition: "0.2s"
+                }}
+              >GOOGLE FORMS</button>
             </div>
-            {e.googleFormUrl ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={handleCopyFormUrl}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "10px 14px",
-                    borderRadius: "10px",
-                    border: copiedFormUrl ? "1px solid #86efac" : "1px solid #1B396A",
-                    backgroundColor: copiedFormUrl ? "#f0fdf4" : "#1B396A",
-                    color: copiedFormUrl ? "#166534" : "white",
-                    fontWeight: "700",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {copiedFormUrl ? <Check size={16} /> : <Copy size={16} />}
-                  {copiedFormUrl ? "¡Liga copiada al portapapeles!" : "Copiar liga para alumnos"}
-                </button>
-                <a href={e.googleFormUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1B396A25", backgroundColor: "#1B396A10", color: "#1B396A", fontWeight: "700", fontSize: "0.85rem", textDecoration: "none" }}>
-                  <ExternalLink size={16} /> Ver Formulario
-                </a>
-                {e.googleFormEditUrl && (
-                  <a href={e.googleFormEditUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0", color: "#64748b", fontWeight: "700", fontSize: "0.85rem", textDecoration: "none" }}>
-                    <FileSpreadsheet size={16} /> Editar en Forms
+
+            {e.deploymentMethod === "google_forms" && (
+              e.googleFormUrl ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={handleCopyFormUrl}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: copiedFormUrl ? "1px solid #86efac" : "1px solid #1B396A",
+                      backgroundColor: copiedFormUrl ? "#f0fdf4" : "#1B396A",
+                      color: copiedFormUrl ? "#166534" : "white",
+                      fontWeight: "700",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {copiedFormUrl ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedFormUrl ? "¡Liga copiada al portapapeles!" : "Copiar liga para alumnos"}
+                  </button>
+                  <a href={e.googleFormUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1B396A25", backgroundColor: "#1B396A10", color: "#1B396A", fontWeight: "700", fontSize: "0.85rem", textDecoration: "none" }}>
+                    <ExternalLink size={16} /> Ver Formulario
                   </a>
-                )}
-                <ExpandingButton icon={Sparkles} label="Regenerar Formulario" loadingLabel="Generando..." variant="ai" small onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} />
-              </div>
-            ) : (
-              <ExpandingButton icon={Sparkles} label="Generar Google Form" loadingLabel="Generando..." variant="ai" onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} disabled={e.questions.length === 0} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />
+                  {e.googleFormEditUrl && (
+                    <a href={e.googleFormEditUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #e2e8f0", color: "#64748b", fontWeight: "700", fontSize: "0.85rem", textDecoration: "none" }}>
+                      <FileSpreadsheet size={16} /> Editar en Forms
+                    </a>
+                  )}
+                  <ExpandingButton icon={Sparkles} label="Regenerar Formulario" loadingLabel="Generando..." variant="ai" small onClick={() => e.handlePublishForm(false)} loading={e.isPublishingForm} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} />
+                </div>
+              ) : (
+                <div style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px", fontSize: "0.78rem", color: "#1e40af", fontWeight: "600", display: "flex", alignItems: "flex-start", gap: "8px", lineHeight: "1.4" }}>
+                  <Sparkles size={16} color="#2563eb" style={{ flexShrink: 0, marginTop: "2px" }} />
+                  <span>El Google Form se creará automáticamente en Google Drive al presionar <strong>Guardar Cambios</strong>.</span>
+                </div>
+              )
             )}
           </div>
 
@@ -330,7 +359,23 @@ export default function ConfiguracionExamenPage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "24px" }}>
-          <ExpandingButton icon={Save} label="Guardar Cambios" loadingLabel="Guardando..." onClick={e.handleSave} variant="primary" loading={e.isSaving} disabled={e.total !== 100 || !e.examConfig.title || !e.unitId || !e.examConfig.startAt || !e.examConfig.endAt} size={44} smallSize={36} radius={12} gap={8} padding="0 14px" fontWeight={600} durationMs={300} iconSize={20} />
+          <ExpandingButton
+            icon={Save}
+            label={e.deploymentMethod === "google_forms" && !e.googleFormUrl ? "Guardar y Crear Google Form" : "Guardar Cambios"}
+            loadingLabel={e.deploymentMethod === "google_forms" && !e.googleFormUrl ? "Guardando y Creando Form..." : "Guardando..."}
+            onClick={e.handleSave}
+            variant="primary"
+            loading={e.isSaving || e.isPublishingForm}
+            disabled={e.total !== 100 || !e.examConfig.title || !e.unitId || !e.examConfig.startAt || !e.examConfig.endAt}
+            size={44}
+            smallSize={36}
+            radius={12}
+            gap={8}
+            padding="0 14px"
+            fontWeight={600}
+            durationMs={300}
+            iconSize={20}
+          />
           {e.total !== 100 && e.questions.length > 0 && (
             <div style={{ color: "#dc2626", fontSize: "0.75rem", textAlign: "center", fontWeight: "900", backgroundColor: "#fef2f2", padding: "10px", borderRadius: "10px", border: "1px solid #fee2e2" }}>
               <AlertCircle size={14} style={{ display: "inline", marginRight: "6px", verticalAlign: "middle" }} />

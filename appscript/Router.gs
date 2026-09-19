@@ -188,6 +188,10 @@ function doPost(e) {
         resultData = enviarCorreoAvisoExamen(payload);
         break;
 
+      case 'obtenerRespuestasGoogleForm':
+        resultData = obtenerRespuestasGoogleForm(payload);
+        break;
+
       case 'subirMaterialHibrido':
         resultData = subirMaterialHibrido(payload);
         break;

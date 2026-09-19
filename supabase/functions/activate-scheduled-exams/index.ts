@@ -56,7 +56,8 @@ serve(async (req: Request) => {
   const WEBHOOK_SECRET = Deno.env.get("APPS_SCRIPT_SECRET")
   const now = new Date()
   const nowIso = now.toISOString()
-  const tenMinutesFromNowIso = new Date(now.getTime() + 10 * 60 * 1000).toISOString()
+  // Ventana de aviso: 5 minutos antes (para que el correo llegue a las 9:00 AM si el examen inicia a las 9:05 AM)
+  const notificationWindowIso = new Date(now.getTime() + 5 * 60 * 1000).toISOString()
   const oneHourFromNowIso = new Date(now.getTime() + 60 * 60 * 1000).toISOString()
 
   let testExamId: string | null = null
@@ -145,7 +146,7 @@ serve(async (req: Request) => {
           .eq("id", testExamId)
           .is("start_notified_at", null)
           .in("status", ["draft", "published"])
-          .lte("start_at", tenMinutesFromNowIso)
+          .lte("start_at", notificationWindowIso)
           .gt("end_at", nowIso)
       } else {
         notifyQuery = notifyQuery.eq("id", "00000000-0000-0000-0000-000000000000")
@@ -155,7 +156,7 @@ serve(async (req: Request) => {
         .not("start_at", "is", null)
         .is("start_notified_at", null)
         .in("status", ["draft", "published"])
-        .lte("start_at", tenMinutesFromNowIso)
+        .lte("start_at", notificationWindowIso)
         .gt("end_at", nowIso)
         .limit(BATCH_LIMIT)
     }

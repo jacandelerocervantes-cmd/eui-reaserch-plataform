@@ -7,12 +7,19 @@ import { formatStudentName } from "@/lib/formatStudentName";
 import {
   CheckCircle2, AlertCircle,
   TrendingUp, Download, Sparkles,
-  Search, Eye, MessageSquare, Loader2, X, RotateCcw
+  Search, Eye, MessageSquare, Loader2, X, RotateCcw, RefreshCw
 } from "lucide-react";
 import ExpandingButton from "@/components/ui/ExpandingButton";
 import StatCard from "@/components/ui/StatCard";
 
-type ExamData = { title: string; course_units: { unit_number: number } | null };
+type ExamData = {
+  id?: string;
+  title: string;
+  deployment_method?: string | null;
+  google_form_id?: string | null;
+  google_form_url?: string | null;
+  course_units: { unit_number: number } | null;
+};
 
 type AlumnoResultado = {
   id: string;
@@ -144,6 +151,7 @@ function ResultadosContent({ courseId, examId, reloadKey, onRetry }: { courseId:
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [aiInsight, setAiInsight] = useState("Haz clic en 'Análisis Grupal IA' para obtener conclusiones pedagógicas.");
   const [feedbackModal, setFeedbackModal] = useState<AlumnoResultado | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,6 +188,32 @@ function ResultadosContent({ courseId, examId, reloadKey, onRetry }: { courseId:
   );
 
   const { examData, alumnos } = result;
+
+  // --- LÓGICA: SINCRONIZACIÓN BAJO DEMANDA GOOGLE FORMS ---
+  const handleSyncGoogleForms = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-form-responses', {
+        body: { examId }
+      });
+      if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.error || "Error al sincronizar con Google Forms.");
+      }
+      setActionToast({
+        type: 'success',
+        message: data.message || `Se sincronizaron ${data.syncedCount || 0} respuestas de Google Forms exitosamente.`
+      });
+      onRetry();
+    } catch (e) {
+      setActionToast({
+        type: 'error',
+        message: "Error de sincronización: " + (e instanceof Error ? e.message : String(e))
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // --- LÓGICA: ANÁLISIS IA ---
   const handleAIAnalysis = async () => {
@@ -259,6 +293,22 @@ function ResultadosContent({ courseId, examId, reloadKey, onRetry }: { courseId:
           <h1 style={{ color: "#1B396A", fontSize: "1.8rem", fontWeight: "900", margin: 0 }}>Resultados: {examData?.title}</h1>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
+          {(examData?.deployment_method === 'google_forms' || Boolean(examData?.google_form_id)) && (
+            <ExpandingButton
+              icon={RefreshCw}
+              label="Sincronizar Google Forms"
+              onClick={handleSyncGoogleForms}
+              loading={isSyncing}
+              variant="secondary"
+              size={44}
+              smallSize={36}
+              radius={10}
+              gap={8}
+              padding="0 12px"
+              fontWeight={700}
+              durationMs={300}
+            />
+          )}
           <ExpandingButton icon={Download} label="Actualizar Sábana" onClick={handleExport} loading={isExporting} variant="secondary" size={44} smallSize={36} radius={10} gap={8} padding="0 12px" fontWeight={700} durationMs={300} />
           <ExpandingButton icon={Sparkles} label="Análisis Grupal IA" onClick={handleAIAnalysis} loading={isAnalyzing} variant="ai" size={44} smallSize={36} radius={10} gap={8} padding="0 12px" fontWeight={700} durationMs={300} />
         </div>

@@ -6,15 +6,42 @@
  * "Google Forms" como método de aplicación en vez de "Interno".
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { buildCorsHeaders, errorResponse, verifyCourseOwnership, verifyDocente } from "../_shared/auth.ts"
 
 serve(async (req: Request) => {
   const cors = buildCorsHeaders()
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors })
 
-  const auth = await verifyDocente(req)
-  if (!auth.ok) return errorResponse(auth.err, cors)
-  const { userId, serviceClient } = auth.ctx
+  const authHeader = req.headers.get("Authorization") ?? ""
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+  const serviceRoleKey = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "").trim()
+
+  let isServiceRole = Boolean(serviceRoleKey && token === serviceRoleKey)
+  if (!isServiceRole && token.includes(".")) {
+    try {
+      const parts = token.split(".")
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]))
+        if (payload.role === "service_role") {
+          isServiceRole = true
+        }
+      }
+    } catch {}
+  }
+
+  let serviceClient: any
+  let userId: string | null = null
+
+  if (isServiceRole) {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+    serviceClient = createClient(SUPABASE_URL, serviceRoleKey)
+  } else {
+    const auth = await verifyDocente(req)
+    if (!auth.ok) return errorResponse(auth.err, cors)
+    userId = auth.ctx.userId
+    serviceClient = auth.ctx.serviceClient
+  }
 
   try {
     const { examId, force } = await req.json()
@@ -35,7 +62,7 @@ serve(async (req: Request) => {
     )
 
     const course = (exam as any).course_units?.courses
-    if (!course?.id || !(await verifyCourseOwnership(serviceClient, course.id, userId))) {
+    if (userId && (!course?.id || !(await verifyCourseOwnership(serviceClient, course.id, userId)))) {
       return new Response(
         JSON.stringify({ success: false, error: "No tienes permiso sobre este examen." }),
         { status: 403, headers: { ...cors, "Content-Type": "application/json" } }
@@ -73,20 +100,71 @@ serve(async (req: Request) => {
     // espera crearFormularioGoogle — misma lógica que usa el editor al cargar
     // un examen. El "id" viaja para poder mapear cada ítem del Form de vuelta
     // a su question_id real (ver itemsMap más abajo).
+    // Reconstruir la forma {id, options, answer, left, right, correct} que
+    // espera crearFormularioGoogle con tipos compatibles con la API de Google Forms (Quiz).
     const safeParse = (s: string | null) => { try { return JSON.parse(s ?? "null") } catch { return null } }
-    const questions = questionsRows.map((q: any) => {
+    const questions: any[] = []
+
+    for (const q of questionsRows) {
       const t = q.q_type
+      const points = Math.max(1, Math.round(Number(q.points) || 1))
+
+      if (t === 'true_false') {
+        const ans = String(q.correct_answer).trim().toLowerCase() === 'falso' ? 'Falso' : 'Verdadero'
+        questions.push({
+          id: q.id,
+          type: 'multiple_choice',
+          content: q.content,
+          points,
+          options: ['Verdadero', 'Falso'],
+          answer: ans,
+        })
+        continue
+      }
+
       if (t === 'matching') {
-        return { id: q.id, type: t, content: q.content, points: q.points, left: q.options?.left ?? [], right: q.options?.right ?? [], correct: safeParse(q.correct_answer) ?? [] }
+        const left: string[] = q.options?.left ?? []
+        const right: string[] = q.options?.right ?? []
+        const correctArr: number[] = safeParse(q.correct_answer) ?? []
+        const cleanRight = [...new Set(right.map((r: any) => String(r).trim()).filter(Boolean))]
+
+        left.forEach((concepto, idx) => {
+          if (!concepto || !String(concepto).trim()) return
+          const correctIdx = correctArr[idx]
+          const correcta = right[correctIdx] || cleanRight[0]
+          questions.push({
+            id: q.id,
+            type: 'multiple_choice',
+            content: `${q.content} — Concepto: "${String(concepto).trim()}"`,
+            points: 1,
+            options: cleanRight,
+            answer: String(correcta).trim(),
+          })
+        })
+        continue
       }
-      if (t === 'multi_select') {
-        return { id: q.id, type: t, content: q.content, points: q.points, options: q.options ?? [], correct: safeParse(q.correct_answer) ?? [] }
+
+      // multiple_choice y cualquier otro tipo:
+      let rawOptions = Array.isArray(q.options) ? q.options : []
+      let cleanOptions = [...new Set(rawOptions.map((o: any) => String(o).trim()).filter(Boolean))]
+      let answer = String(q.correct_answer || '').trim()
+
+      if (answer && !cleanOptions.includes(answer)) {
+        cleanOptions.push(answer)
       }
-      if (t === 'ordering') {
-        return { id: q.id, type: t, content: q.content, points: q.points, options: { items: safeParse(q.correct_answer) ?? q.options?.items ?? [] } }
+      if (cleanOptions.length < 2) {
+        cleanOptions.push('Ninguna de las anteriores')
       }
-      return { id: q.id, type: t, content: q.content, points: q.points, options: q.options ?? [], answer: q.correct_answer }
-    })
+
+      questions.push({
+        id: q.id,
+        type: 'multiple_choice',
+        content: q.content,
+        points,
+        options: cleanOptions,
+        answer: answer || cleanOptions[0],
+      })
+    }
 
     const APPS_SCRIPT_URL = Deno.env.get("APPS_SCRIPT_URL")
     const WEBHOOK_SECRET  = Deno.env.get("APPS_SCRIPT_SECRET")
@@ -107,7 +185,7 @@ serve(async (req: Request) => {
             questions,
             unitName: (exam as any).course_units?.title ?? "",
             examId,
-            isFuture: exam.start_at ? new Date(exam.start_at).getTime() > Date.now() : false,
+            isFuture: false,
             startTimeStr: exam.start_at ? new Date(exam.start_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "",
           },
         }),

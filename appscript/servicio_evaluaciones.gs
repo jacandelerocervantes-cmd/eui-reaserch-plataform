@@ -271,3 +271,49 @@ function enviarCorreoAvisoExamen(payload) {
   }
 }
 
+/**
+ * Obtiene todas las respuestas enviadas a un Google Form.
+ * Permite la sincronización bajo demanda (pull) desde la plataforma EUI Research.
+ */
+function obtenerRespuestasGoogleForm(payload) {
+  const { formId } = payload;
+  if (!formId) return { success: false, error: "Falta formId." };
+
+  try {
+    const form = FormApp.openById(formId);
+    const formResponses = form.getResponses();
+    const responses = [];
+
+    for (var i = 0; i < formResponses.length; i++) {
+      var fr = formResponses[i];
+      var respondentEmail = fr.getRespondentEmail();
+      var timestamp = fr.getTimestamp() ? fr.getTimestamp().toISOString() : null;
+      var itemResponses = fr.getItemResponses();
+      var mappedItems = [];
+
+      for (var j = 0; j < itemResponses.length; j++) {
+        var ir = itemResponses[j];
+        mappedItems.push({
+          formItemId: ir.getItem().getId().toString(),
+          answer: ir.getResponse(),
+        });
+      }
+
+      responses.push({
+        respondentEmail: respondentEmail,
+        timestamp: timestamp,
+        itemResponses: mappedItems,
+      });
+    }
+
+    return {
+      success: true,
+      formId: formId,
+      responsesCount: responses.length,
+      responses: responses,
+    };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
